@@ -1,0 +1,59 @@
+#!/bin/bash -ex
+echo "porter bootstrap BEGIN"
+
+export PORTER_VERSION={{ .PorterVersion }}
+export PORTER_SERVICE_NAME={{ .ServiceName }}
+export PORTER_SERVICE_VERSION={{ .ServiceVersion }}
+export PORTER_ENVIRONMENT={{ .Environment }}
+{{ if .DevMode -}}
+export DEV_MODE=1
+{{- end }}
+
+env
+service haproxy start
+service docker restart
+docker version
+
+# download porter
+curl --compressed -so /usr/bin/porter {{ .PorterBinaryUrl }}
+chmod +x /usr/bin/porter
+porter version
+
+porter host rsyslog --init
+
+# Log rotation
+CRONTAB_SNAPSHOT=/tmp/crontab_snapshot
+crontab -l > $CRONTAB_SNAPSHOT || true
+echo '*/2 * * * * /usr/sbin/logrotate /etc/logrotate.conf >/dev/null 2>&1' >> $CRONTAB_SNAPSHOT
+crontab $CRONTAB_SNAPSHOT
+crontab -l
+rm $CRONTAB_SNAPSHOT
+
+# Custom EC2 bootstrapping from the ec2-bootstrap hook
+echo '' > {{ .EnvFile }}
+chmod 200 {{ .EnvFile }}
+{{ .EC2BootstrapScript }}
+chmod 444 {{ .EnvFile }}
+
+porter host daemon --init \
+-e {{ .Environment }} \
+-sn {{ .ServiceName }} \
+-hm {{ .PrimaryContainer.HealthCheckMethod }} \
+-hp {{ .PrimaryContainer.HealthCheckPath }} \
+-elbs {{ .Elbs }}
+
+# A hotswap operation is identical to what happens during initial configuration
+echo "installing service payload"
+/usr/bin/porter_hotswap
+
+# Tune system performance
+
+# keep-alive on haproxy backends is disabled meaning lots of sockets in
+# TIME_WAIT hanging around. reuse them
+sysctl -w net.ipv4.tcp_tw_reuse=1
+
+# open up ephemeral port range for more possible connections to the backend
+# https://github.com/torvalds/linux/blob/v3.14/Documentation/networking/ip-sysctl.txt#L699
+sysctl -w net.ipv4.ip_local_port_range='1024 65535'
+
+echo "porter bootstrap END"

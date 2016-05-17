@@ -1,0 +1,15 @@
+echo "downloading service payload"
+aws s3 cp s3://{{ .ServicePayloadBucket }}/{{ .ServicePayloadKey }} payload.tar
+
+# load all the containers in this tar
+echo "loading containers"
+bsdtar -xOf payload.tar --include="*.docker" | docker load
+
+echo "starting containers"
+bsdtar -xOf payload.tar {{ .ServicePayloadConfigPath }} \
+| porter host docker --start -e {{ .Environment }} -r {{ .Region }} \
+| porter host haproxy -sn {{ .ServiceName }} -hm {{ .PrimaryContainer.HealthCheckMethod }} -hp {{ .PrimaryContainer.HealthCheckPath }}
+
+echo "cleaning containers"
+bsdtar -xOf payload.tar {{ .ServicePayloadConfigPath }} \
+| porter host docker --clean -e {{ .Environment }} -r {{ .Region }}

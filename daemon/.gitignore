@@ -1,0 +1,6 @@
+.MANIFEST.json
+*.gz
+.provisioning_directives.json
+node_modules
+*.log
+*.docker

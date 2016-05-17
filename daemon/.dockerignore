@@ -1,0 +1,10 @@
+# This ignore only benefits the Dockerfile.build context
+# Our application's context is a tar stream we specify
+
+*.md
+*.js
+*.sh
+*.gz
+*.docker
+
+node_modules

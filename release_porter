@@ -1,0 +1,148 @@
+#!/usr/bin/perl
+
+if ($ARGV[0] eq 'upload') {
+    if ($ARGV[1] eq 'dev') {
+        $whoami = $ENV{'WHOAMI'} || `whoami`;
+        $release_version = 'v' . uc $whoami;
+        chomp($release_version);
+
+        $binary = 'porter_linux386';
+
+        &tag_binary($release_version);
+        $make_target = $ENV{'MAKE_TARGET'} || 'stage';
+        my $exitCode = system("make $make_target");
+        &untag_binary($release_version);
+
+        if ($exitCode != 0) {
+            die "make stage";
+        }
+
+        print "uploading $release_version/$binary\n";
+        system("gzip -9 bin/$binary && mv bin/$binary.gz bin/$binary")
+        &upload($release_version, $binary);
+        system("mv bin/$binary bin/$binary.gz && gzip -d bin/$binary.gz")
+    } else {
+        system('git push && git push upstream master:master');
+        $release_version = &next_minor_version;
+
+        print "Version to release ($release_version): ";
+        chomp($input_version = <STDIN>);
+        if ($input_version ne "") {
+            $release_version = $input_version;
+        }
+
+        $nb = &next_build_version;
+        $nm = &next_minor_version;
+        $nM = &next_major_version;
+
+        if ($release_version ne $nb && $release_version ne $nm && $release_version ne $nM) {
+            print "$release_version IS NOT one of $nb, $nm, or $nM. Are you sure? (Y\\n): ";
+            chomp($confirm = <STDIN>);
+            if ($confirm ne "Y") {
+                print "exiting\n";
+                exit 1;
+            }
+        }
+        print "releasing $release_version\n";
+
+        &tag_binary($release_version);
+        system('make stage');
+        &upload_releases($release_version);
+        &upload_releases('latest');
+        &untag_binary($release_version);
+        &tag_repo($release_version);
+        &push_tags($release_version);
+
+        system('open https://github.com/adobe-platform/porter/releases/new');
+        system('open bin');
+    }
+} else {
+    print "Usage:\n";
+    print "  upload\n";
+    exit 1;
+}
+
+sub push_tags {
+    my $next_version = $_[0];
+    system("git push --tags upstream");
+}
+
+sub tag_repo {
+    my $next_version = $_[0];
+    system("git tag $next_version");
+}
+
+# options MUST be compatible with BSD and GNU sed
+sub tag_binary {
+    my $next_version = $_[0];
+    my $binary_url = "https\\:\\/\\/s3-$ENV{'PORTER_BIN_S3_BUCKET_REGION'}.amazonaws.com\\/$ENV{'PORTER_BIN_S3_BUCKET'}\\/$next_version\\/porter_linux386";
+    system("sed -i -e 's/%%VERSION%%/$next_version/' constants/constants.go");
+    system("sed -i -e 's/%%BINARY_URL%%/$binary_url/' constants/constants.go");
+}
+
+sub untag_binary {
+    my $next_version = $_[0];
+    my $binary_url = "https\\:\\/\\/s3-$ENV{'PORTER_BIN_S3_BUCKET_REGION'}.amazonaws.com\\/$ENV{'PORTER_BIN_S3_BUCKET'}\\/$next_version\\/porter_linux386";
+    # reverse order from tag_binary is intentional
+    system("sed -i -e 's/$binary_url/%%BINARY_URL%%/' constants/constants.go");
+    system("sed -i -e 's/$next_version/%%VERSION%%/' constants/constants.go");
+}
+
+# upload the next version and put builds in the 'latest' folder as well
+sub upload_releases {
+    # TODO add validation that the tag doesn't already exist in S3
+    my $tag = $_[0];
+    foreach my $binary (qw/ porter_linux386 porter_darwin386 /) {
+        print "uploading $tag/$binary\n";
+        system("gzip -9 bin/$binary && mv bin/$binary.gz bin/$binary")
+        &upload($tag, $binary);
+        system("mv bin/$binary bin/$binary.gz && gzip -d bin/$binary.gz")
+    }
+}
+
+sub upload {
+    my($tag, $binary, $cmd);
+    ($tag, $binary) = @_;
+
+    $cmd = "aws s3 cp";
+    $cmd = "$cmd --acl 'public-read'";
+    $cmd = "$cmd --region $ENV{'PORTER_BIN_S3_BUCKET_REGION'}";
+    $cmd = "$cmd --cache-control 'max-age=300'";
+    $cmd = "$cmd --content-encoding 'gzip'";
+    $cmd = "$cmd --content-type 'application/octet-stream'";
+    $cmd = "$cmd bin/$binary s3://$ENV{'PORTER_BIN_S3_BUCKET'}/$tag/$binary";
+    return system($cmd);
+}
+
+sub next_major_version {
+    $_ = `git tag --sort="-v:refname" | head -n 1`;
+
+    if (/v(\d+)\.(\d+)\.(\d+)/) {
+        $major = $1 + 1;
+        return "v$major.0.0";
+    } else {
+        exit 1;
+    }
+}
+
+sub next_minor_version {
+    $_ = `git tag --sort="-v:refname" | head -n 1`;
+
+    if (/v(\d+)\.(\d+)\.(\d+)/) {
+        $minor = $2 + 1;
+        return "v$1.$minor.0";
+    } else {
+        exit 1;
+    }
+}
+
+sub next_build_version {
+    $_ = `git tag --sort="-v:refname" | head -n 1`;
+
+    if (/v(\d+)\.(\d+)\.(\d+)/) {
+        $build = $3 + 1;
+        return "v$1.$2.$build";
+    } else {
+        exit 1;
+    }
+}

@@ -1,0 +1,16 @@
+# This image's lineage
+# golang:1.6.2
+#   buildpack-deps:jessie-scm
+#     buildpack-deps:jessie-curl
+#       debian:jessie
+#         scratch
+FROM golang:1.6.2
+
+RUN go get github.com/tools/godep
+
+ADD . /go/src/github.com/adobe-platform/porter
+WORKDIR /go/src/github.com/adobe-platform/porter
+
+# Recompile everything and create a static binary
+ENV CGO_ENABLED=0
+CMD godep go build -v -a --installsuffix cgo -ldflags '-s' -o /host/porter

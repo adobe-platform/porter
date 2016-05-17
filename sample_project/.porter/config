@@ -1,0 +1,44 @@
+service_name: sample-service
+
+porter_version: v1.0.0
+
+# This a sample environment.
+#
+# An environment is simply a way to organize deployments across regions and
+# provide configuration per environment-region tuple.
+environments:
+- name: dev
+
+  # This is the role that porter will assume so that it can perform all the
+  # AWS API actions needed to create, update, rollback, and delete
+  # CloudFormation stacks and the resources they define
+  #
+  # TODO run `porter bootstrap iam` and fill in your account id
+  role_arn: arn:aws:iam::123456789012:role/porter-deployment
+
+  # The name of the SSH key used to login to EC2 instances
+  key_pair_name: TODO-key-pair-name
+
+  # This environment only deploys to a single region
+  regions:
+  - name: us-west-2
+
+    # Availability Zones are heterogeneous and differ between accounts so they
+    # must be parameterized
+    azs:
+    - name: us-west-2a
+    - name: us-west-2b
+    - name: us-west-2c
+
+    # The bucket for porter to use to upload builds. This will probably be
+    # shared by multiple services in an org so it makes sense to name it
+    # accordingly
+    s3_bucket: TODO-some-bucket
+
+    # For blue-green deployment porter needs to know what elb to promote
+    # instances into. This is only used by the build commands so if the
+    # dev environment that we've defined only supports local development
+    # using `porter create-stack` then this value isn't needed.
+    #
+    # TODO run `porter bootstrap elb` and fill this in
+    elb: elb-name
