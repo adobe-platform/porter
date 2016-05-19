@@ -75,7 +75,7 @@ Lots of useful documentation is built into porter itself.
 Run `porter help`, and most porter commands with no arguments for details on how
 to call them.
 
-- [Config reference](config-reference.md)
+- [Config reference](detailed_design/config-reference.md)
 - [Deployment hooks](detailed_design/deployment-hooks.md)
 - [CloudFormation customizations](detailed_design/cfn-customization.md)
 - [Container config (including secrets)](detailed_design/container-config.md)
