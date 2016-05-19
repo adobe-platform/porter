@@ -4,7 +4,7 @@ porter
 `porter` is a platform built on AWS APIs to enable continuous delivery of
 Docker containers to EC2.
 
-[User Documentation](docs)
+[User Documentation](docs/readme.md)
 
 [Developer Documentation](developing.md)
 

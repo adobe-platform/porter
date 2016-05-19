@@ -20,13 +20,12 @@ Features
   - Customizable AWS infrastructure with CloudFormation
 - Rapidly bootstrap an empty AWS account
 - Easily integrates with any CI/CD software
-- Hotswap code on existing infrastructure for rapid deployments
 - Easy to adopt and unobtrusive
 - Allows developers to provision a single-region stack using the same
   CloudFormation template used in other environments to verify feature and bug
   fixes _without_ needing to integrate in a shared environment (e.g. QA2)
 - Configurable deployment blackout windows during which build commands
-  will fail. Run `porter help files config` for more info.
+  will fail
 - Secrets management with KMS and S3 integration
 
 Project fit
@@ -76,7 +75,7 @@ Lots of useful documentation is built into porter itself.
 Run `porter help`, and most porter commands with no arguments for details on how
 to call them.
 
-- [FAQ](faq.md)
+- [Config reference](#config-reference.md)
 - [Deployment hooks](detailed_design/deployment-hooks.md)
 - [CloudFormation customizations](detailed_design/cfn-customization.md)
 - [Container config (including secrets)](detailed_design/container-config.md)
@@ -85,6 +84,7 @@ to call them.
 - [Service interface](detailed_design/platform-service.md)
 - [Porter components](detailed_design/components.md)
 - [Porter's dependencies](detailed_design/versions.md)
+- [FAQ](faq.md)
 
 Getting started
 ---------------
