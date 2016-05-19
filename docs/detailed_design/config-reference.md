@@ -235,7 +235,7 @@ works with SSL.
 ### key_pair_name
 
 key_pair_name is name of the SSH key pair that will be used to login to EC2
-instances. It is required if stack_definition_path is empty.
+instances.
 
 ### s3_bucket
 

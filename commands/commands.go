@@ -20,7 +20,6 @@ import (
 	"github.com/adobe-platform/porter/commands/build"
 	"github.com/adobe-platform/porter/commands/dev"
 	"github.com/adobe-platform/porter/commands/help"
-	filehelp "github.com/adobe-platform/porter/commands/help/files"
 	"github.com/adobe-platform/porter/commands/host"
 	"github.com/adobe-platform/porter/constants"
 	"github.com/phylake/go-cli"
@@ -94,14 +93,6 @@ These commands log to STDOUT and primarily run from files/cloud-init.yaml`,
 				ShortHelpStr: "General help",
 				LongHelpStr:  "General help and documentation not tied to a specific command",
 				SubCommandList: []cli.Command{
-					&cmd.Default{
-						NameStr:      "files",
-						ShortHelpStr: "The platform-service interface files",
-						LongHelpStr:  "The platform-service interface files",
-						SubCommandList: []cli.Command{
-							filehelp.Config,
-						},
-					},
 					help.Debug,
 					help.Issue,
 				},
