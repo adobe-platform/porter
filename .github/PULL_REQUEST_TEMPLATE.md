@@ -14,7 +14,10 @@ Did you update the documentation related to your changes?
 Did you run `make` _before_ committing code and opening this PR?
 
 - [ ] Yes
+- [ ] I didn't change any code
 
-Did you run `porter create-stack` and `porter sync-stack` to verify provisioning works?
+Did you run `porter create-stack` and `porter sync-stack` to verify provisioning
+works?
 
 - [ ] Yes
+- [ ] N/A
