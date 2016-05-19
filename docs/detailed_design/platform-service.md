@@ -63,36 +63,16 @@ See [Container config](container-config.md) for more.
 Minimal Configuration
 ---------------------
 
-For exact required fields see the sample configuration file
+For exact required fields see the [config reference](config-reference.md)
 
 The minimum configuration includes
 
 - the service's name
-- topology
 - a single environment and AWS region
 - the pre-built ELB in the environment-region (for elb-based topologies)
 
 Optional Configuration
 ----------------------
-
-#### .porter/config
-
-The sample configuration file includes all optional fields and is the most
-complex configuration. Some configuration we thought would be helpful are things
-like
-
-- Allowing service to `EXPOSE` multiple ports. This could be useful in a number
-  of ways. An example is to open up the needed port(s) for profiling tools such
-  as YourKit (Java) or pprof (Go)
-- Configuring health checks for services you deploy but didn't necessarily write
-  (e.g. [Turbine](https://github.com/netflix/turbine))
-- Defining multiple environments and naming them whatever makes sense for your
-  project.
-- Allowing a Role ARN per environment. This is helpful if environments are
-  associated with different AWS accounts.
-- Much more. Run `porter help files config` for all the options.
-
-#### CloudFormation template
 
 An optional CloudFormation template can be provided.
 
