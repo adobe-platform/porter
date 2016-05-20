@@ -264,7 +264,8 @@ func (recv *stackCreator) ensureDNSResources(template *cfn.Template) bool {
 func (recv *stackCreator) ensureInetToELBSG(template *cfn.Template) bool {
 
 	vpc := recv.region.VpcId != ""
-	resource := cfn_template.InetToELB(vpc)
+	https := recv.region.SSLCertARN != ""
+	resource := cfn_template.InetToELB(vpc, https)
 
 	template.SetResource(constants.ElbSgLogicalName, resource)
 

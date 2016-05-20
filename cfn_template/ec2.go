@@ -106,7 +106,7 @@ func ELBToInstance(vpc, https bool, elbName, elbSecurityGroup string) map[string
 }
 
 // Allow internet traffic to the ELB. This is only use in a custom VPC.
-func InetToELB(vpc bool) map[string]interface{} {
+func InetToELB(vpc, https bool) map[string]interface{} {
 
 	properties := map[string]interface{}{
 		"GroupDescription": "Allow internet traffic",
@@ -124,14 +124,28 @@ func InetToELB(vpc bool) map[string]interface{} {
 	if vpc {
 		metadata[constants.MetadataElb] = true
 
-		properties["SecurityGroupIngress"] = []interface{}{
+		sgIngress := []interface{}{
 			map[string]interface{}{
 				"IpProtocol": "tcp",
 				"CidrIp":     "0.0.0.0/0",
-				"FromPort":   80,
+				"FromPort":   80, // not constants.InetBindPorts
 				"ToPort":     80,
 			},
 		}
+
+		if https {
+
+			httpsIngress := map[string]interface{}{
+				"IpProtocol": "tcp",
+				"CidrIp":     "0.0.0.0/0",
+				"FromPort":   443, // not constants.InetBindPorts
+				"ToPort":     443,
+			}
+
+			sgIngress = append(sgIngress, httpsIngress)
+		}
+
+		properties["SecurityGroupIngress"] = sgIngress
 	}
 
 	return securityGroup
