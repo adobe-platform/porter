@@ -167,8 +167,7 @@ m3.xlarge
 ### blackout_windows
 
 blackout_window contains a start_time and end_time between which
-'porter build ...' commands **that take an environment parameter as input** will
-exit with status 1 immediately.
+'porter build ...' commands will exit with status 1 immediately.
 
 The times are parsed by https://golang.org/pkg/time/#Parse with layout RFC3339
 from https://golang.org/pkg/time/#pkg-constants
@@ -270,7 +269,14 @@ Must match `/^subnet-(\d|\w){8}$/`
 
 ### elb
 
-The name of the elb found in the AWS console.
+The name of an elb. This is found in the AWS console and can be created with
+`porter bootstrap elb`.
+
+The value is used during `porter build promote` to determine where instances
+should be promoted into.
+
+The value is also used during `porter build prune` to determine which
+Cloudformation stacks are eligible for deletion.
 
 ### containers
 

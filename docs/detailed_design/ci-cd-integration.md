@@ -16,7 +16,7 @@ There are three major things to understand to integrate porter.
 tl;dr
 -----
 
-From a EC2 box with the right IAM role permissiong, and an executable porter
+From a EC2 box with the right IAM role permissions, and an executable porter
 binary in the working directory
 
 ```bash
@@ -125,7 +125,7 @@ Prune operates on a particular environment in the `.porter/config` (the same
 environment given to provision), and concurrently on each region in the
 environment.
 
-It only job is to call DeleteStack on CloudFormation stacks with EC2 instances
+Its only job is to call DeleteStack on CloudFormation stacks with EC2 instances
 not current registered to any static ELB. The number of stacks (eligible for
 deletion) to keep is an optional parameter and defaults to 0.
 

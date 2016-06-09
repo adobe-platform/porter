@@ -1,8 +1,8 @@
 porter
 ======
 
-`porter` is a platform built on AWS APIs to enable continuous delivery (CD) of
-docker containers to EC2 instances across AWS regions.
+`porter` is a platform built on AWS APIs to enable continuous delivery of
+Docker containers to EC2.
 
 - [Features](#features)
 - [Project fit](#project-fit)
@@ -61,10 +61,9 @@ others. Here's some examples of each
 - Projects that manually release software. Porter was born and bred to support a
   fully automated CD environment. That said it is possible to add manual
   verification steps to a porter deployment.
-- Dockerized services with simple deployment requirements - use ECS
-- Dockerized services with no need of host-level software - use ECS
-- Entirely stateless services (not even in-memory caching) - use Lambda
-- Projects needing cloud-agnostic or alternative infrastructure provisioning - use [Terraform](https://www.terraform.io)
+- Dockerized services with simple deployment requirements - consider ECS
+- Entirely stateless services (not even in-memory caching) - consider Lambda
+- Projects needing cloud-agnostic or alternative infrastructure provisioning - consider [Terraform](https://www.terraform.io)
 - Projects need cloud-agnosticism. Porter is tied to AWS.
 
 Documentation
