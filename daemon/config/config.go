@@ -25,7 +25,7 @@ var (
 	CtxTimeout time.Duration
 )
 
-// This IS NOT init() because it needs to be called explicity when the daemon
+// This IS NOT init() because it needs to be called explicitly when the daemon
 // starts, otherwise it applies to all of porter which is undesirable
 func Init() {
 	timeout, err := time.ParseDuration(os.Getenv("CONTEXT_TIMEOUT"))
