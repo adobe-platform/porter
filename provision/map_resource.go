@@ -357,7 +357,7 @@ func setAutoScalingLaunchConfigurationMetadata(recv *stackCreator, template *cfn
 		constants.HookEC2Bootstrap,
 		recv.environment.Name,
 		[]provision_output.Region{
-			provision_output.Region{
+			{
 				AWSRegion: recv.region.Name,
 			},
 		},

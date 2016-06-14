@@ -69,7 +69,7 @@ func CreateStack(log log15.Logger, config *conf.Config, args StackArgs) (CreateS
 		defer fLock.Unlock()
 
 		parameters := []*cfnlib.Parameter{
-			&cfnlib.Parameter{
+			{
 				ParameterKey:   aws.String(constants.ParameterStackName),
 				ParameterValue: aws.String(stackName),
 			},
@@ -104,7 +104,7 @@ func UpdateStack(log log15.Logger, config *conf.Config, args StackArgs, createSt
 		}
 
 		parameters := []*cfnlib.Parameter{
-			&cfnlib.Parameter{
+			{
 				ParameterKey:   aws.String(constants.ParameterStackName),
 				ParameterValue: aws.String(createStackOutput.StackName),
 			},

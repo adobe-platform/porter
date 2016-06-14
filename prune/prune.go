@@ -277,7 +277,7 @@ func getELBPruneList(log log15.Logger, environment *conf.Environment,
 	}
 
 	// len(ineligibleStacks) == 1 by this point
-	for stackId, _ := range ineligibleStacks {
+	for stackId := range ineligibleStacks {
 		log.Info("Found stack with instances registered to a destination elb", "StackId", stackId)
 	}
 

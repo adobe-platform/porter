@@ -150,7 +150,7 @@ func bootstrapELB(elbName, region, sslArn string, subnetIds []string, securityGr
 	}
 
 	listeners := []*elb.Listener{
-		&elb.Listener{
+		{
 			InstancePort:     aws.Int64(80),
 			InstanceProtocol: aws.String("HTTP"),
 			LoadBalancerPort: aws.Int64(80),

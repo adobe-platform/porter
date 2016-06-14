@@ -111,7 +111,7 @@ func populateInstanceIdentity(log log15.Logger) error {
 	tagsResp, err := ec2Client.DescribeTags(&ec2.DescribeTagsInput{
 		// https://github.com/aws/aws-sdk-go/blob/ea83c25c44525da47e8044bbd21e4045758ea39b/service/autoscaling/api.go#L3141
 		Filters: []*ec2.Filter{
-			&ec2.Filter{
+			{
 				Name:   aws.String("resource-id"),
 				Values: []*string{aws.String(instanceId)},
 			},

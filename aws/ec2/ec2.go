@@ -227,7 +227,7 @@ func CreateVpcScenario2(region, tag string, createNATInstance bool) string {
 	vpcId := CreateVpc(client, "10.0.0.0/16", tag)
 
 	vpcFilter := map[string][]string{
-		"vpc-id": []string{vpcId},
+		"vpc-id": {vpcId},
 	}
 
 	for i := 0; i < 5; i++ {

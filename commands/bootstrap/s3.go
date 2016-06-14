@@ -122,7 +122,7 @@ func (recv *S3Cmd) Execute(args []string) bool {
 func bootstrapS3(bucketPrefix string) {
 	log := logger.CLI()
 
-	for region, _ := range constants.AwsRegions {
+	for region := range constants.AwsRegions {
 		client := s3.New(session.New(aws.NewConfig().WithRegion(region)))
 
 		bucketName := strings.TrimSuffix(bucketPrefix, "-") + "-" + region

@@ -65,7 +65,7 @@ func main() {
 			Specs: []ast.Spec{
 				&ast.ValueSpec{
 					Names: []*ast.Ident{
-						&ast.Ident{
+						{
 							Name: constName,
 							Obj:  ast.NewObj(ast.Con, constName),
 						},

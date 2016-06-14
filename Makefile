@@ -44,7 +44,7 @@ release_PRODUCTION: clean
 prebuild: generate fmt vet
 
 fmt:
-	go fmt ./...
+	gofmt -s -w .
 
 vet:
 	go vet $$PACKAGE_LIST

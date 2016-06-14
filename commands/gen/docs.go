@@ -193,7 +193,7 @@ func main() {
 					Params: &ast.FieldList{},
 					Results: &ast.FieldList{
 						List: []*ast.Field{
-							&ast.Field{
+							{
 								Type: &ast.ArrayType{
 									Elt: &ast.SelectorExpr{
 										X:   ast.NewIdent("cli"),
