@@ -1,6 +1,8 @@
 porter
 ======
 
+[![Build Status](https://travis-ci.org/adobe-platform/porter.svg?branch=master)](https://travis-ci.org/adobe-platform/porter)
+
 [![Report card](https://goreportcard.com/badge/github.com/adobe-platform/porter)](https://goreportcard.com/report/github.com/adobe-platform/porter)
 
 `porter` is a platform built on AWS APIs to enable continuous delivery of
