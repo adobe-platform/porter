@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/awsutil"
 	"github.com/aws/aws-sdk-go/aws/client"
@@ -508,6 +509,7 @@ func (u *multiuploader) upload(firstBuf io.ReadSeeker) (*UploadOutput, error) {
 
 	// Read and queue the rest of the parts
 	for u.geterr() == nil {
+		num++
 		// This upload exceeded maximum number of supported parts, error now.
 		if num > int64(u.ctx.MaxUploadParts) || num > int64(MaxUploadParts) {
 			var msg string
@@ -521,7 +523,6 @@ func (u *multiuploader) upload(firstBuf io.ReadSeeker) (*UploadOutput, error) {
 			u.seterr(awserr.New("TotalPartsExceeded", msg, nil))
 			break
 		}
-		num++
 
 		buf, err := u.nextReader()
 		if err == io.EOF {
@@ -530,7 +531,9 @@ func (u *multiuploader) upload(firstBuf io.ReadSeeker) (*UploadOutput, error) {
 
 		ch <- chunk{buf: buf, num: num}
 
-		if err != nil && err != io.ErrUnexpectedEOF {
+		if err == io.ErrUnexpectedEOF {
+			break
+		} else if err != nil {
 			u.seterr(awserr.New(
 				"ReadRequestBody",
 				"read multipart upload data failed",
@@ -554,7 +557,7 @@ func (u *multiuploader) upload(firstBuf io.ReadSeeker) (*UploadOutput, error) {
 		}
 	}
 	return &UploadOutput{
-		Location:  *complete.Location,
+		Location:  aws.StringValue(complete.Location),
 		VersionID: complete.VersionId,
 		UploadID:  u.uploadID,
 	}, nil
