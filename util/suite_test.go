@@ -1,4 +1,4 @@
-package provision_test
+package util_test
 
 import (
 	. "github.com/onsi/ginkgo"
@@ -9,5 +9,5 @@ import (
 
 func TestSuite(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Provision Suite")
+	RunSpecs(t, "Util Suite")
 }
