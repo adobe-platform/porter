@@ -43,9 +43,9 @@ STACK_CREATION_TIMEOUT
     porter create-stack -e dev
 
 STACK_CREATION_POLL_INTERVAL
-	Override the default polling for creation status interval during
-	stack provisioning.	The value is a string parsed by
-	https://golang.org/pkg/time/#ParseDuration. The default value is 10 seconds.
+    Override the default polling for creation status interval during
+    stack provisioning. The value is a string parsed by
+    https://golang.org/pkg/time/#ParseDuration. The default value is 10 seconds.
 
 NO_DOCKER_OVERRIDE
     Due to a regression in Docker, porter will attempt to download and use

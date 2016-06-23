@@ -1,3 +1,8 @@
+**v1.0.4**
+
+- add retries to one more DescribeStackResource
+- add an adjustable stack status polling frequency, see `porter debug help`
+
 **v1.0.3**
 
 - add retries to DescribeStackResource
