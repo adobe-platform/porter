@@ -29,6 +29,7 @@ import (
 	"github.com/adobe-platform/porter/conf"
 	"github.com/adobe-platform/porter/constants"
 	"github.com/adobe-platform/porter/logger"
+	"github.com/adobe-platform/porter/util"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -550,6 +551,10 @@ func dockerIfaceIPv4(log log15.Logger) string {
 }
 
 func getContainerToDstEnvS3Key(log log15.Logger, region string) (containerToDstEnvKey map[string]string, success bool) {
+	var (
+		describeStackResourceOutput *cloudformation.DescribeStackResourceOutput
+		err                         error
+	)
 
 	log = log.New("StackId", os.Getenv("AWS_STACKID"))
 
@@ -593,17 +598,23 @@ func getContainerToDstEnvS3Key(log log15.Logger, region string) (containerToDstE
 		StackName:         aws.String(os.Getenv("AWS_STACKID")),
 	}
 
-	describeStackResourceOutput, err := cfnClient.DescribeStackResource(describeStackResourceInput)
-	if err != nil {
-		log.Error("DescribeStackResource", "Error", err)
-		return
-	}
-	if describeStackResourceOutput.StackResourceDetail == nil {
-		log.Error("describeStackResourceOutput.StackResourceDetail == nil")
-		return
-	}
-	if describeStackResourceOutput.StackResourceDetail.Metadata == nil {
-		log.Error("describeStackResourceOutput.StackResourceDetail.Metadata == nil")
+	retryMsg := func(i int) { log.Warn("DescribeStackResource retrying", "Count", i) }
+	if !util.SuccessRetryer(9, retryMsg, func() bool {
+		describeStackResourceOutput, err = cfnClient.DescribeStackResource(describeStackResourceInput)
+		if err != nil {
+			log.Error("DescribeStackResource", "Error", err)
+			return false
+		}
+		if describeStackResourceOutput.StackResourceDetail == nil {
+			log.Error("describeStackResourceOutput.StackResourceDetail == nil")
+			return false
+		}
+		if describeStackResourceOutput.StackResourceDetail.Metadata == nil {
+			log.Error("describeStackResourceOutput.StackResourceDetail.Metadata == nil")
+			return false
+		}
+		return true
+	}) {
 		return
 	}
 

@@ -8,8 +8,9 @@ PACKAGE_LIST := ./aws ./cfn ./cfn_template ./commands ./conf ./constants ./daemo
 test: prebuild
 	docker build -t porter-test -f Dockerfile.test .
 	docker run -it --rm \
-	-e LOCAL_DEV=true \
 	-e TEST=true \
+	-v $$PWD:/go/src/github.com/adobe-platform/porter \
+	-w /go/src/github.com/adobe-platform/porter \
 	porter-test
 
 build_darwin: prebuild

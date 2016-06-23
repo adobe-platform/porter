@@ -27,6 +27,7 @@ import (
 	"github.com/adobe-platform/porter/daemon/flags"
 	"github.com/adobe-platform/porter/daemon/identity"
 	"github.com/adobe-platform/porter/logger"
+	"github.com/adobe-platform/porter/util"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 )
@@ -53,6 +54,11 @@ const (
 
 func Call() {
 	log := logger.Daemon("package", "wait_handle")
+
+	var (
+		describeStackResourceOutput *cloudformation.DescribeStackResourceOutput
+		err                         error
+	)
 
 	// Poll service health check until healthy and then call wait handle on its
 	// behalf.
@@ -137,9 +143,15 @@ func Call() {
 		StackName:         aws.String(stackName),
 	}
 
-	describeStackResourceOutput, err := cfnClient.DescribeStackResource(dsri)
-	if err != nil {
-		log.Error("DescribeStackResource", "Error", err)
+	retryMsg := func(i int) { log.Warn("DescribeStackResource retrying", "Count", i) }
+	if !util.SuccessRetryer(9, retryMsg, func() bool {
+		describeStackResourceOutput, err = cfnClient.DescribeStackResource(dsri)
+		if err != nil {
+			log.Error("DescribeStackResource", "Error", err)
+			return false
+		}
+		return true
+	}) {
 		return
 	}
 
