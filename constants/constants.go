@@ -31,12 +31,13 @@ const (
 	CloudFormationTemplatePath = TempDir + "/CloudFormationTemplate.json"
 	EnvFile                    = "/dockerfile.env"
 
-	EnvConfig           = "DEBUG_CONFIG"
-	EnvDebugAws         = "DEBUG_AWS"
-	EnvStackCreation    = "STACK_CREATION_TIMEOUT"
-	EnvNoDockerOverride = "NO_DOCKER_OVERRIDE"
-	EnvNoLogColor       = "NO_LOG_COLOR"
-	EnvDevMode          = "DEV_MODE"
+	EnvConfig                    = "DEBUG_CONFIG"
+	EnvDebugAws                  = "DEBUG_AWS"
+	EnvStackCreation             = "STACK_CREATION_TIMEOUT"
+	EnvStackCreationPollInterval = "STACK_CREATION_POLL_INTERVAL"
+	EnvNoDockerOverride          = "NO_DOCKER_OVERRIDE"
+	EnvNoLogColor                = "NO_LOG_COLOR"
+	EnvDevMode                   = "DEV_MODE"
 
 	HookPrePack       = "pre-pack"
 	HookPostPack      = "post-pack"
@@ -143,6 +144,13 @@ func StackCreationTimeout() time.Duration {
 	}
 
 	return 20 * time.Minute
+}
+
+func StackCreationPollInterval() time.Duration {
+	if dur, err := time.ParseDuration(os.Getenv(EnvStackCreationPollInterval)); err == nil {
+		return dur
+	}
+	return 10 * time.Second
 }
 
 func init() {

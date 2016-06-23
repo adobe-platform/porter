@@ -31,7 +31,7 @@ import (
 	"github.com/phylake/go-cli"
 )
 
-const sleepDuration = 10 * time.Second
+var sleepDuration = constants.StackCreationPollInterval()
 
 type (
 	ProvisionStackCmd struct{}
