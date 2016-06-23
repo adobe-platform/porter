@@ -28,10 +28,11 @@ import (
 	"github.com/adobe-platform/porter/logger"
 	"github.com/adobe-platform/porter/provision"
 	"github.com/adobe-platform/porter/provision_output"
+	"github.com/adobe-platform/porter/util"
 	"github.com/phylake/go-cli"
 )
 
-const sleepDuration = 10 * time.Second
+var sleepDuration = constants.StackCreationPollInterval()
 
 type (
 	ProvisionStackCmd struct{}
@@ -186,8 +187,9 @@ func ProvisionStack(env string) {
 
 func provisionStackPoll(environment *conf.Environment, stackRegionOutput provision.CreateStackRegionOutput, outputChan chan provision_output.Region, failureChan chan struct{}) {
 	var (
-		stackProvisioned bool
-		elbLogicalId     string
+		stackProvisioned   bool
+		elbLogicalId       string
+		physicalResourceID string
 	)
 
 	log := logger.CLI("cmd", "build-provision", "Region", stackRegionOutput.Region)
@@ -277,10 +279,15 @@ stackEventPoll:
 	}
 
 	//Once stack provisioned get the provisoned elb
-	physicalResourceID, err := cloudformation.DescribeStackResource(cfnClient, stackRegionOutput.StackId, elbLogicalId)
-
-	if err != nil {
-		log.Error("Error on getting physicalResourceId", "Error", err)
+	retryMsg := func(i int) { log.Warn("DescribeStackResource retrying", "Count", i) }
+	if !util.SuccessRetryer(9, retryMsg, func() bool {
+		physicalResourceID, err = cloudformation.DescribeStackResource(cfnClient, stackRegionOutput.StackId, elbLogicalId)
+		if err != nil {
+			log.Error("Error on getting physicalResourceId", "Error", err)
+			return false
+		}
+		return true
+	}) {
 		failureChan <- struct{}{}
 		return
 	}
