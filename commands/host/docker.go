@@ -191,6 +191,10 @@ func startContainers(environmentStr, regionStr string) {
 			// try to keep the container alive
 			"--restart", "always",
 
+			// drop privileges to provisioned user
+			"-u", constants.ContainerUserUid,
+			"--cap-drop=all",
+
 			// set ulimit for container
 			// TODO calculate this
 			"--ulimit", "nofile=200000",
