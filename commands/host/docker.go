@@ -214,13 +214,6 @@ func startContainers(environmentStr, regionStr string) {
 			// porterd
 			"-e", "PORTERD_TCP_ADDR=" + dockerIPv4,
 			"-e", "PORTERD_TCP_PORT=" + constants.PorterDaemonBindPort,
-
-			// datadog
-			"-e", "DATADOG_TCP_ADDR=" + dockerIPv4,
-			"-e", "DATADOG_TCP_PORT=1200",
-			// datadog statsd udp address
-			"-e", "DATADOG_UDP_ADDR=" + dockerIPv4,
-			"-e", "DATADOG_UDP_PORT=1210",
 		}
 
 		if container.DstEnvFile != nil {
