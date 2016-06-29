@@ -192,6 +192,7 @@ func startContainers(environmentStr, regionStr string) {
 			"--restart", "always",
 
 			// drop privileges to provisioned user
+			// TODO revisit --cap-drop=ALL with override https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
 			"-u", constants.ContainerUserUid,
 
 			// set ulimit for container
