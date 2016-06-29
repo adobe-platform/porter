@@ -193,7 +193,6 @@ func startContainers(environmentStr, regionStr string) {
 
 			// drop privileges to provisioned user
 			"-u", constants.ContainerUserUid,
-			"--cap-drop=all",
 
 			// set ulimit for container
 			// TODO calculate this
