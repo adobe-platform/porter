@@ -52,7 +52,6 @@ The health check method and path are configurable.
 ```bash
 PORTER_ENVIRONMENT # where am I?
 AWS_REGION         # who am I?
-CONTAINER_UID      # what is my container's uid?
 ```
 
 **Secrets and other service-defined config**
