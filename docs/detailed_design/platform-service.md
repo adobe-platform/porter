@@ -1,7 +1,7 @@
 platform-service interface
 ==========================
 
-This is the interface services need to implement in order to work with porter.
+This is the interface between porter and the services it deploys.
 
 porter favors convention over configuration where possible. This document
 describes conventions used in porter, followed by the minimal configuration
@@ -47,29 +47,30 @@ won't complete and a hotswap won't succeed if a service doesn't return a
 
 The health check method and path are configurable.
 
-### Additional environment variables
+### Container environment variables
 
-**Who and where am I?**
-
-```
-PORTER_ENVIRONMENT
-AWS_REGION
+```bash
+PORTER_ENVIRONMENT # where am I?
+AWS_REGION         # who am I?
+CONTAINER_UID      # what is my container's uid?
 ```
 
 **Secrets and other service-defined config**
+
+Services can provide additional environment variables (including secrets).
 
 See [Container config](container-config.md) for more.
 
 Minimal Configuration
 ---------------------
 
-For exact required fields see the [config reference](config-reference.md)
+For exact required fields see the [Config reference](config-reference.md)
 
 The minimum configuration includes
 
 - the service's name
 - a single environment and AWS region
-- the pre-built ELB in the environment-region (for elb-based topologies)
+- the name of an ELB in the environment-region (for elb-based topologies)
 
 Optional Configuration
 ----------------------

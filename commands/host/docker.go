@@ -214,6 +214,9 @@ func startContainers(environmentStr, regionStr string) {
 			// porterd
 			"-e", "PORTERD_TCP_ADDR=" + dockerIPv4,
 			"-e", "PORTERD_TCP_PORT=" + constants.PorterDaemonBindPort,
+
+			// Let services that run multi-proc containers do the right chown
+			"-e", "CONTAINER_UID=", constants.ContainerUserUid,
 		}
 
 		if container.DstEnvFile != nil {
