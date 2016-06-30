@@ -323,6 +323,13 @@ func AWSCloudFormationInit(autoScalingLaunchConfigurationLogicalId string, conte
 				"/etc/update-motd.d/99-porter": motd,
 				"/etc/logrotate.d/porter":      logRotate,
 			},
+			"users": map[string]interface{}{
+				"porter-docker": map[string]interface{}{
+					"groups":  []string{},
+					"uid":     constants.ContainerUserUid,
+					"homeDir": "/home/porter-docker",
+				},
+			},
 		},
 		// Why not just call /usr/bin/porter_hotswap again?
 		// We need to install the rewritten file first

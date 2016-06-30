@@ -71,6 +71,7 @@ type (
 		Topology    string       `yaml:"topology"`
 		InetPort    int          `yaml:"inet_port"`
 		Primary     bool         `yaml:"primary"`
+		Uid         *int         `yaml:"uid"`
 		HealthCheck *HealthCheck `yaml:"health_check"`
 		SrcEnvFile  *SrcEnvFile  `yaml:"src_env_file"`
 		DstEnvFile  *DstEnvFile  `yaml:"dst_env_file"`
