@@ -36,6 +36,7 @@ For each field the following notation is used
       - name
       - [topology](#topology) (==1?)
       - [inet_port](#inet_port) (==1?)
+      - [uid](#uid) (==1?)
       - [health_check](#health_check) (==1?)
       - [src_env_file](#src_env_file) (==1?)
       - [dst_env_file](#dst_env_file) (==1?)
@@ -313,6 +314,14 @@ otherwise the single EXPOSEd port is used.
 If a service EXPOSEs more than one port this field is required.
 
 This enables services to open up ports for things like profiling tools.
+
+### uid
+
+This specifies the uid the container is run with (i.e. `docker run -u`).
+
+The default if left unset is to use the provisioned porter-docker user.
+
+If your container expects to run as root set this value to 0.
 
 ### health_check
 

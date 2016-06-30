@@ -191,10 +191,6 @@ func startContainers(environmentStr, regionStr string) {
 			// try to keep the container alive
 			"--restart", "always",
 
-			// drop privileges to provisioned user
-			// TODO revisit --cap-drop=ALL with override https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
-			"-u", constants.ContainerUserUid,
-
 			// set ulimit for container
 			// TODO calculate this
 			"--ulimit", "nofile=200000",
@@ -215,6 +211,13 @@ func startContainers(environmentStr, regionStr string) {
 			// porterd
 			"-e", "PORTERD_TCP_ADDR=" + dockerIPv4,
 			"-e", "PORTERD_TCP_PORT=" + constants.PorterDaemonBindPort,
+		}
+
+		// TODO revisit --cap-drop=ALL with override https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+		if container.Uid == nil {
+			runArgs = append(runArgs, "-u", constants.ContainerUserUid)
+		} else {
+			runArgs = append(runArgs, "-u", strconv.Itoa(*container.Uid))
 		}
 
 		if container.DstEnvFile != nil {
