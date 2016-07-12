@@ -83,6 +83,7 @@ to call them.
 - [Service interface](detailed_design/platform-service.md)
 - [Porter components](detailed_design/components.md)
 - [Porter's dependencies](detailed_design/versions.md)
+- [Security](detailed_design/security.md)
 - [FAQ](faq.md)
 
 Getting started

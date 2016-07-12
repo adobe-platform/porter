@@ -22,9 +22,12 @@ for additional package information
 | Software               | Version |
 |------------------------|---------|
 | Amazon Linux AMI       | 2015.09 |
+| docker                 | 1.7.1   |
+| sysstat                | 9.0.4   |
 | rsyslogd               | 5.8.10  |
-| curl                   | 7.40.0  |
-| wget                   | 1.16.1  |
 | HA-Proxy               | 1.5.2   |
+| bsdtar                 | 3.0.4   |
 | porter (Go)            | 1.6.2   |
 | porterd (Go)           | 1.6.2   |
+| curl                   | 7.40.0  |
+| wget                   | 1.16.1  |
