@@ -76,4 +76,4 @@ Optional Configuration
 
 An optional CloudFormation template can be provided.
 
-See [CloudFormation customizations](cfn-customizations.md) for details
+See [CloudFormation customizations](cfn-customization.md) for details
