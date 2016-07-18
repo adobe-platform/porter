@@ -349,7 +349,7 @@ field
 
 ### hooks
 
-Read more about [deployment hooks](#deployment-hooks.md)
+Read more about [deployment hooks](deployment-hooks.md)
 
 ### repo
 
@@ -358,7 +358,9 @@ meaning URLs and relative paths to a repo are supported.
 
 ### ref
 
-The branch, sha, or tag to use
+The branch or tag to use.
+
+Hooks are cloned with `git clone --depth 1 --branch <ref> <repo>`
 
 ### dockerfile
 
