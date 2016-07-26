@@ -32,6 +32,9 @@ DEBUG_CONFIG
 DEBUG_AWS
     Dump all AWS HTTP calls
 
+LOG_DEBUG
+    Turn on porter's debug logging
+
 STACK_CREATION_TIMEOUT
     Override rollback time with a string parsed by
     https://golang.org/pkg/time/#ParseDuration

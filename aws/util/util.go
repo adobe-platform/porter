@@ -11,31 +11,11 @@
  */
 package util
 
-var regions = []string{
-	"ap-northeast-1",
-	"ap-southeast-1",
-	"ap-southeast-2",
-	"eu-central-1",
-	"eu-west-1",
-	"sa-east-1",
-	"us-east-1",
-	"us-west-1",
-	"us-west-2",
-}
+import "github.com/adobe-platform/porter/constants"
 
-// ValidRegion validates the input is one of
-//
-// ap-northeast-1
-// ap-southeast-1
-// ap-southeast-2
-// eu-central-1
-// eu-west-1
-// sa-east-1
-// us-east-1
-// us-west-1
-// us-west-2
+// ValidRegion validates the input an actual AWS region
 func ValidRegion(region string) bool {
-	for _, validRegion := range regions {
+	for _, validRegion := range constants.AwsRegions {
 		if region == validRegion {
 			return true
 		}

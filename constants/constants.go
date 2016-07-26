@@ -33,6 +33,7 @@ const (
 
 	EnvConfig                    = "DEBUG_CONFIG"
 	EnvDebugAws                  = "DEBUG_AWS"
+	EnvLogDebug                  = "LOG_DEBUG"
 	EnvStackCreation             = "STACK_CREATION_TIMEOUT"
 	EnvStackCreationPollInterval = "STACK_CREATION_POLL_INTERVAL"
 	EnvNoDockerOverride          = "NO_DOCKER_OVERRIDE"

@@ -58,14 +58,14 @@ func Package(log log15.Logger, config *conf.Config) (success bool) {
 
 			for _, container := range region.Containers {
 
-				originalName := container.Name
+				container.OriginalName = container.Name
 
 				// Alter the name in the config so we know which image names are part
 				// of the service payload. This is important for hotswap to know which
 				// of the available images on the host are the ones to be swapped in.
 				container.Name = fmt.Sprintf("%s-%d-%s", sha1, now, container.Name)
 
-				if _, exists := builtContainers[originalName]; !exists {
+				if _, exists := builtContainers[container.OriginalName]; !exists {
 
 					imagePath := fmt.Sprintf("%s/%s.docker", constants.PayloadWorkingDir, container.Name)
 
@@ -142,7 +142,7 @@ func Package(log log15.Logger, config *conf.Config) (success bool) {
 						return
 					}
 
-					builtContainers[originalName] = nil
+					builtContainers[container.OriginalName] = nil
 				}
 			}
 		}
