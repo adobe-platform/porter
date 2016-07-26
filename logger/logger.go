@@ -99,9 +99,9 @@ func addStackTraceLogging(log log15.Logger, writer io.Writer, logFmt log15.Forma
 	// put filter last because it will be run first
 	infoHandler = log15.FilterHandler(func(r *log15.Record) bool {
 		if os.Getenv(constants.EnvLogDebug) == "" {
-			return r.Lvl == log15.LvlInfo
+			return r.Lvl <= log15.LvlInfo
 		} else {
-			return r.Lvl == log15.LvlDebug
+			return r.Lvl <= log15.LvlDebug
 		}
 	}, infoHandler)
 
