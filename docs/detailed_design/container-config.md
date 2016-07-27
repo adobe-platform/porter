@@ -115,7 +115,7 @@ secrets file.
 Multi-region container config
 -----------------------------
 
-Since SSE-KMS ties a bucket to a key per region, we need a way to define
+Since SSE-KMS ties a S3 bucket to a KMS key per region, we need a way to define
 container-specific config per region.
 
 Here is an example config that deploys to 2 regions, us-west-2 and us-east-1,
