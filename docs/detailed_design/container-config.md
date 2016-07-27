@@ -135,7 +135,7 @@ secrets and generate - for itself, internally - the format below:
 where
 
 - `container_secrets` is a reserved key that must exist
-- `us-west-2` is a region with one or more containers deployed to it
+- `us-west-2` is a region found in `.porter/config`
 - `primary` is the default name given to the container in a single-container deployment
 - `SUPER_SECRET_SECRET` is a secret key and `dont_tell_anyone` is a secret value
 
