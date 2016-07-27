@@ -36,6 +36,7 @@ type (
 	CfnApiInput struct {
 		Environment   string
 		Region        string
+		SecretsKey    string
 		TemplateBytes []byte
 	}
 
@@ -72,6 +73,10 @@ func CreateStack(log log15.Logger, config *conf.Config, args StackArgs) (CreateS
 			{
 				ParameterKey:   aws.String(constants.ParameterStackName),
 				ParameterValue: aws.String(stackName),
+			},
+			{
+				ParameterKey:   aws.String(constants.ParameterSecretsKey),
+				ParameterValue: aws.String(input.SecretsKey),
 			},
 		}
 

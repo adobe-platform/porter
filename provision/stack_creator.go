@@ -23,11 +23,9 @@ import (
 	"strings"
 
 	"github.com/adobe-platform/porter/aws/cloudformation"
-	"github.com/adobe-platform/porter/aws_session"
 	"github.com/adobe-platform/porter/cfn"
 	"github.com/adobe-platform/porter/conf"
 	"github.com/adobe-platform/porter/constants"
-	"github.com/adobe-platform/porter/stdin"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	cfnlib "github.com/aws/aws-sdk-go/service/cloudformation"
@@ -51,6 +49,8 @@ type (
 		region      conf.Region
 		s3Key       string
 
+		secretsKey string
+
 		roleSession *session.Session
 
 		// Stack creation is mostly the same between CreateStack and UpdateStack
@@ -63,14 +63,14 @@ type (
 
 func (recv *stackCreator) createUpdateStackForRegion(outChan chan CreateStackRegionOutput, errChan chan struct{}) {
 
-	checksum, success := recv.uploadServicePayload()
+	_, success := recv.uploadServicePayload()
 	if !success {
 		// uploadServicePayload logs errors. all we care about is success
 		errChan <- struct{}{}
 		return
 	}
 
-	if !recv.uploadSecrets(checksum) {
+	if !recv.uploadSecrets() {
 		// uploadSecrets logs errors. all we care about is success
 		errChan <- struct{}{}
 		return
@@ -150,220 +150,6 @@ func (recv *stackCreator) uploadServicePayload() (checksum string, success bool)
 	return
 }
 
-func (recv *stackCreator) getSecrets() (containerSecrets map[string][]byte, success bool) {
-	s3DstClient := s3.New(recv.roleSession)
-	recv.log.Debug("getting secrets")
-
-	containerSecrets = make(map[string][]byte)
-
-	roleArn, err := recv.environment.GetRoleARN(recv.region.Name)
-	if err != nil {
-		recv.log.Error("GetRoleARN", "Error", err)
-		return
-	}
-
-	stdinBytes, err := stdin.GetBytes()
-
-	recv.log.Debug("STDIN", "STDIN", string(stdinBytes))
-
-	if err == nil && len(stdinBytes) > 0 {
-
-		jsonRaw := make(map[string]interface{})
-		if err := json.Unmarshal(stdinBytes, &jsonRaw); err == nil {
-
-			if secretsRaw, ok := jsonRaw["secrets"].(map[string]interface{}); ok {
-				recv.log.Info("Got secrets from stdin")
-
-				if containerRaw, ok := secretsRaw[recv.region.Name].(map[string]interface{}); ok {
-
-					for _, container := range recv.region.Containers {
-
-						recv.log.Debug("Trying to match container from config", "ConfigContainer", container.OriginalName)
-
-						nameMatch := false
-						for containerName, containerSecretsRaw := range containerRaw {
-
-							if secretsString, ok := containerSecretsRaw.(string); ok {
-
-								recv.log.Debug("Candidate container from stdin", "StdinContainer", containerName)
-
-								if container.OriginalName == containerName {
-									containerSecrets[container.OriginalName] = []byte(secretsString)
-
-									nameMatch = true
-									break
-								}
-							} else {
-								msg := fmt.Sprintf("secrets.%s.%s must be a string", recv.region.Name, containerName)
-								recv.log.Error(msg)
-								return
-							}
-						}
-
-						if !nameMatch {
-							recv.log.Warn("No secrets for " + container.Name)
-						}
-					}
-
-				} else {
-					recv.log.Warn("Missing region in secrets config")
-				}
-			} else {
-				recv.log.Warn("stdin contained valid JSON but no secrets key")
-			}
-		} else {
-			recv.log.Error("Invalid JSON on os.Stdin")
-			return
-		}
-
-	} else {
-
-		for _, container := range recv.region.Containers {
-
-			if container.SrcEnvFile == nil {
-				continue
-			}
-			recv.log.Info("Copying environment file")
-
-			var s3SrcClient *s3.S3
-
-			if container.SrcEnvFile.S3Region == "" {
-				s3SrcClient = s3DstClient
-			} else {
-				srcSession := aws_session.STS(container.SrcEnvFile.S3Region, roleArn, 0)
-				s3SrcClient = s3.New(srcSession)
-			}
-
-			getObjectInput := &s3.GetObjectInput{
-				Bucket: aws.String(container.SrcEnvFile.S3Bucket),
-				Key:    aws.String(container.SrcEnvFile.S3Key),
-			}
-
-			getObjectOutput, err := s3SrcClient.GetObject(getObjectInput)
-			if err != nil {
-				recv.log.Error("GetObject",
-					"Error", err,
-					"Container", container.Name,
-					"SrcEnvFile.S3Bucket", container.SrcEnvFile.S3Bucket,
-					"SrcEnvFile.S3Key", container.SrcEnvFile.S3Key,
-				)
-				return
-			}
-			defer getObjectOutput.Body.Close()
-
-			getObjectBytes, err := ioutil.ReadAll(getObjectOutput.Body)
-			if err != nil {
-				recv.log.Error("ioutil.ReadAll",
-					"Error", err,
-					"Container", container.Name,
-					"SrcEnvFile.S3Bucket", container.SrcEnvFile.S3Bucket,
-					"SrcEnvFile.S3Key", container.SrcEnvFile.S3Key,
-				)
-				return
-			}
-
-			containerSecrets[container.OriginalName] = getObjectBytes
-		}
-	}
-
-	for containerName, _ := range containerSecrets {
-		recv.log.Debug(fmt.Sprintf("Container %s has secrets", containerName))
-	}
-
-	success = true
-	return
-}
-
-func (recv *stackCreator) uploadSecrets(checksum string) (success bool) {
-	s3DstClient := s3.New(recv.roleSession)
-
-	containerToSecrets, getSecretsSuccess := recv.getSecrets()
-	if !getSecretsSuccess {
-		return
-	}
-
-	containerNameToDstKey := make(map[string]string)
-
-	for _, container := range recv.region.Containers {
-
-		containerSecretBytes, exists := containerToSecrets[container.OriginalName]
-		if !exists {
-			recv.log.Warn("Secrets config exists but not for this region's container",
-				"ContainerName", container.OriginalName)
-			continue
-		}
-
-		digestArray := md5.Sum(containerSecretBytes)
-		digest := hex.EncodeToString(digestArray[:])
-
-		dstEnvFileS3Key := recv.config.ServiceName + "/" + digest + ".env-file"
-		recv.log.Info("Set destination env file", "S3Key", dstEnvFileS3Key)
-
-		putObjectInput := &s3.PutObjectInput{
-			Bucket: aws.String(container.DstEnvFile.S3Bucket),
-			Key:    aws.String(dstEnvFileS3Key),
-			Body:   bytes.NewReader(containerSecretBytes),
-		}
-
-		if container.DstEnvFile.KMSARN != nil {
-			putObjectInput.SSEKMSKeyId = container.DstEnvFile.KMSARN
-			putObjectInput.ServerSideEncryption = aws.String("aws:kms")
-		}
-
-		_, err := s3DstClient.PutObject(putObjectInput)
-		if err != nil {
-			recv.log.Error("PutObject",
-				"Error", err,
-				"Container", container.Name,
-				"DstEnvFile.S3Bucket", container.DstEnvFile.S3Bucket,
-				"DstEnvFile.KMSARN", container.DstEnvFile.KMSARN,
-			)
-			return
-		}
-
-		containerNameToDstKey[container.Name] = dstEnvFileS3Key
-	}
-
-	fnMeta := func(recv *stackCreator, template *cfn.Template, resource map[string]interface{}) bool {
-		var (
-			metadata map[string]interface{}
-			ok       bool
-		)
-
-		if metadata, ok = resource["Metadata"].(map[string]interface{}); !ok {
-			metadata = make(map[string]interface{})
-			resource["Metadata"] = metadata
-		}
-
-		metadata[constants.MetadataAsEnvFiles] = containerNameToDstKey
-		return true
-	}
-
-	// The problem is tagging. porterd already needs the EC2 instance to be
-	// tagged with constants.PorterWaitConditionHandleLogicalIdTag so it can get
-	// that resource handle and call the wait condition on behalf of a service.
-	//
-	// The next problem is where to put this metadata.
-	//
-	// While it doesn't make a ton of sense to put it on the
-	// WaitConditionHandle, it makes less sense to tag the EC2 instance (which
-	// has a tag limit) with the logical resource id of some other resource
-	// where we might put this metadata
-	var (
-		fns []MapResource
-		ok  bool
-	)
-	if fns, ok = recv.templateTransforms[cfn.CloudFormation_WaitConditionHandle]; !ok {
-		fns = make([]MapResource, 0)
-	}
-
-	fns = append(fns, fnMeta)
-	recv.templateTransforms[cfn.CloudFormation_WaitConditionHandle] = fns
-
-	success = true
-	return
-}
-
 func (recv *stackCreator) createStack() (stackId string, success bool) {
 
 	client := cloudformation.New(recv.roleSession)
@@ -383,6 +169,7 @@ func (recv *stackCreator) createStack() (stackId string, success bool) {
 	params := CfnApiInput{
 		Environment:   recv.environment.Name,
 		Region:        recv.region.Name,
+		SecretsKey:    recv.secretsKey,
 		TemplateBytes: templateBytes,
 	}
 

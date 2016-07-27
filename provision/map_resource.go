@@ -973,6 +973,7 @@ func addInlinePolicies(recv *stackCreator, template *cfn.Template, resource map[
 					"Action": []string{
 						// porterd
 						"cloudformation:DescribeStackResource",
+						"cloudformation:DescribeStacks",
 						"ec2:DescribeTags",
 						"elasticloadbalancing:DescribeTags",
 						"elasticloadbalancing:RegisterInstancesWithLoadBalancer",

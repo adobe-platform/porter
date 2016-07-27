@@ -13,6 +13,7 @@ package host
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -29,6 +30,7 @@ import (
 	"github.com/adobe-platform/porter/conf"
 	"github.com/adobe-platform/porter/constants"
 	"github.com/adobe-platform/porter/logger"
+	"github.com/adobe-platform/porter/secrets"
 	"github.com/adobe-platform/porter/util"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
@@ -172,8 +174,6 @@ func startContainers(environmentStr, regionStr string) {
 		os.Exit(1)
 	}
 
-	s3Client := s3.New(aws_session.Get(region.Name))
-
 	for _, container := range region.Containers {
 
 		runArgs := []string{
@@ -220,55 +220,7 @@ func startContainers(environmentStr, regionStr string) {
 			runArgs = append(runArgs, "-u", strconv.Itoa(*container.Uid))
 		}
 
-		if container.DstEnvFile != nil {
-
-			var (
-				dstEnvKey string
-				exists    bool
-			)
-
-			dstEnvKey, exists = containerToDstEnvKey[container.Name]
-			if !exists {
-				log.Crit("DstEnvFile config exists but no S3 key was found",
-					"Container", container.Name,
-				)
-				os.Exit(1)
-			}
-
-			getObjectInput := &s3.GetObjectInput{
-				Bucket: aws.String(container.DstEnvFile.S3Bucket),
-				Key:    aws.String(dstEnvKey),
-			}
-
-			getObjectOutput, err := s3Client.GetObject(getObjectInput)
-			if err != nil {
-				log.Crit("GetObject",
-					"Error", err,
-					"Container", container.Name,
-					"DstEnvFile.S3Bucket", container.DstEnvFile.S3Bucket,
-					"DstEnvFile.KMSARN", container.DstEnvFile.KMSARN,
-				)
-				os.Exit(1)
-			}
-			defer getObjectOutput.Body.Close()
-
-			getObjectBytes, err := ioutil.ReadAll(getObjectOutput.Body)
-			if err != nil {
-				log.Crit("ioutil.ReadAll",
-					"Error", err,
-					"Container", container.Name,
-					"DstEnvFile.S3Bucket", container.DstEnvFile.S3Bucket,
-					"DstEnvFile.KMSARN", container.DstEnvFile.KMSARN,
-				)
-				os.Exit(1)
-			}
-
-			kvps := strings.Split(strings.TrimSpace(string(getObjectBytes)), "\n")
-
-			for _, kvp := range kvps {
-				runArgs = append(runArgs, "-e", kvp)
-			}
-		}
+		runArgs = append(runArgs, getSecretEnvVars(log, region.Name, container, containerToDstEnvKey)...)
 
 		runArgs = append(runArgs, container.Name)
 
@@ -548,6 +500,136 @@ func dockerIfaceIPv4(log log15.Logger) string {
 	log.Crit("Couldn't find IPv4 address for iface docker0")
 	os.Exit(1)
 	return ""
+}
+
+func getSecretEnvVars(log log15.Logger, region string, container *conf.Container,
+	containerToDstEnvKey map[string]string) (runArgs []string) {
+
+	runArgs = make([]string, 0)
+
+	if container.DstEnvFile == nil {
+		return
+	}
+
+	containerSecretsEncPayload := getSecretsPayload(log, region, container, containerToDstEnvKey)
+	containerSecretsKey := getSecretsKey(log, region)
+
+	containerSecrets, err := secrets.Decrypt(containerSecretsEncPayload, containerSecretsKey)
+	if err != nil {
+		log.Crit("secrets.Decrypt", "Error", err)
+		os.Exit(1)
+	}
+
+	kvps := strings.Split(string(containerSecrets), "\n")
+
+	for _, kvp := range kvps {
+		runArgs = append(runArgs, "-e", kvp)
+	}
+
+	return
+}
+
+func getSecretsPayload(log log15.Logger, region string, container *conf.Container,
+	containerToDstEnvKey map[string]string) []byte {
+
+	s3Client := s3.New(aws_session.Get(region))
+
+	var (
+		dstEnvKey string
+		exists    bool
+	)
+
+	dstEnvKey, exists = containerToDstEnvKey[container.Name]
+	if !exists {
+		log.Crit("DstEnvFile config exists but no S3 key was found",
+			"Container", container.Name,
+		)
+		os.Exit(1)
+	}
+
+	getObjectInput := &s3.GetObjectInput{
+		Bucket: aws.String(container.DstEnvFile.S3Bucket),
+		Key:    aws.String(dstEnvKey),
+	}
+
+	getObjectOutput, err := s3Client.GetObject(getObjectInput)
+	if err != nil {
+		log.Crit("GetObject",
+			"Error", err,
+			"Container", container.Name,
+			"DstEnvFile.S3Bucket", container.DstEnvFile.S3Bucket,
+			"DstEnvFile.KMSARN", container.DstEnvFile.KMSARN,
+		)
+		os.Exit(1)
+	}
+	defer getObjectOutput.Body.Close()
+
+	getObjectBytes, err := ioutil.ReadAll(getObjectOutput.Body)
+	if err != nil {
+		log.Crit("ioutil.ReadAll",
+			"Error", err,
+			"Container", container.Name,
+			"DstEnvFile.S3Bucket", container.DstEnvFile.S3Bucket,
+			"DstEnvFile.KMSARN", container.DstEnvFile.KMSARN,
+		)
+		os.Exit(1)
+	}
+
+	return getObjectBytes
+}
+
+func getSecretsKey(log log15.Logger, region string) []byte {
+
+	var (
+		describeStacksOutput *cloudformation.DescribeStacksOutput
+		err                  error
+	)
+
+	cfnClient := cloudformation.New(aws_session.Get(region))
+
+	describeStacksInput := &cloudformation.DescribeStacksInput{
+		StackName: aws.String(os.Getenv("AWS_STACKID")),
+	}
+
+	retryMsg := func(i int) { log.Warn("DescribeStacks retrying", "Count", i) }
+	if !util.SuccessRetryer(9, retryMsg, func() bool {
+		describeStacksOutput, err = cfnClient.DescribeStacks(describeStacksInput)
+		if err != nil {
+			log.Error("DescribeStacks", "Error", err)
+			return false
+		}
+		if len(describeStacksOutput.Stacks) == 0 {
+			log.Error("len(describeStacksOutput.Stacks == 0)")
+			return false
+		}
+		return true
+	}) {
+		log.Crit("Failed to DescribeStacks")
+		os.Exit(1)
+	}
+
+	if len(describeStacksOutput.Stacks) != 1 {
+		log.Crit("len(describeStacksOutput.Stacks != 1)")
+		os.Exit(1)
+	}
+
+	stack := describeStacksOutput.Stacks[0]
+	for _, param := range stack.Parameters {
+		if *param.ParameterKey == constants.ParameterSecretsKey {
+
+			symmetricKey, err := hex.DecodeString(*param.ParameterValue)
+			if err != nil {
+				log.Crit("hex.DecodeString", "Error", err)
+				os.Exit(1)
+			}
+
+			return symmetricKey
+		}
+	}
+
+	log.Crit("missing parameter key " + constants.ParameterSecretsKey)
+	os.Exit(1)
+	return nil
 }
 
 func getContainerToDstEnvS3Key(log log15.Logger, region string) (containerToDstEnvKey map[string]string, success bool) {
