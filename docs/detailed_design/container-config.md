@@ -3,14 +3,13 @@ Container config
 
 Porter follows [12factor](http://12factor.net/config) when it comes to
 configuring services. Often config contains long-term secrets like API keys that
-shouldn't be baked into a container.
+shouldn't be baked into a container. Porter treats all runtime config as
+sensitive information and provides security for secrets **in transit**.
 
-Secure secrets storage is outside of the scope of porter but secure secret
-transport is something porter helps with by providing a mechanism to securely
-inject environment variable at runtime.
+Secure **secrets storage** is outside of the scope of porter.
 
-Although porter doesn't deal with secrets storage directly, it is possible to
-use S3 (optionally with [SSE-KMS](http://docs.aws.amazon.com/AmazonS3/latest/dev/UsingKMSEncryption.html))
+Although porter doesn't deal with secrets storage directly, it is possible (not
+necessarily advisable) to use S3 (optionally with [SSE-KMS](http://docs.aws.amazon.com/AmazonS3/latest/dev/UsingKMSEncryption.html))
 for long-term storage of secrets. SSE-KMS is transparent from a client
 perspective (i.e. encrypted secrets are received as plain text over TLS and the
 client doesn't know if they were previously encrypted). Keep in mind all
@@ -19,7 +18,7 @@ do with policies and permissions within an AWS account. You must evaluate S3's
 suitability for long-term secrets storage.
 
 The alternative to S3 with SSE-KMS is to handle your own secrets and pass them
-to porter build commands at runtime.
+to porter build commands at runtime. Both sources of secrets are described here.
 
 Source 1: S3 w/ SS3-KMS
 -----------------------
@@ -79,7 +78,7 @@ environments:
 Note: `dst_env_file.kms_arn` is optional but there for convenience so SSE-KMS
 can be used throughout the entire flow.
 
-### Aside: multi-region container config
+### Aside: multi-region deployments
 
 SSE-KMS ties a S3 bucket to a KMS key per region so the following config is
 common for multi-region deployments where the source for secrets is central and
@@ -190,21 +189,38 @@ Both sources of secrets lead here.
 
 Now porter can help securely deliver secrets to a running container.
 
-The tl;dr is (1) use a secondary symmetric key to encrypt secrets in transit, (2) don't store the lock and key together, and (3) don't persist anything to disk.
+The tl;dr is (1) use a secondary symmetric key to encrypt secrets in transit,
+(2) don't store the lock and key together, and (3) don't persist anything to
+disk.
 
-1. Porter running on a host you control ("the Build Box") generates a symmetric encryption key ("the Key") that is 256 bits in length and is generated from https://golang.org/pkg/crypto/rand/#Read.
-1. Porter running on the Build Box encrypts the plain text secrets ("Plain Secrets") with AES-256 (https://golang.org/pkg/crypto/aes/#NewCipher) using the Key to create an encrypted byte array ("Encrypted Secrets")
+1. Porter running on a host you control ("the Build Box") generates a symmetric
+   encryption key ("the Key") that is 256 bits in length and is generated from
+   https://golang.org/pkg/crypto/rand/#Read.
+1. Porter running on the Build Box encrypts the plain text secrets
+   ("Plain Secrets") with AES-256 (https://golang.org/pkg/crypto/aes/#NewCipher)
+   ("the Cipher") using the Key
+1. Porter running on the Build Box generates a nonce from https://golang.org/pkg/crypto/rand/#Read
+   and uses it along with the Cipher as input to https://golang.org/pkg/crypto/cipher/#NewGCM
+   and calls AEAD.Seal() to create an encrypted byte array ("Encrypted Secrets")
 1. Porter running on the Build Box provisions infrastructure by
-  1. Uploading the Encrypted Secrets to a configurable S3 bucket (`dst_env_file.s3_bucket`). The S3 key is a MD5 digest of Encrypted Secrets. Together the bucket and key are the "S3 Location".
+  1. Uploading the Encrypted Secrets to a configurable S3 bucket
+     (`dst_env_file.s3_bucket`). The S3 key is a MD5 digest of Encrypted
+     Secrets. Together the bucket and key are the "S3 Location".
   1. Creating a CloudFormation Template ("the Template")
   1. Calling CloudFormation:CreateStack with
     1. The Template that has baked into it the S3 Location of Encrypted Secrets
-    1. A CloudFormation parameter key “PorterSecretsKey” with parameter value = the Key
+    1. A CloudFormation parameter key “PorterSecretsKey” with parameter value
+       = the Key
 1. For each EC2 host that's provisioned, Porter running on the EC2 host
-  1. Calls CloudFormation DescribeStack on its own CloudFormation template id (already known at runtime) to get the value of the parameter “PorterSecretsKey” which is the Key.
-  1. Calls S3 GetObject on the S3 Location that was baked into the Template to get Encrypted Secrets
-  1. Decrypts Encrypted Secrets with the Key to create Plain Secrets. None of Plain Secrets, Encrypted Secrets, or Key are persisted to disk.
-  1. Starts the Docker container and injects Plain Secrets as environment variables
+  1. Calls CloudFormation DescribeStack on its own CloudFormation template id
+     (already known at runtime) to get the value of the parameter
+     “PorterSecretsKey” which is the Key.
+  1. Calls S3 GetObject on the S3 Location that was baked into the Template to
+     get Encrypted Secrets
+  1. Decrypts Encrypted Secrets with the Key to create Plain Secrets. None of
+     Plain Secrets, Encrypted Secrets, or Key are persisted to disk.
+  1. Starts the Docker container and injects Plain Secrets as environment
+     variables
 
 Where we finally end up is on a EC2 host running a simple docker command with the Plain Secrets, like this
 
