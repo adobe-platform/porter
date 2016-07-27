@@ -37,7 +37,7 @@ We need a secrets file that is the format Docker prescribes for [`--env-file`](h
 Here is a sample env file
 
 ```
-# comment on API_KEY
+# comment on SUPER_SECRET_SECRET
 SUPER_SECRET_SECRET=dont_tell_anyone
 FOO=bar
 ```
@@ -137,7 +137,7 @@ where
 
 - `container_secrets` is a reserved key that must exist
 - `us-west-2` is a region with one or more containers deployed to it
-- `primary` is the default name given to containers in a single-container deployment
+- `primary` is the default name given to the container in a single-container deployment
 - `SUPER_SECRET_SECRET` is a secret key and `dont_tell_anyone` is a secret value
 
 In the DIY flow you generate the same format and pass it to porter.
@@ -228,8 +228,8 @@ The only configuration both flows require is `dst_env_file.s3_bucket`
 `dst_env_file.kms_arn` is optionally configurable as an extra layer of protection.
 
 Regardless of the use of SSE-KMS, porter does its own encryption of secrets in
-transit, and separates the lock (encrypted payload in S3) from the key (hex-
-encoded 256 bit key in a CloudFormation parameter). Under this scheme both
+transit, and separates the lock (encrypted payload in S3) from the key
+(hex-encoded 256 bit key in a CloudFormation parameter). Under this scheme both
 services would need to be compromised.
 
 Obviously if the build box where secrets were first accessed, or the EC2 host
