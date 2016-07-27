@@ -20,7 +20,7 @@ suitability for long-term secrets storage.
 The alternative to S3 with SSE-KMS is to handle your own secrets and pass them
 to porter build commands at runtime. Both sources of secrets are described here.
 
-Source 1: S3 w/ SS3-KMS
+Source 1: S3 w/ SSE-KMS
 -----------------------
 
 ### Create a secrets file
