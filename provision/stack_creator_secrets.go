@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"strings"
 
 	"github.com/adobe-platform/porter/aws_session"
 	"github.com/adobe-platform/porter/cfn"
@@ -60,8 +61,8 @@ func (recv *stackCreator) getStdinSecrets(stdinBytes []byte) (containerSecrets m
 	jsonRaw := make(map[string]interface{})
 	if err := json.Unmarshal(stdinBytes, &jsonRaw); err == nil {
 
-		if secretsRaw, ok := jsonRaw["secrets"].(map[string]interface{}); ok {
-			recv.log.Info("Got secrets from stdin")
+		if secretsRaw, ok := jsonRaw["container_secrets"].(map[string]interface{}); ok {
+			recv.log.Info("Got container_secrets from stdin")
 
 			if containerRaw, ok := secretsRaw[recv.region.Name].(map[string]interface{}); ok {
 
@@ -72,18 +73,23 @@ func (recv *stackCreator) getStdinSecrets(stdinBytes []byte) (containerSecrets m
 					nameMatch := false
 					for containerName, containerSecretsRaw := range containerRaw {
 
-						if secretsString, ok := containerSecretsRaw.(string); ok {
+						if secretKvps, ok := containerSecretsRaw.(map[string]interface{}); ok {
 
 							recv.log.Debug("Candidate container from stdin", "StdinContainer", containerName)
 
 							if container.OriginalName == containerName {
-								containerSecrets[container.OriginalName] = secretsString
+								secretEnvVars := make([]string, 0)
+
+								for sKey, sValue := range secretKvps {
+									secretEnvVars = append(secretEnvVars, sKey+"="+sValue.(string))
+								}
+								containerSecrets[container.OriginalName] = strings.Join(secretEnvVars, "\n")
 
 								nameMatch = true
 								break
 							}
 						} else {
-							msg := fmt.Sprintf("secrets.%s.%s must be a string", recv.region.Name, containerName)
+							msg := fmt.Sprintf("container_secrets.%s.%s must be an object of key-value pairs that are strings", recv.region.Name, containerName)
 							recv.log.Crit(msg)
 							return
 						}
@@ -95,10 +101,10 @@ func (recv *stackCreator) getStdinSecrets(stdinBytes []byte) (containerSecrets m
 				}
 
 			} else {
-				recv.log.Warn("Missing region in secrets config")
+				recv.log.Warn("Missing region in container_secrets config")
 			}
 		} else {
-			recv.log.Warn("stdin contained valid JSON but no secrets key")
+			recv.log.Warn("stdin contained valid JSON but no container_secrets key")
 		}
 	} else {
 		recv.log.Crit("Invalid JSON on os.Stdin")
