@@ -195,13 +195,14 @@ disk.
 
 1. Porter running on a host you control ("the Build Box") generates a symmetric
    encryption key ("the Key") that is 256 bits in length and is generated from
-   https://golang.org/pkg/crypto/rand/#Read.
+   [crypto/rand.Read](https://golang.org/pkg/crypto/rand/#Read)
 1. Porter running on the Build Box encrypts the plain text secrets
-   ("Plain Secrets") with AES-256 (https://golang.org/pkg/crypto/aes/#NewCipher)
+   ("Plain Secrets") with [AES-256](https://golang.org/pkg/crypto/aes/#NewCipher)
    ("the Cipher") using the Key
-1. Porter running on the Build Box generates a nonce from https://golang.org/pkg/crypto/rand/#Read
-   and uses it along with the Cipher as input to https://golang.org/pkg/crypto/cipher/#NewGCM
-   and calls AEAD.Seal() to create an encrypted byte array ("Encrypted Secrets")
+1. Porter running on the Build Box generates a nonce from [crypto/rand.Read](https://golang.org/pkg/crypto/rand/#Read)
+   and uses it along with the Cipher as input to [NewGCM](https://golang.org/pkg/crypto/cipher/#NewGCM).
+   The output of NewGCM is a AEAD interface which porter then calls Seal() on to
+   create an encrypted byte array ("Encrypted Secrets")
 1. Porter running on the Build Box provisions infrastructure by
   1. Uploading the Encrypted Secrets to a configurable S3 bucket
      (`dst_env_file.s3_bucket`). The S3 key is a MD5 digest of Encrypted
