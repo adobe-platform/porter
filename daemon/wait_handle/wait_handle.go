@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -53,7 +54,10 @@ const (
 )
 
 func Call() {
-	log := logger.Daemon("package", "wait_handle")
+	log := logger.Daemon(
+		"package", "wait_handle",
+		"AWS_STACKID", os.Getenv("AWS_STACKID"),
+	)
 
 	var (
 		describeStackResourceOutput *cloudformation.DescribeStackResourceOutput
@@ -132,15 +136,9 @@ func Call() {
 		return
 	}
 
-	stackName, exists := ii.Tags[constants.AwsCfnStackNameTag]
-	if !exists {
-		log.Error("missing EC2 tag " + constants.AwsCfnStackNameTag)
-		return
-	}
-
 	dsri := &cloudformation.DescribeStackResourceInput{
 		LogicalResourceId: aws.String(waitConditionHandle),
-		StackName:         aws.String(stackName),
+		StackName:         aws.String(os.Getenv("AWS_STACKID")),
 	}
 
 	retryMsg := func(i int) { log.Warn("DescribeStackResource retrying", "Count", i) }

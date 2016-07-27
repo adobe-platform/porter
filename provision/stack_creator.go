@@ -44,10 +44,10 @@ type (
 
 		serviceVersion string
 
-		config      conf.Config
-		environment conf.Environment
-		region      conf.Region
-		s3Key       string
+		config            conf.Config
+		environment       conf.Environment
+		region            conf.Region
+		servicePayloadKey string
 
 		secretsKey string
 
@@ -102,19 +102,19 @@ func (recv *stackCreator) uploadServicePayload() (checksum string, success bool)
 	s3Client := s3.New(recv.roleSession)
 
 	// TODO don't use a digest that requires everything to be in memory
-	checksumRaw := md5.Sum(payloadBytes)
-	checksum = hex.EncodeToString(checksumRaw[:])
-	recv.s3Key = recv.config.ServiceName + "/" + checksum + ".tar"
+	checksumArray := md5.Sum(payloadBytes)
+	checksum = hex.EncodeToString(checksumArray[:])
+	recv.servicePayloadKey = fmt.Sprintf("%s/%s.tar", recv.s3KeyRoot(), checksum)
 
 	headObjectInput := &s3.HeadObjectInput{
 		Bucket: aws.String(recv.region.S3Bucket),
-		Key:    aws.String(recv.s3Key),
+		Key:    aws.String(recv.servicePayloadKey),
 	}
 
 	headObjectOutput, err := s3Client.HeadObject(headObjectInput)
 	if err == nil {
 		if headObjectOutput.ContentLength != nil && *headObjectOutput.ContentLength > 0 {
-			recv.log.Info("Service payload exists", "S3key", recv.s3Key)
+			recv.log.Info("Service payload exists", "S3key", recv.servicePayloadKey)
 			success = true
 			return
 		}
@@ -128,7 +128,7 @@ func (recv *stackCreator) uploadServicePayload() (checksum string, success bool)
 
 	input := &s3manager.UploadInput{
 		Bucket:          aws.String(recv.region.S3Bucket),
-		Key:             aws.String(recv.s3Key),
+		Key:             aws.String(recv.servicePayloadKey),
 		Body:            bytes.NewReader(payloadBytes),
 		ContentEncoding: aws.String("gzip"),
 	}
@@ -137,7 +137,7 @@ func (recv *stackCreator) uploadServicePayload() (checksum string, success bool)
 	s3Manager.Concurrency = runtime.GOMAXPROCS(-1) // read, don't set, the value
 
 	recv.log.Info("Uploading service payload",
-		"S3key", recv.s3Key,
+		"S3key", recv.servicePayloadKey,
 		"Concurrency", s3Manager.Concurrency)
 
 	_, err = s3Manager.Upload(input)
@@ -247,4 +247,9 @@ func (recv *stackCreator) mutateTemplate(template *cfn.Template) (success bool) 
 
 	success = true
 	return
+}
+
+func (recv *stackCreator) s3KeyRoot() string {
+	return fmt.Sprintf("%s/%s/%s",
+		recv.config.ServiceName, recv.environment.Name, recv.serviceVersion)
 }

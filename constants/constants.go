@@ -82,7 +82,6 @@ const (
 	// top-level key. Use hyphen-delimited keys for tags we care about so
 	// they're properly parsed by Datadog
 	AwsCfnLogicalIdTag                    = "aws:cloudformation:logical-id"
-	AwsCfnStackNameTag                    = "aws:cloudformation:stack-name"
 	AwsCfnStackIdTag                      = "aws:cloudformation:stack-id"
 	PorterWaitConditionHandleLogicalIdTag = "porter:aws:cloudformation:waitconditionhandle:logical-id"
 	PorterEnvironmentTag                  = "porter-config-environment"
