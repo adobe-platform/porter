@@ -4,8 +4,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"crypto/rand"
-
 	"github.com/adobe-platform/porter/secrets"
 )
 
