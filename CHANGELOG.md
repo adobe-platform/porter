@@ -1,3 +1,11 @@
+**v1.0.6**
+
+- run the container as root (configurable with uid) to fix breaking change
+
+**v1.0.5**
+
+- run the container as a non-root user by default (configurable with uid)
+
 **v1.0.4**
 
 - add retries to one more DescribeStackResource
