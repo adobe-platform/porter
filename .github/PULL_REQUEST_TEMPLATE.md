@@ -21,8 +21,3 @@ works?
 
 - [ ] Yes
 - [ ] N/A
-
-Should your commits be squashed on merge?
-
-- [ ] Yes, the history isn't relevant
-- [ ] No, my commits were carefully crafted to make `git log` useful
