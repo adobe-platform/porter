@@ -1,4 +1,4 @@
-**v1.1.0**
+**v2.0**
 
 - improved secrets handling in transit
 - enabled pluggable secrets provider
