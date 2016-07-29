@@ -17,23 +17,13 @@ security aspects of S3 with SSE-KMS are outside of porter's control and have to
 do with policies and permissions within an AWS account. You must evaluate S3's
 suitability for long-term secrets storage.
 
-The alternative to S3 with SSE-KMS is to handle your own secrets and pass them
-to porter build commands at runtime. Both sources of secrets are described here.
+The alternative to S3 with SSE-KMS is to handle your own secrets and configure
+porter to call into a tool you create. Both sources of secrets are described
+here.
 
-Source 1: S3 w/ SSE-KMS
------------------------
+Both sources will use the same secrets file which is a [`--env-file`](https://docs.docker.com/engine/reference/commandline/run/#set-environment-variables-e-env-env-file)
 
-### Create a secrets file
-
-Assuming the existence of
-
-1. A S3 bucket to place secrets in called `secrets-src-bucket`
-1. A S3 bucket to copy secrets into called `secrets-dst-bucket`. The source and destination can be the same bucket.
-1. A KMS key with the ARN `arn:aws:kms:us-east-1:123456789012:key/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee`
-
-We need a secrets file that is the format Docker prescribes for [`--env-file`](https://docs.docker.com/engine/reference/commandline/run/#set-environment-variables-e-env-env-file)
-
-Here is a sample env file
+Sample secrets env-file `secrets.env-file`:
 
 ```
 # comment on SUPER_SECRET_SECRET
@@ -41,11 +31,22 @@ SUPER_SECRET_SECRET=dont_tell_anyone
 FOO=bar
 ```
 
-We'll call this file `secrets.env-file`, upload it to the source bucket, and
-encrypt it with a KMS key. Again, since SSE-KMS is transparent from the client
-side, porter doesn't care if `--server-side-encryption` and `--ssekms-key-id`
-were used in this operation. All that matters is that the role it assumes during
-provisioning has the necessary permissions to decrypt if those options are used.
+Source 1: S3 w/ SSE-KMS
+-----------------------
+
+### Upload secrets file
+
+Assuming the existence of
+
+1. A S3 bucket to place secrets in called `secrets-src-bucket`
+1. A S3 bucket to copy secrets into called `secrets-dst-bucket`. The source and destination can be the same bucket.
+1. A KMS key with the ARN `arn:aws:kms:us-east-1:123456789012:key/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee`
+
+Upload `secrets.env-file` to the source bucket, and encrypt it with a KMS key.
+Again, since SSE-KMS is transparent from the client side, porter doesn't care if
+`--server-side-encryption` and `--ssekms-key-id` were used in this operation.
+All that matters is that the role it assumes during provisioning has the
+necessary permissions to decrypt if those options are used.
 
 ```
 aws s3api put-object \
@@ -87,6 +88,8 @@ they're copied to S3 buckets in the regions to which a service will be deployed.
 Here is an example config that deploys to 2 regions (us-west-2 and us-east-1),
 keeps secrets in the us-east-1 bucket, and encrypts the destination with SSE-KMS.
 
+Yaml aliases make it easy to factor out the common config.
+
 ```yaml
 _container_base_definition: &CONTAINER_BASE
   topology: inet
@@ -116,30 +119,19 @@ environments:
 Source 2: DIY secrets
 ---------------------
 
-In the above flow porter is using the information in `src_env_file` to retrieve
-secrets and generate - for itself, internally - the format below:
+In the DIY flow you create your own tool to retrieve `secrets.env-file` from
+wherever it's stored and print its content to stdout.
 
-```json
-{
-  "container_secrets": {
-    "us-west-2": {
-      "primary": {
-        "SUPER_SECRET_SECRET": "dont_tell_anyone",
-        "FOO": "bar"
-      }
-    }
-  }
-}
+Let's say your tool is called `secrets-retriever` (located at
+`/usr/bin/secrets-retriever`) and needs to be passed a region so it
+knows which secrets to get for the container like this
+
+```bash
+$ secrets-retriever -region us-west-2
+# comment on SUPER_SECRET_SECRET
+SUPER_SECRET_SECRET=dont_tell_anyone
+FOO=bar
 ```
-
-where
-
-- `container_secrets` is a reserved key that must exist
-- `us-west-2` is a region found in `.porter/config`
-- `primary` is the default name given to the container in a single-container deployment
-- `SUPER_SECRET_SECRET` is a secret key and `dont_tell_anyone` is a secret value
-
-In the DIY flow you generate the same format and pass it to porter.
 
 Here's a sample `.porter/config` to use with the DIY flow.
 
@@ -150,37 +142,18 @@ environments:
   - name: us-west-2
     containers:
     - topology: inet
+      src_env_file:
+        exec_name: /usr/bin/secrets-retriever
+        exec_args:
+        - -e
+        - us-west-2
       dst_env_file:
         s3_bucket: secrets-dst-bucket
         kms_arn: arn:aws:kms:us-west-2:123456789012:key/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeef
 ```
 
-In the DIY flow you can do the following to achieve the same thing but with your
-own secret storage and retrieval.
-
-Let's say you have a tool called `secrets-retriever` that get secrets from your
-long-term secrets store, formats it to the above format, and prints it to stdout
-like this.
-
-```bash
-$ secrets-retriever
-{
-  "container_secrets": {
-    "us-west-2": {
-      "primary": {
-        "SUPER_SECRET_SECRET": "dont_tell_anyone",
-        "FOO": "bar"
-      }
-    }
-  }
-}
-```
-
-You can pipe that output to `porter build provision` like this
-
-```bash
-secrets-retriever | porter build provision -e prod
-```
+Porter calls [`os/exec.Command()`](https://golang.org/pkg/os/exec/#Command) with
+`exec_name` and `exec_args`.
 
 Destination: S3 and EC2 initialization
 --------------------------------------

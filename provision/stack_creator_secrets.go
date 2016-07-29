@@ -15,35 +15,46 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"strings"
+	"os/exec"
 
 	"github.com/adobe-platform/porter/aws_session"
 	"github.com/adobe-platform/porter/cfn"
+	"github.com/adobe-platform/porter/conf"
 	"github.com/adobe-platform/porter/constants"
 	dockerutil "github.com/adobe-platform/porter/docker/util"
 	"github.com/adobe-platform/porter/secrets"
-	"github.com/adobe-platform/porter/stdin"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
 func (recv *stackCreator) getSecrets() (containerSecrets map[string]string, success bool) {
-	recv.log.Debug("BEGIN getSecrets()")
-	defer recv.log.Debug("END getSecrets()")
+	recv.log.Debug("getSecrets() BEGIN")
+	defer recv.log.Debug("getSecrets() END")
 
-	stdinBytes, err := stdin.GetBytes()
+	containerSecrets = make(map[string]string)
 
-	recv.log.Debug("STDIN", "STDIN", string(stdinBytes))
+	for _, container := range recv.region.Containers {
 
-	if err == nil && len(stdinBytes) > 0 {
+		var envFile string
+		if container.SrcEnvFile.ExecName != "" {
 
-		containerSecrets, success = recv.getStdinSecrets(stdinBytes)
-	} else {
+			envFile, success = recv.getExecSecrets(container)
+		} else if container.SrcEnvFile.S3Bucket != "" && container.SrcEnvFile.S3Key != "" {
 
-		containerSecrets, success = recv.getS3Secrets()
+			envFile, success = recv.getS3Secrets(container)
+		} else {
+			continue
+		}
+
+		if !success {
+			return
+		}
+
+		envFile = dockerutil.CleanEnvFile(envFile)
+
+		containerSecrets[container.OriginalName] = envFile
 	}
 
 	for containerName := range containerSecrets {
@@ -54,130 +65,86 @@ func (recv *stackCreator) getSecrets() (containerSecrets map[string]string, succ
 	return
 }
 
-func (recv *stackCreator) getStdinSecrets(stdinBytes []byte) (containerSecrets map[string]string, success bool) {
+func (recv *stackCreator) getExecSecrets(container *conf.Container) (containerSecrets string, success bool) {
 
-	containerSecrets = make(map[string]string)
+	var stdoutBuf bytes.Buffer
+	var stderrBuf bytes.Buffer
 
-	jsonRaw := make(map[string]interface{})
-	if err := json.Unmarshal(stdinBytes, &jsonRaw); err == nil {
+	log := recv.log.New("ContainerName", container.OriginalName)
+	log.Info("Getting secrets from exec")
 
-		if secretsRaw, ok := jsonRaw["container_secrets"].(map[string]interface{}); ok {
-			recv.log.Info("Got container_secrets from stdin")
-
-			if containerRaw, ok := secretsRaw[recv.region.Name].(map[string]interface{}); ok {
-
-				for _, container := range recv.region.Containers {
-
-					recv.log.Debug("Trying to match container from config", "ConfigContainer", container.OriginalName)
-
-					nameMatch := false
-					for containerName, containerSecretsRaw := range containerRaw {
-
-						if secretKvps, ok := containerSecretsRaw.(map[string]interface{}); ok {
-
-							recv.log.Debug("Candidate container from stdin", "StdinContainer", containerName)
-
-							if container.OriginalName == containerName {
-								secretEnvVars := make([]string, 0)
-
-								for sKey, sValue := range secretKvps {
-									secretEnvVars = append(secretEnvVars, sKey+"="+sValue.(string))
-								}
-								containerSecrets[container.OriginalName] = strings.Join(secretEnvVars, "\n")
-
-								nameMatch = true
-								break
-							}
-						} else {
-							msg := fmt.Sprintf("container_secrets.%s.%s must be an object of key-value pairs that are strings", recv.region.Name, containerName)
-							recv.log.Crit(msg)
-							return
-						}
-					}
-
-					if !nameMatch {
-						recv.log.Warn("No secrets for " + container.OriginalName)
-					}
-				}
-
-			} else {
-				recv.log.Warn("Missing region in container_secrets config")
-			}
-		} else {
-			recv.log.Warn("stdin contained valid JSON but no container_secrets key")
-		}
-	} else {
-		recv.log.Crit("Invalid JSON on os.Stdin")
+	cmd := exec.Command(container.SrcEnvFile.ExecName, container.SrcEnvFile.ExecArgs...)
+	cmd.Stdout = &stdoutBuf
+	cmd.Stderr = &stderrBuf
+	err := cmd.Run()
+	if err != nil {
+		log.Error("exec.Command", "Error", err, "Stderr", stderrBuf.String())
 		return
 	}
 
+	containerSecrets = stdoutBuf.String()
 	success = true
 	return
 }
 
-func (recv *stackCreator) getS3Secrets() (containerSecrets map[string]string, success bool) {
+func (recv *stackCreator) getS3Secrets(container *conf.Container) (containerSecrets string, success bool) {
 	s3DstClient := s3.New(recv.roleSession)
+	log := recv.log.New("ContainerName", container.OriginalName)
 
 	roleArn, err := recv.environment.GetRoleARN(recv.region.Name)
 	if err != nil {
-		recv.log.Crit("GetRoleARN", "Error", err)
+		log.Crit("GetRoleARN", "Error", err)
 		return
 	}
 
-	containerSecrets = make(map[string]string)
+	log.Info("Getting secrets from S3")
 
-	for _, container := range recv.region.Containers {
+	var s3SrcClient *s3.S3
 
-		if container.SrcEnvFile == nil {
-			continue
-		}
-		recv.log.Info("Copying environment file")
-
-		var s3SrcClient *s3.S3
-
-		if container.SrcEnvFile.S3Region == "" {
-			s3SrcClient = s3DstClient
-		} else {
-			srcSession := aws_session.STS(container.SrcEnvFile.S3Region, roleArn, 0)
-			s3SrcClient = s3.New(srcSession)
-		}
-
-		getObjectInput := &s3.GetObjectInput{
-			Bucket: aws.String(container.SrcEnvFile.S3Bucket),
-			Key:    aws.String(container.SrcEnvFile.S3Key),
-		}
-
-		getObjectOutput, err := s3SrcClient.GetObject(getObjectInput)
-		if err != nil {
-			recv.log.Crit("GetObject",
-				"Error", err,
-				"Container", container.Name,
-				"SrcEnvFile.S3Bucket", container.SrcEnvFile.S3Bucket,
-				"SrcEnvFile.S3Key", container.SrcEnvFile.S3Key,
-			)
-			return
-		}
-		defer getObjectOutput.Body.Close()
-
-		getObjectBytes, err := ioutil.ReadAll(getObjectOutput.Body)
-		if err != nil {
-			recv.log.Crit("ioutil.ReadAll",
-				"Error", err,
-				"Container", container.Name,
-				"SrcEnvFile.S3Bucket", container.SrcEnvFile.S3Bucket,
-				"SrcEnvFile.S3Key", container.SrcEnvFile.S3Key,
-			)
-			return
-		}
-
-		containerSecrets[container.OriginalName] = string(getObjectBytes)
+	if container.SrcEnvFile.S3Region == "" {
+		s3SrcClient = s3DstClient
+	} else {
+		srcSession := aws_session.STS(container.SrcEnvFile.S3Region, roleArn, 0)
+		s3SrcClient = s3.New(srcSession)
 	}
 
+	getObjectInput := &s3.GetObjectInput{
+		Bucket: aws.String(container.SrcEnvFile.S3Bucket),
+		Key:    aws.String(container.SrcEnvFile.S3Key),
+	}
+
+	getObjectOutput, err := s3SrcClient.GetObject(getObjectInput)
+	if err != nil {
+		log.Crit("GetObject",
+			"Error", err,
+			"Container", container.Name,
+			"SrcEnvFile.S3Bucket", container.SrcEnvFile.S3Bucket,
+			"SrcEnvFile.S3Key", container.SrcEnvFile.S3Key,
+		)
+		return
+	}
+	defer getObjectOutput.Body.Close()
+
+	getObjectBytes, err := ioutil.ReadAll(getObjectOutput.Body)
+	if err != nil {
+		log.Crit("ioutil.ReadAll",
+			"Error", err,
+			"Container", container.Name,
+			"SrcEnvFile.S3Bucket", container.SrcEnvFile.S3Bucket,
+			"SrcEnvFile.S3Key", container.SrcEnvFile.S3Key,
+		)
+		return
+	}
+
+	containerSecrets = string(getObjectBytes)
 	success = true
 	return
 }
 
 func (recv *stackCreator) uploadSecrets() (success bool) {
+	recv.log.Debug("uploadSecrets() BEGIN")
+	defer recv.log.Debug("uploadSecrets() END")
+
 	s3DstClient := s3.New(recv.roleSession)
 
 	containerToSecrets, getSecretsSuccess := recv.getSecrets()
@@ -196,25 +163,22 @@ func (recv *stackCreator) uploadSecrets() (success bool) {
 
 	for _, container := range recv.region.Containers {
 
+		log := recv.log.New("ContainerName", container.OriginalName)
+
 		containerSecretString, exists := containerToSecrets[container.OriginalName]
 		if !exists {
-			recv.log.Warn("Secrets config exists but not for this a container in this region",
-				"ContainerName", container.OriginalName)
+			log.Warn("Secrets config exists but not for this a container in this region")
 			continue
 		}
-		containerSecretString = dockerutil.CleanEnvFile(containerSecretString)
 
 		if len(containerSecretString) == 0 {
-			recv.log.Warn("After cleaning the env file it's empty",
-				"ContainerName", container.OriginalName)
+			log.Warn("After cleaning the env file it's empty")
 			continue
 		}
 
 		containerSecrets, err := secrets.Encrypt([]byte(containerSecretString), symmetricKey)
 		if err != nil {
-			recv.log.Crit("Secrets encryption failed",
-				"Error", err,
-				"ContainerName", container.OriginalName)
+			log.Crit("Secrets encryption failed", "Error", err)
 			return
 		}
 
@@ -222,7 +186,7 @@ func (recv *stackCreator) uploadSecrets() (success bool) {
 		checksum := hex.EncodeToString(checksumArray[:])
 
 		dstEnvFileS3Key := fmt.Sprintf("%s/%s.env-file", recv.s3KeyRoot(), checksum)
-		recv.log.Info("Set destination env file", "S3Key", dstEnvFileS3Key)
+		log.Info("Set destination env file", "S3Key", dstEnvFileS3Key)
 
 		putObjectInput := &s3.PutObjectInput{
 			Bucket: aws.String(container.DstEnvFile.S3Bucket),
@@ -237,9 +201,8 @@ func (recv *stackCreator) uploadSecrets() (success bool) {
 
 		_, err = s3DstClient.PutObject(putObjectInput)
 		if err != nil {
-			recv.log.Crit("PutObject",
+			log.Crit("PutObject",
 				"Error", err,
-				"Container", container.Name,
 				"DstEnvFile.S3Bucket", container.DstEnvFile.S3Bucket,
 				"DstEnvFile.KMSARN", container.DstEnvFile.KMSARN,
 			)

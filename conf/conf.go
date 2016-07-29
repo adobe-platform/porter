@@ -76,9 +76,11 @@ type (
 	}
 
 	SrcEnvFile struct {
-		S3Key    string `yaml:"s3_key"`
-		S3Bucket string `yaml:"s3_bucket"`
-		S3Region string `yaml:"s3_region"`
+		S3Key    string   `yaml:"s3_key"`
+		S3Bucket string   `yaml:"s3_bucket"`
+		S3Region string   `yaml:"s3_region"`
+		ExecName string   `yaml:"exec_name"`
+		ExecArgs []string `yaml:"exec_args"`
 	}
 
 	DstEnvFile struct {
@@ -440,12 +442,20 @@ func (recv *Region) ValidateContainers() error {
 			return errors.New("src_env_file defined but dst_env_file undefined")
 		} else if container.SrcEnvFile != nil && container.DstEnvFile != nil {
 
-			if container.SrcEnvFile.S3Bucket == "" {
-				return errors.New("src_env_file missing s3_bucket")
-			}
+			if container.SrcEnvFile.S3Bucket != "" ||
+				container.SrcEnvFile.S3Key != "" {
 
-			if container.SrcEnvFile.S3Key == "" {
-				return errors.New("src_env_file missing s3_key")
+				if container.SrcEnvFile.S3Bucket == "" {
+					return errors.New("src_env_file missing s3_bucket")
+				}
+
+				if container.SrcEnvFile.S3Key == "" {
+					return errors.New("src_env_file missing s3_key")
+				}
+
+			} else if container.SrcEnvFile.ExecName == "" {
+
+				return errors.New("src_env_file missing exec_name")
 			}
 
 			if container.DstEnvFile.S3Bucket == "" {
@@ -590,6 +600,7 @@ func (recv *Config) Print() {
 }
 
 func GetConfig(log log15.Logger) (config *Config, success bool) {
+	var parseConfigSuccess bool
 
 	file, err := os.Open(constants.ConfigPath)
 	if err != nil {
@@ -604,8 +615,8 @@ func GetConfig(log log15.Logger) (config *Config, success bool) {
 		return
 	}
 
-	config, success = parseConfig(log, configBytes)
-	if !success {
+	config, parseConfigSuccess = parseConfig(log, configBytes)
+	if !parseConfigSuccess {
 		return
 	}
 
