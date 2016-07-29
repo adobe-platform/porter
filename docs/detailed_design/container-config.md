@@ -209,11 +209,9 @@ Summary
 -------
 
 Porter provides light integration with S3 to source secrets. It also provides a
-way to plugin your own secrets.
+way to plugin your own secrets by calling into your own tool.
 
-In the S3 flow `src_env_file` is used.
-
-The only configuration both flows require is `dst_env_file.s3_bucket`
+The configuration both flows require is `dst_env_file.s3_bucket`
 
 `dst_env_file.kms_arn` is optionally configurable as an extra layer of protection.
 
