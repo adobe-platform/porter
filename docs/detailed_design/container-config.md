@@ -145,7 +145,7 @@ environments:
       src_env_file:
         exec_name: /usr/bin/secrets-retriever
         exec_args:
-        - -e
+        - -region
         - us-west-2
       dst_env_file:
         s3_bucket: secrets-dst-bucket
