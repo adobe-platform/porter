@@ -12,6 +12,8 @@ Docker containers to EC2.
 
 [Developer Documentation](developing.md)
 
+[Upgrade guide](MIGRATING.md)
+
 A porter is "a person employed to carry luggage and other loads".
 
 `porter` does a lot of heavy lifting so you don't have to.
