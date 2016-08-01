@@ -13,7 +13,7 @@ reviewers:
     required: 1
     members:
     - phylake
-  - name: collaborators
+  - name: collaborator
     required: 1
     members:
     - cdmurph32
