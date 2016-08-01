@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/adobe-platform/porter/constants"
+	"github.com/adobe-platform/porter/stdin"
 	"github.com/inconshreveable/log15"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -52,10 +53,6 @@ var (
 	subnetIdRegex        = regexp.MustCompile(`^subnet-(\d|\w){8}$`)
 )
 
-// config can come from os.Stdin which we can't read more than one so we must
-// store the config we read so multiple calls to GetStdinConfig succeed
-var stdinConfig *Config
-
 type (
 	// Config supports multi-container deployments
 	Config struct {
@@ -67,25 +64,28 @@ type (
 	}
 
 	Container struct {
-		Name        string       `yaml:"name"`
-		Topology    string       `yaml:"topology"`
-		InetPort    int          `yaml:"inet_port"`
-		Primary     bool         `yaml:"primary"`
-		Uid         *int         `yaml:"uid"`
-		HealthCheck *HealthCheck `yaml:"health_check"`
-		SrcEnvFile  *SrcEnvFile  `yaml:"src_env_file"`
-		DstEnvFile  *DstEnvFile  `yaml:"dst_env_file"`
+		Name         string `yaml:"name"`
+		OriginalName string
+		Topology     string       `yaml:"topology"`
+		InetPort     int          `yaml:"inet_port"`
+		Primary      bool         `yaml:"primary"`
+		Uid          *int         `yaml:"uid"`
+		HealthCheck  *HealthCheck `yaml:"health_check"`
+		SrcEnvFile   *SrcEnvFile  `yaml:"src_env_file"`
+		DstEnvFile   *DstEnvFile  `yaml:"dst_env_file"`
 	}
 
 	SrcEnvFile struct {
-		S3Key    string `yaml:"s3_key"`
-		S3Bucket string `yaml:"s3_bucket"`
-		S3Region string `yaml:"s3_region"`
+		S3Key    string   `yaml:"s3_key"`
+		S3Bucket string   `yaml:"s3_bucket"`
+		S3Region string   `yaml:"s3_region"`
+		ExecName string   `yaml:"exec_name"`
+		ExecArgs []string `yaml:"exec_args"`
 	}
 
 	DstEnvFile struct {
-		S3Bucket string `yaml:"s3_bucket"`
-		KMSARN   string `yaml:"kms_arn"`
+		S3Bucket string  `yaml:"s3_bucket"`
+		KMSARN   *string `yaml:"kms_arn"` // TODO rename to SSEKMSKeyId to match API
 	}
 
 	HealthCheck struct {
@@ -442,20 +442,24 @@ func (recv *Region) ValidateContainers() error {
 			return errors.New("src_env_file defined but dst_env_file undefined")
 		} else if container.SrcEnvFile != nil && container.DstEnvFile != nil {
 
-			if container.SrcEnvFile.S3Bucket == "" {
-				return errors.New("src_env_file missing s3_bucket")
-			}
+			if container.SrcEnvFile.S3Bucket != "" ||
+				container.SrcEnvFile.S3Key != "" {
 
-			if container.SrcEnvFile.S3Key == "" {
-				return errors.New("src_env_file missing s3_key")
+				if container.SrcEnvFile.S3Bucket == "" {
+					return errors.New("src_env_file missing s3_bucket")
+				}
+
+				if container.SrcEnvFile.S3Key == "" {
+					return errors.New("src_env_file missing s3_key")
+				}
+
+			} else if container.SrcEnvFile.ExecName == "" {
+
+				return errors.New("src_env_file missing exec_name")
 			}
 
 			if container.DstEnvFile.S3Bucket == "" {
 				return errors.New("dst_env_file missing s3_bucket")
-			}
-
-			if container.DstEnvFile.KMSARN == "" {
-				return errors.New("dst_env_file missing kms_arn")
 			}
 		}
 
@@ -595,55 +599,48 @@ func (recv *Config) Print() {
 
 }
 
-func GetConfig(log log15.Logger) (*Config, bool) {
+func GetConfig(log log15.Logger) (config *Config, success bool) {
+	var parseConfigSuccess bool
 
 	file, err := os.Open(constants.ConfigPath)
 	if err != nil {
 		log.Error("Failed to open "+constants.ConfigPath, "Error", err)
-		return nil, false
+		return
 	}
 	defer file.Close()
 
-	config, success := readAndParse(log, file, constants.ConfigPath)
-	if !success {
-		return nil, false
+	configBytes, err := ioutil.ReadAll(file)
+	if err != nil {
+		log.Error("Failed to read "+constants.ConfigPath, "Error", err)
+		return
+	}
+
+	config, parseConfigSuccess = parseConfig(log, configBytes)
+	if !parseConfigSuccess {
+		return
 	}
 
 	config.SetDefaults()
 	err = config.Validate()
 	if err != nil {
 		log.Error("Config validation", "Error", err)
-		return nil, false
+		return
 	}
 
-	return config, true
+	success = true
+	return
 }
 
-func GetStdinConfig(log log15.Logger) (*Config, bool) {
-	if stdinConfig != nil {
-		stdinConfigCopy := *stdinConfig
-		return &stdinConfigCopy, true
-	}
+func GetStdinConfig(log log15.Logger) (config *Config, success bool) {
 
-	stat, err := os.Stdin.Stat()
+	configBytes, err := stdin.GetBytes()
 	if err != nil {
-		log.Error("stat STDIN", "Error", err)
-		return nil, false
+		log.Error("Failed to read from stdin", "Error", err)
+		return
 	}
 
-	if (stat.Mode() & os.ModeCharDevice) != 0 {
-		log.Error("Nothing to read from STDIN")
-		return nil, false
-	}
-
-	config, success := readAndParse(log, os.Stdin, "STDIN")
-	if success {
-		configCopy := *config
-		stdinConfig = &configCopy
-		return config, true
-	} else {
-		return nil, false
-	}
+	config, success = parseConfig(log, configBytes)
+	return
 }
 
 func GetAlteredConfig(log log15.Logger) (*Config, bool) {
@@ -655,21 +652,21 @@ func GetAlteredConfig(log log15.Logger) (*Config, bool) {
 	}
 	defer file.Close()
 
-	return readAndParse(log, file, constants.AlteredConfigPath)
-}
-
-func readAndParse(log log15.Logger, file *os.File, filePath string) (config *Config, success bool) {
-	config = &Config{}
-
 	configBytes, err := ioutil.ReadAll(file)
 	if err != nil {
-		log.Error("Failed to read "+filePath, "Error", err)
-		return
+		log.Error("Failed to read "+constants.AlteredConfigPath, "Error", err)
+		return nil, false
 	}
 
-	err = yaml.Unmarshal(configBytes, config)
+	return parseConfig(log, configBytes)
+}
+
+func parseConfig(log log15.Logger, configBytes []byte) (config *Config, success bool) {
+	config = &Config{}
+
+	err := yaml.Unmarshal(configBytes, config)
 	if err != nil {
-		log.Error("Failed to decode "+filePath, "Error", err)
+		log.Error("Failed to decode config", "Error", err)
 		return
 	}
 

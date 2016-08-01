@@ -385,7 +385,7 @@ func setAutoScalingLaunchConfigurationMetadata(recv *stackCreator, template *cfn
 		Elbs: strconv.Quote(elbCSV),
 
 		ServicePayloadBucket:     recv.region.S3Bucket,
-		ServicePayloadKey:        recv.s3Key,
+		ServicePayloadKey:        recv.servicePayloadKey,
 		ServicePayloadConfigPath: constants.ServicePayloadConfigPath,
 
 		PorterBinaryUrl: constants.BinaryUrl,
@@ -969,21 +969,39 @@ func addInlinePolicies(recv *stackCreator, template *cfn.Template, resource map[
 		"PolicyDocument": map[string]interface{}{
 			"Statement": []interface{}{
 				map[string]interface{}{
+					"Sid":    "1",
 					"Effect": "Allow",
 					"Action": []string{
 						// porterd
-						"cloudformation:DescribeStackResource",
 						"ec2:DescribeTags",
 						"elasticloadbalancing:DescribeTags",
 						"elasticloadbalancing:RegisterInstancesWithLoadBalancer",
-
-						// pull down the service payload
-						"s3:GetObject",
 
 						// decrypt .env-file
 						"kms:Decrypt",
 					},
 					"Resource": "*",
+				},
+				map[string]interface{}{
+					"Sid":    "2",
+					"Effect": "Allow",
+					"Action": []string{
+						// porterd
+						"cloudformation:DescribeStackResource",
+
+						// secrets
+						"cloudformation:DescribeStacks",
+					},
+					"Resource": map[string]string{"Ref": "AWS::StackId"},
+				},
+				map[string]interface{}{
+					"Sid":    "3",
+					"Effect": "Allow",
+					"Action": []string{
+						// pull down the service payload
+						"s3:GetObject",
+					},
+					"Resource": fmt.Sprintf("arn:aws:s3:::%s/%s/*", recv.region.S3Bucket, recv.s3KeyRoot()),
 				},
 			},
 		},

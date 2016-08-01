@@ -96,10 +96,15 @@ func addStackTraceLogging(log log15.Logger, writer io.Writer, logFmt log15.Forma
 	}, stackHandler)
 
 	infoHandler := log15.StreamHandler(writer, logFmt)
-	// put filter last because it will be run first
-	infoHandler = log15.FilterHandler(func(r *log15.Record) bool {
-		return r.Lvl == log15.LvlInfo
-	}, infoHandler)
+	if os.Getenv(constants.EnvLogDebug) == "" {
+		infoHandler = log15.FilterHandler(func(r *log15.Record) bool {
+			return r.Lvl <= log15.LvlInfo
+		}, infoHandler)
+	} else {
+		infoHandler = log15.FilterHandler(func(r *log15.Record) bool {
+			return r.Lvl <= log15.LvlDebug
+		}, infoHandler)
+	}
 
 	log.SetHandler(log15.MultiHandler(stackHandler, infoHandler))
 }

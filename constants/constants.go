@@ -33,6 +33,7 @@ const (
 
 	EnvConfig                    = "DEBUG_CONFIG"
 	EnvDebugAws                  = "DEBUG_AWS"
+	EnvLogDebug                  = "LOG_DEBUG"
 	EnvStackCreation             = "STACK_CREATION_TIMEOUT"
 	EnvStackCreationPollInterval = "STACK_CREATION_POLL_INTERVAL"
 	EnvNoDockerOverride          = "NO_DOCKER_OVERRIDE"
@@ -81,12 +82,15 @@ const (
 	// top-level key. Use hyphen-delimited keys for tags we care about so
 	// they're properly parsed by Datadog
 	AwsCfnLogicalIdTag                    = "aws:cloudformation:logical-id"
-	AwsCfnStackNameTag                    = "aws:cloudformation:stack-name"
 	AwsCfnStackIdTag                      = "aws:cloudformation:stack-id"
 	PorterWaitConditionHandleLogicalIdTag = "porter:aws:cloudformation:waitconditionhandle:logical-id"
 	PorterEnvironmentTag                  = "porter-config-environment"
 	PorterServiceNameTag                  = "porter-service-name"
-	PorterStackIdTag                      = "porter-aws-cloudformation-stack-id"
+
+	// This is different than AwsCfnStackIdTag. Porter tags the elb into which a
+	// stack is promoted. This is different than the use of AwsCfnStackIdTag
+	// which is provided automatically and tied to a provisioned stack.
+	PorterStackIdTag = "porter-aws-cloudformation-stack-id"
 
 	// Replaced by the release_porter script.
 	//
@@ -97,6 +101,7 @@ const (
 	ParameterServiceName = "PorterServiceName"
 	ParameterEnvironment = "PorterEnvironment"
 	ParameterStackName   = "PorterStackName"
+	ParameterSecretsKey  = "PorterSecretsKey"
 	MappingRegionToAMI   = "RegionToAMI"
 
 	HC_HealthyThreshold   = 3

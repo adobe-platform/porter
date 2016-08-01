@@ -234,9 +234,9 @@ func CreateStack(stackArgs provision.StackArgs, block bool) {
 	eventIds := make(map[string]interface{})
 
 	log.Info("Polling for stack events every " + sleepDuration.String())
-	log.Debug("The service payload is located at " + constants.PayloadPath)
-	log.Debug("The CloudFormation template is located at " + constants.CloudFormationTemplatePath)
-	log.Debug("Press Ctrl+C to exit and delete the stack")
+	log.Info("The service payload is located at " + constants.PayloadPath)
+	log.Info("The CloudFormation template is located at " + constants.CloudFormationTemplatePath)
+	log.Info("Press Ctrl+C to exit and delete the stack")
 
 	n := int(constants.StackCreationTimeout().Seconds() / sleepDuration.Seconds())
 	// spin until the stack will rollback

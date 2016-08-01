@@ -13,20 +13,22 @@ Features
 --------
 
 - Interactive command line interface (CLI) packaged as a statically linked binary
-- Multi-region, multi-AZ, blue-green deployments.
+- Multi-region, multi-AZ, blue-green deployments
 - Works in EC2-Classic, Default VPC, and Custom VPCs
 - Highly customizable
-  - Programmable deployment pipeline and EC2 host-level customizations
-  - Customizable AWS infrastructure with CloudFormation
-- Rapidly bootstrap an empty AWS account
+  - Programmable deployment pipeline and EC2 host-level customizations to help
+    with everything from testing to client side deployments
+  - Customizable AWS infrastructure by overriding any part of the default
+    CloudFormation template
+- Rapidly bootstrap an empty AWS account with `porter bootstrap` commands
 - Easily integrates with any CI/CD software
 - Easy to adopt and unobtrusive
 - Allows developers to provision a single-region stack using the same
   CloudFormation template used in other environments to verify feature and bug
   fixes _without_ needing to integrate in a shared environment (e.g. QA2)
-- Configurable deployment blackout windows during which build commands
-  will fail
-- Secrets management with KMS and S3 integration
+- Configurable deployment blackout windows
+- Secure secret transport backed by S3 and SSE-KMS, or provide your own
+  long-term secrets storage integration
 
 Project fit
 -----------
@@ -45,8 +47,8 @@ others. Here's some examples of each
 - Mid-large companies / operations teams
   - Possibly with a multiple AWS accounts
   - Looking to provide a PaaS (`porter + CI/CD + automated onboarding == PaaS`)
-  - Wanting to prevent "CI snowflakes" (service-specific one-off logic baked
-    into CI jobs). Porter's CI integration surface area is intentionally very
+  - Wanting to prevent "CI snowflakes": service-specific one-off logic baked
+    into CI jobs. Porter's CI integration surface area is intentionally very
     small.
 - Multi-region services
 - Client applications (SPA, web-deployed clients) with a backend service
@@ -57,11 +59,9 @@ others. Here's some examples of each
 
 - Mid-large projects consisting of many microservices, or projects needing the
   cost efficiency of clustering technologies (e.g. DCOS, Kubernetes)
-- Sophisticated Docker users. Porter uses basic features of Docker 1.7
 - Projects that manually release software. Porter was born and bred to support a
   fully automated CD environment. That said it is possible to add manual
   verification steps to a porter deployment.
-- Dockerized services with simple deployment requirements - consider ECS
 - Entirely stateless services (not even in-memory caching) - consider Lambda
 - Projects needing cloud-agnostic or alternative infrastructure provisioning - consider [Terraform](https://www.terraform.io)
 - Projects need cloud-agnosticism. Porter is tied to AWS.
@@ -74,16 +74,16 @@ Lots of useful documentation is built into porter itself.
 Run `porter help`, and most porter commands with no arguments for details on how
 to call them.
 
-- [Config reference](detailed_design/config-reference.md)
-- [Deployment hooks](detailed_design/deployment-hooks.md)
-- [CloudFormation customizations](detailed_design/cfn-customization.md)
-- [Container config (including secrets)](detailed_design/container-config.md)
+- [Service config reference](detailed_design/config-reference.md)
+- [Service interface](detailed_design/platform-service.md)
 - [CI/CD integration](detailed_design/ci-cd-integration.md)
 - [Deployment flow](https://www.lucidchart.com/documents/view/95a3fdca-ff76-40c5-98fd-6b3071ba86bc)
-- [Service interface](detailed_design/platform-service.md)
-- [Porter components](detailed_design/components.md)
-- [Porter's dependencies](detailed_design/versions.md)
+- [Container config (including secrets)](detailed_design/container-config.md)
 - [Security](detailed_design/security.md)
+- [Deployment customization](detailed_design/deployment-hooks.md)
+- [CloudFormation customizations](detailed_design/cfn-customization.md)
+- [Porter's dependencies](detailed_design/versions.md)
+- [Porter components](detailed_design/components.md)
 - [FAQ](faq.md)
 
 Getting started

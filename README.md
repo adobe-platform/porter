@@ -1,7 +1,8 @@
 porter
 ======
 
-[![Build Status](https://travis-ci.org/adobe-platform/porter.svg?branch=master)](https://travis-ci.org/adobe-platform/porter)
+[![Release](https://img.shields.io/github/release/adobe-platform/porter.svg)](https://github.com/adobe-platform/porter/releases/latest)
+[![Build Status](https://img.shields.io/travis/adobe-platform/porter/master.svg)](https://travis-ci.org/adobe-platform/porter)
 [![Report card](https://goreportcard.com/badge/github.com/adobe-platform/porter)](https://goreportcard.com/report/github.com/adobe-platform/porter)
 
 `porter` is a platform built on AWS APIs to enable continuous delivery of
@@ -10,6 +11,8 @@ Docker containers to EC2.
 [User Documentation](docs/readme.md)
 
 [Developer Documentation](developing.md)
+
+[Upgrade guide](MIGRATING.md)
 
 A porter is "a person employed to carry luggage and other loads".
 
