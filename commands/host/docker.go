@@ -214,9 +214,7 @@ func startContainers(environmentStr, regionStr string) {
 		}
 
 		// TODO revisit --cap-drop=ALL with override https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
-		if container.Uid == nil {
-			runArgs = append(runArgs, "-u", constants.ContainerUserUid)
-		} else {
+		if container.Uid != nil {
 			runArgs = append(runArgs, "-u", strconv.Itoa(*container.Uid))
 		}
 

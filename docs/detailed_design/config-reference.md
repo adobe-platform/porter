@@ -319,9 +319,9 @@ This enables services to open up ports for things like profiling tools.
 
 This specifies the uid the container is run with (i.e. `docker run -u`).
 
-The default if left unset is to use the provisioned porter-docker user.
+The default if left unset is to use root.
 
-If your container expects to run as root set this value to 0.
+It's strongly recommended to use the provisioned user uid of `601`.
 
 ### health_check
 
