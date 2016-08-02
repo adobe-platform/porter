@@ -7,6 +7,9 @@
 - updated Amazon Linux AMI to 2016.03
 - updated Docker to 1.11.2
 - fixed config validation failure producing a false positive
+- improved hook environment variable injection to match Docker Compose
+- got rid of hardcoded `.porter/hook/` and made path to hooks configurable
+- tweaked config validation so config can be created dynamically in pre_pack
 
 **v1.0.5**
 

@@ -7,10 +7,11 @@ assets to a CDN or building other types of automation into a deployment.
 
 Hooks are Dockerfiles meaning hook authors can choose any language or runtime.
 
-Hooks come in two forms:
+Hooks can be referenced in 2 ways:
 
-1. Dockerfiles that live in the `.porter/hooks/` directory
-1. git repos containing one or more Dockerfiles. These are called plugins.
+1. By specifying the `dockerfile` for the hook
+1. By specifying a git `repo` to be cloned, a `ref` to be checked out, and
+   `dockerfile` to be built and run. These are called plugins.
 
 All hooks are optional and will only be called if they exist. If they exist they
 must exit with a code of 0 to continue the deployment. Any non-zero exit code is
@@ -36,24 +37,6 @@ The hooks
 - [post-prune](hooks/post-prune.md)
 - [ec2-bootstrap](hooks/ec2-bootstrap.md)
 
-pre hook vs. post hook
-----------------------
-
-When to use a pre hook vs a post hook is determined by what build command you
-want the hook to operate as part of.
-
-For example, `post-provision` and `pre-promote` aren't very different. The state
-of the deployment hasn't changed and all of the same variables are available.
-The only difference is that `post-provision` is called during `porter build
-provision`, while `pre-promote` is called during `porter build promote`.
-
-That difference is probably only meaningful if these commands are run on
-different boxes, with different environment variables, or are otherwise
-logically separate from the caller's perspective.
-
-The recommendation is to use pre hooks and then add or change to post hooks as
-hooks are better understood or requirements dictate.
-
 Hook environment
 ----------------
 
@@ -66,7 +49,7 @@ Environment variables are injected as they are available.
 
 ### Standard environment variables
 
-These are available to all hooks
+These are available to all hooks and provided by porter.
 
 ```
 PORTER_SERVICE_NAME
@@ -79,18 +62,20 @@ HAPROXY_STATS_URL
 
 ### Custom environment variables
 
-Additional environment variables can be injected by prefixing them with
-`PORTER_`. The environment in which porter is called is different that the
-environment that a container may have. It is necessary to prefix the environment
-in which porter is called so porter knows which environment variables it should
-inject into the container. Injecting all environment variables that are
-available to porter (such as `$HOME` and `$PATH`) would cause problems if passed
-into the container.
+You can whitelist what environment each hook receives with the same semantics as
+[Docker Compose](https://docs.docker.com/compose/compose-file/#/environment)
 
-As an example consider calling `PORTER_FOO=bar porter create-stack -e dev`. The
-prefix `PORTER_` is stripped by porter and injected into the container hook as
-`FOO`. This enables code run in docker containers to be configured outside of
-porter.
+This is a pre_pack hook with `FOO` set to `bar`, and `BAZ` set to the value of
+`BAZ` when porter is run.
+
+```yaml
+hooks:
+  pre_pack:
+    dockerfile: path/to/Dockerfile
+    environment:
+      FOO: bar
+      BAZ:
+```
 
 Plugins
 -------
@@ -134,3 +119,21 @@ hooks:
 porter-contrib-foo repo. There's no restriction on the name or placement of
 these Dockerfiles (i.e. `pre-pack` could also have been `some_dir/Dockerfile`)
 meaning a single repo could contain many hooks.
+
+pre hook vs. post hook
+----------------------
+
+When to use a pre hook vs a post hook is determined by what build command you
+want the hook to operate as part of.
+
+For example, `post-provision` and `pre-promote` aren't very different. The state
+of the deployment hasn't changed and all of the same variables are available.
+The only difference is that `post-provision` is called during `porter build
+provision`, while `pre-promote` is called during `porter build promote`.
+
+That difference is probably only meaningful if these commands are run on
+different boxes, with different environment variables, or are otherwise
+logically separate from the caller's perspective.
+
+The recommendation is to use pre hooks and then add or change to post hooks as
+hooks are better understood or requirements dictate.

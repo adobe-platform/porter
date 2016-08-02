@@ -82,7 +82,7 @@ func UpdateStack(stackArgs provision.StackArgs) {
 
 	log := logger.CLI()
 
-	config, success := conf.GetConfig(log)
+	config, success := conf.GetConfig(log, true)
 	if !success {
 		os.Exit(1)
 	}

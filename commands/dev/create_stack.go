@@ -148,7 +148,7 @@ func CreateStack(stackArgs provision.StackArgs, block bool) {
 
 	log := logger.CLI()
 
-	config, success := conf.GetConfig(log)
+	config, success := conf.GetConfig(log, true)
 	if !success {
 		os.Exit(1)
 	}

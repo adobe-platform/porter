@@ -45,38 +45,47 @@ For each field the following notation is used
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
     - [dockerfile](#dockerfile) (==1?)
+    - [environment](#hook-environment) (==1?)
   - post_pack (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
     - [dockerfile](#dockerfile) (==1?)
+    - [environment](#hook-environment) (==1?)
   - pre_provision (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
     - [dockerfile](#dockerfile) (==1?)
+    - [environment](#hook-environment) (==1?)
   - post_provision (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
     - [dockerfile](#dockerfile) (==1?)
+    - [environment](#hook-environment) (==1?)
   - pre_promote (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
     - [dockerfile](#dockerfile) (==1?)
+    - [environment](#hook-environment) (==1?)
   - post_promote (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
     - [dockerfile](#dockerfile) (==1?)
+    - [environment](#hook-environment) (==1?)
   - pre_prune (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
     - [dockerfile](#dockerfile) (==1?)
+    - [environment](#hook-environment) (==1?)
   - post_prune (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
     - [dockerfile](#dockerfile) (==1?)
+    - [environment](#hook-environment) (==1?)
   - ec2_bootstrap (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
     - [dockerfile](#dockerfile) (==1?)
+    - [environment](#hook-environment) (==1?)
 
 ### service_name
 
@@ -365,3 +374,7 @@ Hooks are cloned with `git clone --depth 1 --branch <ref> <repo>`
 ### dockerfile
 
 The relative path from the repo root to a dockerfile
+
+#hook-environment
+
+The hook's environment

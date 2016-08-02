@@ -45,12 +45,12 @@ func (recv *PackCmd) Execute(args []string) bool {
 
 	log := logger.CLI("cmd", "build-pack")
 
-	config, success := conf.GetConfig(log)
-	if !success {
+	if !hook.Execute(log, constants.HookPrePack, "", nil) {
 		os.Exit(1)
 	}
 
-	if !hook.Execute(log, constants.HookPrePack, "", nil) {
+	config, success := conf.GetConfig(log, true)
+	if !success {
 		os.Exit(1)
 	}
 
