@@ -72,6 +72,8 @@ FROM ubuntu:16.04
 ADD pre-pack.cmd /
 RUN chmod 544 /pre-pack.cmd
 
+WORKDIR /repo_root/.porter
+
 CMD /pre-pack.cmd
 ```
 
