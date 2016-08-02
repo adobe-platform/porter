@@ -242,12 +242,45 @@ func runArgsFactory(log log15.Logger, config *conf.Config, workingDir string) []
 func runConfigHooks(log log15.Logger, config *conf.Config, hookName string,
 	hooks []conf.Hook, runArgs []string, opts *Opts) (success bool) {
 
-	for index, hook := range hooks {
+	successChan := make(chan bool)
+	var concurrentCount int
+	var lastHookConcurrentFlag bool
 
-		log := log.New("HookIndex", index)
-		if !runConfigHook(log, config, hookName, index, hook, runArgs, opts) {
-			return
+	// Only retained lexical scope is successChan, everything else is copied
+	goGadgetHook := func(log log15.Logger, config *conf.Config, hookName string,
+		hookIndex int, hook conf.Hook, runArgs []string, opts *Opts) {
+
+		successChan <- runConfigHook(log, config, hookName, hookIndex, hook, runArgs, opts)
+	}
+
+	for hookIndex, hook := range hooks {
+
+		// block anytime we're not running consecutive concurrent hooks
+		if !(lastHookConcurrentFlag && hook.Concurrent) {
+
+			log.Debug("Waiting for hook to finish", "concurrentCount", concurrentCount)
+			for i := 0; i < concurrentCount; i++ {
+				success = <-successChan
+				if !success {
+					return
+				}
+			}
+
+			concurrentCount = 0
 		}
+
+		if hook.Concurrent {
+
+			concurrentCount++
+		} else {
+
+			concurrentCount = 1
+		}
+
+		log := log.New("HookIndex", hookIndex, "Concurrent", hook.Concurrent)
+		go goGadgetHook(log, config, hookName, hookIndex, hook, runArgs, opts)
+
+		lastHookConcurrentFlag = hook.Concurrent
 	}
 
 	success = true
@@ -256,6 +289,8 @@ func runConfigHooks(log log15.Logger, config *conf.Config, hookName string,
 
 func runConfigHook(log log15.Logger, config *conf.Config, hookName string,
 	hookIndex int, hook conf.Hook, runArgs []string, opts *Opts) (success bool) {
+	log.Debug("runConfigHook() BEGIN")
+	defer log.Debug("runConfigHook() END")
 
 	for envKey, envValue := range hook.Environment {
 		if envValue == "" {

@@ -3,13 +3,15 @@
 - improved secrets handling in transit
 - enabled pluggable secrets provider
 - locked down CloudFormation and S3 API call scopes to the resources needed
+- service payload for S3 is now `{service name}/{environment}/{short sha}`
 - add LOG_DEBUG environment variable for debug logging
 - updated Amazon Linux AMI to 2016.03
 - updated Docker to 1.11.2
-- fixed config validation failure producing a false positive
+- fixed config validation failure producing a false positive of success
 - improved hook environment variable injection to match Docker Compose
-- got rid of hardcoded `.porter/hook/` and made path to hooks configurable
+- got rid of hardcoded `.porter/hooks/` and made path to hooks configurable
 - tweaked config validation so config can be created dynamically in pre_pack
+- enabled deployment hooks to run concurrently
 
 **v1.0.5**
 

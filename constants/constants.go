@@ -22,7 +22,6 @@ const (
 	TempDir                    = ".porter-tmp"
 	PorterDir                  = ".porter"
 	ConfigPath                 = ".porter/config"
-	HookDir                    = ".porter/hooks"
 	PayloadWorkingDir          = TempDir + "/payload"
 	PayloadPath                = TempDir + "/payload.tar.gz"
 	PackOutputPath             = TempDir + "/pack_output.json"
