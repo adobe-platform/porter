@@ -41,7 +41,7 @@ Execution order
 ---------------
 
 Multiple of each hook can be run. They are run in the order defined unless
-[configured to run concurrently](container-config.md#concurrent).
+[configured to run concurrently](config-reference.md#concurrent).
 
 Hook environment
 ----------------
