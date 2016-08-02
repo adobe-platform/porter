@@ -101,4 +101,5 @@ Will result in the hook being run with `DYNAMIC_ELB_NAME=some-elb-name` and it
 writing the config which can be passed along to remaining `porter build`
 commands.
 
-This could have been done in any language. Here I use simple [bash templating](http://pempek.net/articles/2013/07/08/bash-sh-as-template-engine/)
+This could have been done in any language. Here I use simple
+[bash templating](http://pempek.net/articles/2013/07/08/bash-sh-as-template-engine/)

@@ -77,7 +77,7 @@ This is a pre_pack hook with `FOO` set to `bar`, and `BAZ` set to the value of
 ```yaml
 hooks:
   pre_pack:
-    dockerfile: path/to/Dockerfile
+  - dockerfile: path/to/Dockerfile
     environment:
       FOO: bar
       BAZ:
