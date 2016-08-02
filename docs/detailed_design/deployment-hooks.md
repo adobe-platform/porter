@@ -86,12 +86,6 @@ hooks to be developed independently and referenced by porter projects in
 
 Plugins are porter hooks that live in a separate repo.
 
-All plugins defined in the config are run after any single hooks that live in a
-repo. For example if we also define a `.porter/hooks/ec2-bootstrap` and use the
-config above, porter-contrib-datadog will run after
-`.porter/hooks/ec2-bootstrap`. Services shouldn't rely on this ordering,
-however.
-
 Plugins can run as part of more than one hook. By default porter looks for a
 `dockerfile` value in the hook config. If this isn't found it defaults to
 `Dockerfile`. Here is an example config for a made up plugin called
