@@ -37,6 +37,12 @@ The hooks
 - [post-prune](hooks/post-prune.md)
 - [ec2-bootstrap](hooks/ec2-bootstrap.md)
 
+Execution order
+---------------
+
+Multiple of each hook can be run. They are run in the order defined unless
+[configured to run concurrently](container-config.md#concurrent).
+
 Hook environment
 ----------------
 
