@@ -296,6 +296,13 @@ func AWSCloudFormationInit(autoScalingLaunchConfigurationLogicalId string, conte
 		"group":   "root",
 	}
 
+	pamdCrond := map[string]interface{}{
+		"content": files.PamdCrond,
+		"mode":    "000644",
+		"owner":   "root",
+		"group":   "root",
+	}
+
 	awsCloudformationInit := map[string]interface{}{
 		"configSets": map[string]interface{}{
 			"bootstrap": []string{"bootstrapConfig"},
@@ -322,6 +329,7 @@ func AWSCloudFormationInit(autoScalingLaunchConfigurationLogicalId string, conte
 				"/usr/bin/porter_hotswap":      hotswapFile,
 				"/etc/update-motd.d/99-porter": motd,
 				"/etc/logrotate.d/porter":      logRotate,
+				"/etc/pam.d/crond":             pamdCrond,
 			},
 			"users": map[string]interface{}{
 				"porter-docker": map[string]interface{}{
