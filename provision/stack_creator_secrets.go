@@ -37,6 +37,10 @@ func (recv *stackCreator) getSecrets() (containerSecrets map[string]string, succ
 
 	for _, container := range recv.region.Containers {
 
+		if container.SrcEnvFile == nil {
+			continue
+		}
+
 		var envFile string
 		if container.SrcEnvFile.ExecName != "" {
 
