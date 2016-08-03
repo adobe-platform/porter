@@ -22,7 +22,7 @@ if ($ARGV[0] eq 'upload') {
         &upload($release_version, $binary);
         system("mv bin/$binary bin/$binary.gz && gzip -d bin/$binary.gz")
     } else {
-        system('git push && git push upstream master:master');
+        system('git push && git push upstream v1:v1');
         $release_version = &next_minor_version;
 
         print "Version to release ($release_version): ";
@@ -33,10 +33,9 @@ if ($ARGV[0] eq 'upload') {
 
         $nb = &next_build_version;
         $nm = &next_minor_version;
-        $nM = &next_major_version;
 
         if ($release_version ne $nb && $release_version ne $nm && $release_version ne $nM) {
-            print "$release_version IS NOT one of $nb, $nm, or $nM. Are you sure? (Y\\n): ";
+            print "$release_version IS NOT one of $nb or $nm. Are you sure? (Y\\n): ";
             chomp($confirm = <STDIN>);
             if ($confirm ne "Y") {
                 print "exiting\n";
@@ -114,19 +113,8 @@ sub upload {
     return system($cmd);
 }
 
-sub next_major_version {
-    $_ = `git tag --sort="-v:refname" | head -n 1`;
-
-    if (/v(\d+)\.(\d+)\.(\d+)/) {
-        $major = $1 + 1;
-        return "v$major.0.0";
-    } else {
-        exit 1;
-    }
-}
-
 sub next_minor_version {
-    $_ = `git tag --sort="-v:refname" | head -n 1`;
+    $_ = `git tag --sort="-v:refname" | grep v1 | head -n 1`;
 
     if (/v(\d+)\.(\d+)\.(\d+)/) {
         $minor = $2 + 1;
@@ -137,7 +125,7 @@ sub next_minor_version {
 }
 
 sub next_build_version {
-    $_ = `git tag --sort="-v:refname" | head -n 1`;
+    $_ = `git tag --sort="-v:refname" | grep v1 | head -n 1`;
 
     if (/v(\d+)\.(\d+)\.(\d+)/) {
         $build = $3 + 1;
