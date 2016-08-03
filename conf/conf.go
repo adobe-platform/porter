@@ -141,9 +141,11 @@ type (
 	}
 
 	Hook struct {
-		Repo       string `yaml:"repo"`
-		Ref        string `yaml:"ref"`
-		Dockerfile string `yaml:"dockerfile"`
+		Repo        string            `yaml:"repo"`
+		Ref         string            `yaml:"ref"`
+		Dockerfile  string            `yaml:"dockerfile"`
+		Environment map[string]string `yaml:"environment"`
+		Concurrent  bool              `yaml:"concurrent"`
 	}
 
 	Slack struct {
@@ -277,6 +279,11 @@ func (recv *Config) Validate() (err error) {
 		return
 	}
 
+	err = recv.ValidateHooks()
+	if err != nil {
+		return
+	}
+
 	err = recv.ValidateEnvironments()
 	if err != nil {
 		return
@@ -296,6 +303,76 @@ func (recv *Config) ValidateTopLevelKeys() error {
 	if os.Getenv(constants.EnvDevMode) == "" &&
 		!porterVersionRegex.MatchString(recv.PorterVersion) {
 		return errors.New("Invalid porter_version")
+	}
+
+	return nil
+}
+
+func (recv *Config) ValidateHooks() (err error) {
+
+	err = validateHook(constants.HookPrePack, recv.Hooks.PrePack)
+	if err != nil {
+		return
+	}
+
+	err = validateHook(constants.HookPostPack, recv.Hooks.PostPack)
+	if err != nil {
+		return
+	}
+
+	err = validateHook(constants.HookPreProvision, recv.Hooks.PreProvision)
+	if err != nil {
+		return
+	}
+
+	err = validateHook(constants.HookPostProvision, recv.Hooks.PostProvision)
+	if err != nil {
+		return
+	}
+
+	err = validateHook(constants.HookPrePromote, recv.Hooks.PrePromote)
+	if err != nil {
+		return
+	}
+
+	err = validateHook(constants.HookPostPromote, recv.Hooks.PostPromote)
+	if err != nil {
+		return
+	}
+
+	err = validateHook(constants.HookPrePrune, recv.Hooks.PrePrune)
+	if err != nil {
+		return
+	}
+
+	err = validateHook(constants.HookPostPrune, recv.Hooks.PostPrune)
+	if err != nil {
+		return
+	}
+
+	err = validateHook(constants.HookEC2Bootstrap, recv.Hooks.EC2Bootstrap)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func validateHook(name string, hooks []Hook) error {
+	for _, hook := range hooks {
+
+		if hook.Repo == "" {
+
+			if hook.Dockerfile == "" {
+				return errors.New("A " + name + " hook is missing dockerfile")
+			}
+		} else {
+
+			if hook.Ref == "" {
+				return errors.New("A " + name + " hook has a configured repo but no ref")
+			}
+		}
+
 	}
 
 	return nil
@@ -555,6 +632,17 @@ func (recv *Config) Print() {
 	fmt.Println("service_name", recv.ServiceName)
 	fmt.Println("porter_version", recv.PorterVersion)
 
+	fmt.Println(".Hooks")
+	printHooks(constants.HookPrePack, recv.Hooks.PrePack)
+	printHooks(constants.HookPostPack, recv.Hooks.PostPack)
+	printHooks(constants.HookPreProvision, recv.Hooks.PreProvision)
+	printHooks(constants.HookPostProvision, recv.Hooks.PostProvision)
+	printHooks(constants.HookPrePromote, recv.Hooks.PrePromote)
+	printHooks(constants.HookPostPromote, recv.Hooks.PostPromote)
+	printHooks(constants.HookPrePrune, recv.Hooks.PrePrune)
+	printHooks(constants.HookPostPrune, recv.Hooks.PostPrune)
+	printHooks(constants.HookEC2Bootstrap, recv.Hooks.EC2Bootstrap)
+
 	fmt.Println(".Environments")
 	for _, environment := range recv.Environments {
 		fmt.Println("- .Name", environment.Name)
@@ -599,7 +687,25 @@ func (recv *Config) Print() {
 
 }
 
-func GetConfig(log log15.Logger) (config *Config, success bool) {
+func printHooks(name string, hooks []Hook) {
+	fmt.Println(name)
+	for _, hook := range hooks {
+		fmt.Println("- .Repo", hook.Repo)
+		fmt.Println("  .Ref", hook.Ref)
+		fmt.Println("  .Dockerfile", hook.Dockerfile)
+		fmt.Println("  .Environment")
+		if hook.Environment != nil {
+			for envKey, envValue := range hook.Environment {
+				if envValue == "" {
+					envValue = os.Getenv(envKey)
+				}
+				fmt.Println("    " + envKey + "=" + envValue)
+			}
+		}
+	}
+}
+
+func GetConfig(log log15.Logger, validate bool) (config *Config, success bool) {
 	var parseConfigSuccess bool
 
 	file, err := os.Open(constants.ConfigPath)
@@ -621,10 +727,14 @@ func GetConfig(log log15.Logger) (config *Config, success bool) {
 	}
 
 	config.SetDefaults()
-	err = config.Validate()
-	if err != nil {
-		log.Error("Config validation", "Error", err)
-		return
+
+	if validate {
+
+		err = config.Validate()
+		if err != nil {
+			log.Error("Config validation", "Error", err)
+			return
+		}
 	}
 
 	success = true

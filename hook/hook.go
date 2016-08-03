@@ -18,7 +18,6 @@ import (
 	"os/exec"
 	"path"
 	"strings"
-	"time"
 
 	"github.com/adobe-platform/porter/aws/elb"
 	"github.com/adobe-platform/porter/aws_session"
@@ -55,10 +54,10 @@ func Execute(log log15.Logger,
 
 	var err error
 
-	log = log.New("hook", hookName)
+	log = log.New("HookName", hookName)
 	log.Info("Hook BEGIN")
 
-	config, configSuccess := conf.GetConfig(log)
+	config, configSuccess := conf.GetConfig(log, false)
 	if !configSuccess {
 		return
 	}
@@ -102,20 +101,9 @@ func Execute(log log15.Logger,
 
 	if environment == "" {
 
-		runArgs := runArgsFactory(config, workingDir)
+		runArgs := runArgsFactory(log, config, workingDir)
 
-		dockerFilePath := path.Join(constants.HookDir, hookName)
-		_, err = os.Stat(dockerFilePath)
-		if err == nil {
-
-			imageName := fmt.Sprintf("%s-hook-%s", config.ServiceName, hookName)
-
-			if !buildAndRun(log, imageName, dockerFilePath, runArgs, opts) {
-				return
-			}
-		}
-
-		if !runConfigHooks(log, config, configHooks, runArgs, opts) {
+		if !runConfigHooks(log, config, hookName, configHooks, runArgs, opts) {
 			return
 		}
 
@@ -182,7 +170,7 @@ func Execute(log log15.Logger,
 				log.Warn("Couldn't get AWS credential values. Hooks calling AWS APIs will fail")
 			}
 
-			runArgs := runArgsFactory(config, workingDir)
+			runArgs := runArgsFactory(log, config, workingDir)
 
 			runArgs = append(runArgs,
 				"-e", "PORTER_ENVIRONMENT="+environment,
@@ -205,18 +193,7 @@ func Execute(log log15.Logger,
 					"-e", "AWS_CLOUDFORMATION_STACKID="+pr.StackId)
 			}
 
-			dockerFilePath := path.Join(constants.HookDir, hookName)
-			_, err = os.Stat(dockerFilePath)
-			if err == nil {
-
-				imageName := fmt.Sprintf("%s-hook-%s", config.ServiceName, hookName)
-
-				if !buildAndRun(log, imageName, dockerFilePath, runArgs, opts) {
-					return
-				}
-			}
-
-			if !runConfigHooks(log, config, configHooks, runArgs, opts) {
+			if !runConfigHooks(log, config, hookName, configHooks, runArgs, opts) {
 				return
 			}
 		}
@@ -228,7 +205,7 @@ func Execute(log log15.Logger,
 	return
 }
 
-func runArgsFactory(config *conf.Config, workingDir string) []string {
+func runArgsFactory(log log15.Logger, config *conf.Config, workingDir string) []string {
 	runArgs := []string{
 		"run",
 		"--rm",
@@ -247,8 +224,14 @@ func runArgsFactory(config *conf.Config, workingDir string) []string {
 		runArgs = append(runArgs, "-e", "PORTER_SERVICE_VERSION="+sha1)
 	}
 
+	var warnedDeprecation bool
 	for _, kvp := range os.Environ() {
 		if strings.HasPrefix(kvp, "PORTER_") {
+			if !warnedDeprecation {
+				warnedDeprecation = true
+				log.Warn("Hook environments configured with PORTER_ is deprecated. In future releases and this will be an error http://bit.ly/2ar6fcQ")
+			}
+			log.Debug("Deprecated environment", "Env", kvp)
 			runArgs = append(runArgs, "-e", strings.TrimPrefix(kvp, "PORTER_"))
 		}
 	}
@@ -256,56 +239,105 @@ func runArgsFactory(config *conf.Config, workingDir string) []string {
 	return runArgs
 }
 
-func runConfigHooks(log log15.Logger, config *conf.Config, hooks []conf.Hook,
-	runArgs []string, opts *Opts) (success bool) {
+func runConfigHooks(log log15.Logger, config *conf.Config, hookName string,
+	hooks []conf.Hook, runArgs []string, opts *Opts) (success bool) {
 
-	for _, hook := range hooks {
+	successChan := make(chan bool)
+	var concurrentCount int
+	var lastHookConcurrentFlag bool
 
-		if !runConfigHook(log, config, hook, runArgs, opts) {
-			return
+	// Only retained lexical scope is successChan, everything else is copied
+	goGadgetHook := func(log log15.Logger, config *conf.Config, hookName string,
+		hookIndex int, hook conf.Hook, runArgs []string, opts *Opts) {
+
+		successChan <- runConfigHook(log, config, hookName, hookIndex, hook, runArgs, opts)
+	}
+
+	for hookIndex, hook := range hooks {
+
+		// block anytime we're not running consecutive concurrent hooks
+		if !(lastHookConcurrentFlag && hook.Concurrent) {
+
+			log.Debug("Waiting for hook to finish", "concurrentCount", concurrentCount)
+			for i := 0; i < concurrentCount; i++ {
+				success = <-successChan
+				if !success {
+					return
+				}
+			}
+
+			concurrentCount = 0
 		}
+
+		if hook.Concurrent {
+
+			concurrentCount++
+		} else {
+
+			concurrentCount = 1
+		}
+
+		log := log.New("HookIndex", hookIndex, "Concurrent", hook.Concurrent)
+		go goGadgetHook(log, config, hookName, hookIndex, hook, runArgs, opts)
+
+		lastHookConcurrentFlag = hook.Concurrent
 	}
 
 	success = true
 	return
 }
 
-func runConfigHook(log log15.Logger, config *conf.Config, hook conf.Hook,
-	runArgs []string, opts *Opts) (success bool) {
+func runConfigHook(log log15.Logger, config *conf.Config, hookName string,
+	hookIndex int, hook conf.Hook, runArgs []string, opts *Opts) (success bool) {
+	log.Debug("runConfigHook() BEGIN")
+	defer log.Debug("runConfigHook() END")
 
-	repoDir := fmt.Sprintf("%d", time.Now().UnixNano())
-	repoDir = path.Join(constants.TempDir, repoDir)
-	defer func() {
-		exec.Command("rm", "-fr", repoDir).Run()
-	}()
-
-	log.Info("Cloning",
-		"Repo", hook.Repo,
-		"Ref", hook.Ref,
-		"Directory", repoDir,
-	)
-
-	cloneCmd := exec.Command(
-		"git", "clone",
-		"--branch", hook.Ref, // branch is a misnomer. this works on any ref
-		"--depth", "1",
-		hook.Repo, repoDir,
-	)
-	cloneCmd.Stderr = os.Stderr
-	err := cloneCmd.Run()
-	if err != nil {
-		log.Error("git clone", "Error", err)
-		return
+	for envKey, envValue := range hook.Environment {
+		if envValue == "" {
+			envValue = os.Getenv(envKey)
+		}
+		runArgs = append(runArgs, "-e", envKey+"="+envValue)
+		log.Debug("Configured environment", "Key", envKey, "Value", envValue)
 	}
 
 	dockerFilePath := hook.Dockerfile
-	if dockerFilePath == "" {
-		dockerFilePath = "Dockerfile"
+
+	if hook.Repo != "" {
+
+		repoDir := fmt.Sprintf("%s-clone-%d", hookName, hookIndex)
+		repoDir = path.Join(constants.TempDir, repoDir)
+		defer func() {
+			exec.Command("rm", "-fr", repoDir).Run()
+		}()
+
+		log.Info("Cloning",
+			"Repo", hook.Repo,
+			"Ref", hook.Ref,
+			"Directory", repoDir,
+		)
+
+		cloneCmd := exec.Command(
+			"git", "clone",
+			"--branch", hook.Ref, // this works on tags as well
+			"--depth", "1",
+			hook.Repo, repoDir,
+		)
+		cloneCmd.Stderr = os.Stderr
+		err := cloneCmd.Run()
+		if err != nil {
+			log.Error("git clone", "Error", err)
+			return
+		}
+
+		// TODO do this in conf.SetDefaults()
+		if dockerFilePath == "" {
+			dockerFilePath = "Dockerfile"
+		}
+
+		dockerFilePath = path.Join(repoDir, dockerFilePath)
 	}
 
-	hookName := path.Base(strings.TrimSuffix(hook.Repo, ".git"))
-	dockerFilePath = path.Join(repoDir, dockerFilePath)
-	imageName := fmt.Sprintf("%s-%s", config.ServiceName, hookName)
+	imageName := fmt.Sprintf("%s-%s-%d", config.ServiceName, hookName, hookIndex)
 
 	if !buildAndRun(log, imageName, dockerFilePath, runArgs, opts) {
 		return

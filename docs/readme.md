@@ -84,6 +84,7 @@ to call them.
 - [CloudFormation customizations](detailed_design/cfn-customization.md)
 - [Porter's dependencies](detailed_design/versions.md)
 - [Porter components](detailed_design/components.md)
+- [Migrating between versions](../MIGRATING.md)
 - [FAQ](faq.md)
 
 Getting started

@@ -45,38 +45,56 @@ For each field the following notation is used
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
     - [dockerfile](#dockerfile) (==1?)
+    - [environment](#hook-environment) (==1?)
+    - [concurrent](#concurrent) (==1?)
   - post_pack (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
     - [dockerfile](#dockerfile) (==1?)
+    - [environment](#hook-environment) (==1?)
+    - [concurrent](#concurrent) (==1?)
   - pre_provision (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
     - [dockerfile](#dockerfile) (==1?)
+    - [environment](#hook-environment) (==1?)
+    - [concurrent](#concurrent) (==1?)
   - post_provision (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
     - [dockerfile](#dockerfile) (==1?)
+    - [environment](#hook-environment) (==1?)
+    - [concurrent](#concurrent) (==1?)
   - pre_promote (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
     - [dockerfile](#dockerfile) (==1?)
+    - [environment](#hook-environment) (==1?)
+    - [concurrent](#concurrent) (==1?)
   - post_promote (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
     - [dockerfile](#dockerfile) (==1?)
+    - [environment](#hook-environment) (==1?)
+    - [concurrent](#concurrent) (==1?)
   - pre_prune (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
     - [dockerfile](#dockerfile) (==1?)
+    - [environment](#hook-environment) (==1?)
+    - [concurrent](#concurrent) (==1?)
   - post_prune (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
     - [dockerfile](#dockerfile) (==1?)
+    - [environment](#hook-environment) (==1?)
+    - [concurrent](#concurrent) (==1?)
   - ec2_bootstrap (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
     - [dockerfile](#dockerfile) (==1?)
+    - [environment](#hook-environment) (==1?)
+    - [concurrent](#concurrent) (==1?)
 
 ### service_name
 
@@ -365,3 +383,40 @@ Hooks are cloned with `git clone --depth 1 --branch <ref> <repo>`
 ### dockerfile
 
 The relative path from the repo root to a dockerfile
+
+### hook-environment
+
+The hook's environment
+
+### concurrent
+
+Allows hooks to be run concurrently. 2 or more hooks that would run serially
+must be marked with `concurrent: true` for this to work.
+
+**Example 1**
+
+These hooks run serially even though one is marked concurrent.
+
+```yaml
+hooks:
+  pre_pack:
+  - dockerfile: .porter/hooks/pre-pack-1
+  - dockerfile: .porter/hooks/pre-pack-2
+    concurrent: true
+  - dockerfile: .porter/hooks/pre-pack-3
+```
+
+**Example 2**
+
+Hook 1 runs, then hooks 2 and 3 run concurrently, then hook 4 runs.
+
+```yaml
+hooks:
+  pre_pack:
+  - dockerfile: .porter/hooks/pre-pack-1
+  - dockerfile: .porter/hooks/pre-pack-2
+    concurrent: true
+  - dockerfile: .porter/hooks/pre-pack-3
+    concurrent: true
+  - dockerfile: .porter/hooks/pre-pack-4
+```
