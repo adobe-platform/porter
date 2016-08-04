@@ -681,6 +681,23 @@ func (recv *Config) Print() {
 
 				fmt.Println("        .HealthCheck.Method", container.HealthCheck.Method)
 				fmt.Println("        .HealthCheck.Path", container.HealthCheck.Path)
+
+				if container.SrcEnvFile == nil {
+					fmt.Println("        .SrcEnvFile nil")
+				} else {
+					fmt.Println("        .SrcEnvFile.S3Key", container.SrcEnvFile.S3Key)
+					fmt.Println("        .SrcEnvFile.S3Bucket", container.SrcEnvFile.S3Bucket)
+					fmt.Println("        .SrcEnvFile.S3Region", container.SrcEnvFile.S3Region)
+					fmt.Println("        .SrcEnvFile.ExecName", container.SrcEnvFile.ExecName)
+					fmt.Println("        .SrcEnvFile.ExecArgs", container.SrcEnvFile.ExecArgs)
+				}
+
+				if container.DstEnvFile == nil {
+					fmt.Println("        .DstEnvFile nil")
+				} else {
+					fmt.Println("        .DstEnvFile.S3Bucket", container.DstEnvFile.S3Bucket)
+					fmt.Println("        .DstEnvFile.KMSARN", container.DstEnvFile.KMSARN)
+				}
 			}
 		}
 	}

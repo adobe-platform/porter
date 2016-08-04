@@ -54,6 +54,10 @@ func (recv *PackCmd) Execute(args []string) bool {
 		os.Exit(1)
 	}
 
+	if os.Getenv(constants.EnvConfig) != "" {
+		config.Print()
+	}
+
 	if success := provision.Package(log, config); !success {
 		os.Exit(1)
 	}

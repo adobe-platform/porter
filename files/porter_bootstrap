@@ -23,7 +23,7 @@ porter host rsyslog --init
 
 # Log rotation
 CRONTAB_SNAPSHOT=/tmp/crontab_snapshot
-crontab -l > $CRONTAB_SNAPSHOT || true
+crontab -l 1> $CRONTAB_SNAPSHOT || true
 echo '*/2 * * * * /usr/sbin/logrotate /etc/logrotate.conf >/dev/null 2>&1' >> $CRONTAB_SNAPSHOT
 crontab $CRONTAB_SNAPSHOT
 crontab -l
