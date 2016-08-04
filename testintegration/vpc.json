@@ -1,28 +1,28 @@
 {
-  Resources: {
-    AutoScalingLaunchConfiguration: {
-      Type: AWS::AutoScaling::LaunchConfiguration,
-      Properties: {
-        SecurityGroups: [
+  \"Resources\": {
+    \"AutoScalingLaunchConfiguration\": {
+      \"Type\": \"AWS::AutoScaling::LaunchConfiguration\",
+      \"Properties\": {
+        \"SecurityGroups\": [
           {
-            Ref: SSHSecurityGroup
+            \"Ref\": \"SSHSecurityGroup\"
           }
         ]
       }
     },
-    SSHSecurityGroup: {
-      Properties: {
-        GroupDescription: SSH Access,
-        SecurityGroupIngress: [
+    \"SSHSecurityGroup\": {
+      \"Properties\": {
+        \"GroupDescription\": \"SSH Access\",
+        \"SecurityGroupIngress\": [
           {
-            CidrIp: 192.150.22.5/32,
-            FromPort: 22,
-            IpProtocol: tcp,
-            ToPort: 22
+            \"CidrIp\": \"$EXTERNAL_ACCESS_CIDR\",
+            \"FromPort\": 22,
+            \"IpProtocol\": \"tcp\",
+            \"ToPort\": 22
           }
         ]
       },
-      Type: AWS::EC2::SecurityGroup
+      \"Type\": \"AWS::EC2::SecurityGroup\"
     }
   }
 }
