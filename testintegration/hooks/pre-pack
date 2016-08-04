@@ -1,0 +1,11 @@
+FROM ubuntu:16.04
+
+RUN apt-get update
+RUN apt-get install -y tree
+
+ADD pre-pack.cmd /
+RUN chmod 544 /pre-pack.cmd
+
+WORKDIR /repo_root
+
+CMD /pre-pack.cmd

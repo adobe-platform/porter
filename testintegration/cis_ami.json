@@ -1,0 +1,29 @@
+{
+  Resources: {
+    AutoScalingLaunchConfiguration: {
+      Type: AWS::AutoScaling::LaunchConfiguration,
+      Properties: {
+        SecurityGroups: [
+          {
+            Ref: SSHSecurityGroup
+          }
+        ],
+        ImageId: ami-34866607
+      }
+    },
+    SSHSecurityGroup: {
+      Properties: {
+        GroupDescription: SSH Access,
+        SecurityGroupIngress: [
+          {
+            CidrIp: 192.150.22.5/32,
+            FromPort: 22,
+            IpProtocol: tcp,
+            ToPort: 22
+          }
+        ]
+      },
+      Type: AWS::EC2::SecurityGroup
+    }
+  }
+}
