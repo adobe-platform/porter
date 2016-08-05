@@ -125,7 +125,7 @@ const (
 
 	DstELBSecurityGroup = "DestinationELBToInstance"
 
-	ContainerUserUid = "601"
+	ContainerUserUid = "1001"
 
 	DockerBinaryDarwinURL = "https://get.docker.com/builds/Darwin/x86_64/docker-1.7.1"
 )

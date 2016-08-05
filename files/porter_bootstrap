@@ -8,8 +8,12 @@ export PORTER_ENVIRONMENT={{ .Environment }}
 {{ if .DevMode -}}
 export DEV_MODE=1
 {{- end }}
+{{ if .LogDebug -}}
+export LOG_DEBUG=1
+{{- end }}
 
 env
+adduser porter-docker -u {{ .ContainerUserUid }}
 # CIS Docker Benchmark 1.11.0 2.13
 echo 'OPTIONS="$OPTIONS --disable-legacy-registry"' >> /etc/sysconfig/docker
 service haproxy start
