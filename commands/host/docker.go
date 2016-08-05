@@ -189,7 +189,11 @@ func startContainers(environmentStr, regionStr string) {
 			"--log-driver=syslog",
 
 			// try to keep the container alive
-			"--restart", "always",
+			// CIS Docker Benchmark 1.11.0 5.14
+			"--restart=on-failure:5",
+
+			// CIS Docker Benchmark 1.11.0 5.12
+			"--read-only",
 
 			// set ulimit for container
 			// TODO calculate this

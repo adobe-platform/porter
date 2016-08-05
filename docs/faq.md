@@ -5,10 +5,10 @@ FAQ
 
 > I ran `docker kill` and my container didn't restart. What gives?
 
-Porter starts containers with `--restart=always`. It would be pathological for
-docker to ignore its own kill command. Exit the container with a non-zero exit
-code (e.g. `exit 1`, throw an exception) and you'll see that containers _are_
-restarted.
+Porter starts containers with `--restart=on-failure:5`. It would be pathological
+for docker to ignore its own kill command. Exit the container with a non-zero
+exit code (e.g. `exit 1`, throw an exception) and you'll see that containers
+_are_ restarted.
 
 > I rebooted my instance and it didn't work
 
