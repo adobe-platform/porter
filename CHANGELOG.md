@@ -12,6 +12,7 @@
 - got rid of hardcoded `.porter/hooks/` and made path to hooks configurable
 - tweaked config validation so config can be created dynamically in pre_pack
 - enabled deployment hooks to run concurrently
+- CIS Docker benchmark 1.11.0 remediations (2.13, 5.12, 5.14)
 
 **v1.0.5**
 

@@ -10,6 +10,8 @@ export DEV_MODE=1
 {{- end }}
 
 env
+# CIS Docker Benchmark 1.11.0 2.13
+echo 'OPTIONS="$OPTIONS --disable-legacy-registry"' >> /etc/sysconfig/docker
 service haproxy start
 service docker restart
 docker version

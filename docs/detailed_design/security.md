@@ -13,7 +13,7 @@ uses by default. See [Versions](versions.md) for details
 
 ```
 # ------------------------------------------------------------------------------
-# Docker Bench for Security v1.0.0
+# Docker Bench for Security v1.1.0
 #
 # Docker, Inc. (c) 2015-
 #
@@ -22,7 +22,7 @@ uses by default. See [Versions](versions.md) for details
 # https://benchmarks.cisecurity.org/downloads/show-single/index.cfm?file=docker16.110
 # ------------------------------------------------------------------------------
 
-Initializing Mon Jul 25 19:19:37 UTC 2016
+Initializing Fri Aug  5 17:00:25 UTC 2016
 
 
 [INFO] 1 - Host Configuration
@@ -30,9 +30,9 @@ Initializing Mon Jul 25 19:19:37 UTC 2016
 [PASS] 1.2  - Use an updated Linux Kernel
 [WARN] 1.4  - Remove all non-essential services from the host - Network
 [WARN]      * Host listening on: 14 ports
-[PASS] 1.5  - Keep Docker up to date
-[INFO]       * Using 1.11.2 which is current as of 2016-06-02
-[INFO]       * Check with your operating system vendor for support and security maintenance for docker
+[WARN] 1.5  - Keep Docker up to date
+[WARN]       * Using 1.11.2, when 1.12.0 is current as of 2016-07-28
+[INFO]       * Your operating system vendor may provide support and security maintenance for docker
 [INFO] 1.6  - Only allow trusted users to control Docker daemon
 [INFO]      * docker:x:497
 [WARN] 1.7  - Failed to inspect: auditctl command not found.
@@ -66,7 +66,7 @@ Initializing Mon Jul 25 19:19:37 UTC 2016
 [PASS] 2.10 - Do not change base device size until needed
 [WARN] 2.11 - Use authorization plugin
 [WARN] 2.12 - Configure centralized and remote logging
-[WARN] 2.13 - Disable operations on legacy registry (v1)
+[PASS] 2.13 - Disable operations on legacy registry (v1)
 
 
 [INFO] 3 - Docker Daemon Configuration Files
@@ -115,9 +115,9 @@ Initializing Mon Jul 25 19:19:37 UTC 2016
 
 [INFO] 5  - Container Runtime
 [WARN] 5.1  - Verify AppArmor Profile, if applicable
-[WARN]      * No AppArmorProfile Found: sad_mayer
+[WARN]      * No AppArmorProfile Found: happy_ardinghelli
 [WARN] 5.2  - Verify SELinux security options, if applicable
-[WARN]      * No SecurityOptions Found: sad_mayer
+[WARN]      * No SecurityOptions Found: happy_ardinghelli
 [PASS] 5.3  - Restrict Linux Kernel Capabilities within containers
 [PASS] 5.4  - Do not use privileged containers
 [PASS] 5.5  - Do not mount sensitive host system directories on containers
@@ -125,16 +125,14 @@ Initializing Mon Jul 25 19:19:37 UTC 2016
 [PASS] 5.7  - Do not map privileged ports within containers
 [PASS] 5.9 - Do not share the host's network namespace
 [WARN] 5.10 - Limit memory usage for container
-[WARN]      * Container running without memory restrictions: sad_mayer
+[WARN]      * Container running without memory restrictions: happy_ardinghelli
 [WARN] 5.11 - Set container CPU priority appropriately
-[WARN]      * Container running without CPU restrictions: sad_mayer
-[WARN] 5.12 - Mount container's root filesystem as read only
-[WARN]      * Container running with root FS mounted R/W: sad_mayer
+[WARN]      * Container running without CPU restrictions: happy_ardinghelli
+[PASS] 5.12 - Mount container's root filesystem as read only
 [WARN] 5.13 - Bind incoming container traffic to a specific host interface
-[WARN]      * Port being bound to wildcard IP: 0.0.0.0 in sad_mayer
-[WARN]      * Port being bound to wildcard IP: 0.0.0.0 in sad_mayer
-[WARN] 5.14 - Set the 'on-failure' container restart policy to 5
-[WARN]      * MaximumRetryCount is not set to 5: sad_mayer
+[WARN]      * Port being bound to wildcard IP: 0.0.0.0 in happy_ardinghelli
+[WARN]      * Port being bound to wildcard IP: 0.0.0.0 in happy_ardinghelli
+[PASS] 5.14 - Set the 'on-failure' container restart policy to 5
 [PASS] 5.15 - Do not share the host's process namespace
 [PASS] 5.16 - Do not share the host's IPC namespace
 [PASS] 5.17 - Do not directly expose host devices to containers
@@ -144,7 +142,7 @@ Initializing Mon Jul 25 19:19:37 UTC 2016
 [PASS] 5.21 - Do not disable default seccomp profile
 [PASS] 5.24 - Confirm cgroup usage
 [WARN] 5.25 - Restrict container from acquiring additional privileges
-[WARN]      * Privileges not restricted: sad_mayer
+[WARN]      * Privileges not restricted: happy_ardinghelli
 
 
 [INFO] 6  - Docker Security Operations
