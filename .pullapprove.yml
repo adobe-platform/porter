@@ -13,9 +13,11 @@ reviewers:
     required: 1
     members:
     - phylake
-  - name: collaborator
-    required: 1
+  - name: reviewer
+    required: 2
     members:
     - cdmurph32
+    - davepersing
     - gregoryfischer
+    - apratina
     - jfieber

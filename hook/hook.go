@@ -72,6 +72,7 @@ func Execute(log log15.Logger,
 		log.Error("Getwd", "Error", err)
 		return
 	}
+	log.Debug("os.Getwd()", "Path", workingDir)
 
 	var configHooks []conf.Hook
 
@@ -239,37 +240,53 @@ func runArgsFactory(log log15.Logger, config *conf.Config, workingDir string) []
 	return runArgs
 }
 
+type hookLinkedList struct {
+	hook      conf.Hook
+	hookIndex int
+
+	next *hookLinkedList
+}
+
 func runConfigHooks(log log15.Logger, config *conf.Config, hookName string,
 	hooks []conf.Hook, runArgs []string, opts *Opts) (success bool) {
 
 	successChan := make(chan bool)
-	var concurrentCount int
-	var lastHookConcurrentFlag bool
+	var (
+		concurrentCount int
+		configSuccess   bool
+
+		head *hookLinkedList
+		tail *hookLinkedList
+	)
 
 	// Only retained lexical scope is successChan, everything else is copied
-	goGadgetHook := func(log log15.Logger, config *conf.Config, hookName string,
+	goGadgetHook := func(log log15.Logger, config conf.Config, hookName string,
 		hookIndex int, hook conf.Hook, runArgs []string, opts *Opts) {
 
 		successChan <- runConfigHook(log, config, hookName, hookIndex, hook, runArgs, opts)
 	}
 
 	for hookIndex, hook := range hooks {
-
-		// block anytime we're not running consecutive concurrent hooks
-		if !(lastHookConcurrentFlag && hook.Concurrent) {
-
-			log.Debug("Waiting for hook to finish", "concurrentCount", concurrentCount)
-			for i := 0; i < concurrentCount; i++ {
-				success = <-successChan
-				if !success {
-					return
-				}
-			}
-
-			concurrentCount = 0
+		next := &hookLinkedList{
+			hook:      hook,
+			hookIndex: hookIndex,
 		}
 
-		if hook.Concurrent {
+		if head == nil {
+			head = next
+		}
+
+		if tail == nil {
+			tail = head
+		} else {
+			tail.next = next
+			tail = next
+		}
+	}
+
+	for node := head; node != nil; node = node.next {
+
+		if node.hook.Concurrent {
 
 			concurrentCount++
 		} else {
@@ -277,17 +294,36 @@ func runConfigHooks(log log15.Logger, config *conf.Config, hookName string,
 			concurrentCount = 1
 		}
 
-		log := log.New("HookIndex", hookIndex, "Concurrent", hook.Concurrent)
-		go goGadgetHook(log, config, hookName, hookIndex, hook, runArgs, opts)
+		log := log.New("HookIndex", node.hookIndex, "Concurrent", node.hook.Concurrent)
+		log.Debug("go go gadget hook")
+		go goGadgetHook(log, *config, hookName, node.hookIndex, node.hook, runArgs, opts)
 
-		lastHookConcurrentFlag = hook.Concurrent
+		// block anytime we're not running consecutive concurrent hooks
+		if node.next == nil || !node.next.hook.Concurrent {
+
+			log.Debug("Waiting for hook(s) to finish", "concurrentCount", concurrentCount)
+			for i := 0; i < concurrentCount; i++ {
+				success = <-successChan
+				if !success {
+					return
+				}
+			}
+			log.Debug("Hook(s) finished", "concurrentCount", concurrentCount)
+
+			config, configSuccess = conf.GetConfig(log, false)
+			if !configSuccess {
+				return
+			}
+
+			concurrentCount = 0
+		}
 	}
 
 	success = true
 	return
 }
 
-func runConfigHook(log log15.Logger, config *conf.Config, hookName string,
+func runConfigHook(log log15.Logger, config conf.Config, hookName string,
 	hookIndex int, hook conf.Hook, runArgs []string, opts *Opts) (success bool) {
 	log.Debug("runConfigHook() BEGIN")
 	defer log.Debug("runConfigHook() END")

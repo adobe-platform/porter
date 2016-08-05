@@ -1,0 +1,1470 @@
+{
+  "Description": "porter testing environment",
+  "Parameters": {
+    "VPCCIDR": {
+      "Type": "String",
+      "Default": "10.23.0.0/16"
+    },
+    "PublicSubnetCIDR": {
+      "Type": "String",
+      "Default": "10.23.0.0/20"
+    },
+    "PrivateSubnetCIDR1": {
+      "Type": "String",
+      "Default": "10.23.16.0/20"
+    },
+    "PrivateSubnetCIDR2": {
+      "Type": "String",
+      "Default": "10.23.32.0/20"
+    },
+    "PrivateSubnetCIDR3": {
+      "Type": "String",
+      "Default": "10.23.48.0/20"
+    },
+    "MasterInstanceType": {
+      "Description": "GoCD Server instance type",
+      "Type": "String",
+      "AllowedValues": [
+        "t2.micro",
+        "t2.small",
+        "t2.medium",
+        "t2.large",
+        "m4.large",
+        "m4.xlarge"
+      ],
+      "Default": "t2.medium",
+      "ConstraintDescription": "must be a valid EC2 instance type."
+    },
+    "AgentInstanceType": {
+      "Description": "GoCD Agent instance type",
+      "Type": "String",
+      "AllowedValues": [
+        "t2.micro",
+        "t2.small",
+        "t2.medium",
+        "t2.large",
+        "m4.large",
+        "m4.xlarge"
+      ],
+      "Default": "t2.large",
+      "ConstraintDescription": "must be a valid EC2 instance type."
+    },
+    "AgentDesiredCapacity": {
+      "Description": "The number of Agent instances to have during normal working hours",
+      "Type": "Number",
+      "MinValue": "1",
+      "MaxValue": "30",
+      "Default": "1"
+    },
+    "SSHKeyName": {
+      "Description": "Name of an EC2 Key Pair",
+      "Type": "AWS::EC2::KeyPair::KeyName"
+    },
+    "SlackNotificationWebhook": {
+      "Description": "Incoming webhook URL",
+      "Type": "String"
+    },
+    "ExternalAccessCIDR": {
+      "Description": "ELB and SSH access",
+      "Default": "0.0.0.0/0",
+      "Type": "String"
+    },
+    "PorterBuildsURI": {
+      "Description": "Prefix to /{version}/porter_linux386 for build box to download porter binary",
+      "Type": "String"
+    },
+    "TestRepoDeployKey": {
+      "Description": "Private portion of Github deploy key. `tr '\n' ' '`",
+      "Default": "",
+      "Type": "String"
+    },
+    "TestRepoUrl": {
+      "Description": "Repo you want to test",
+      "Type": "String"
+    },
+    "TestRepoBranch": {
+      "Description": "Branch in test repo",
+      "Default": "master",
+      "Type": "String"
+    }
+  },
+  "Mappings": {
+    "RegionToAmazonLinuxAMI": {
+      "ap-northeast-1": {
+        "Key": "ami-1c1b9f1c"
+      },
+      "ap-southeast-1": {
+        "Key": "ami-d44b4286"
+      },
+      "ap-southeast-2": {
+        "Key": "ami-db7b39e1"
+      },
+      "eu-central-1": {
+        "Key": "ami-a6b0b7bb"
+      },
+      "eu-west-1": {
+        "Key": "ami-e4d18e93"
+      },
+      "sa-east-1": {
+        "Key": "ami-55098148"
+      },
+      "us-east-1": {
+        "Key": "ami-0d4cfd66"
+      },
+      "us-west-1": {
+        "Key": "ami-87ea13c3"
+      },
+      "us-west-2": {
+        "Key": "ami-d5c5d1e5"
+      }
+    }
+  },
+  "Resources": {
+    "VPC": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": {
+          "Ref": "VPCCIDR"
+        },
+        "EnableDnsSupport": true,
+        "EnableDnsHostnames": true,
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "GoCD"
+          }
+        ]
+      }
+    },
+    "PublicRouteTable": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "GoCD public"
+          }
+        ]
+      }
+    },
+    "PrivateRouteTable": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "GoCD private"
+          }
+        ]
+      }
+    },
+    "InternetGateway": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "GoCD ig"
+          }
+        ]
+      }
+    },
+    "EIP": {
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "Domain": "vpc"
+      }
+    },
+    "NatGateway": {
+      "Type": "AWS::EC2::NatGateway",
+      "Properties": {
+        "AllocationId": {
+          "Fn::GetAtt": [
+            "EIP",
+            "AllocationId"
+          ]
+        },
+        "SubnetId": {
+          "Ref": "PublicSubnet"
+        }
+      }
+    },
+    "InternetGatewayAttachment": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "InternetGatewayId": {
+          "Ref": "InternetGateway"
+        }
+      }
+    },
+    "DefaultPublicRoute": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "InternetGateway"
+        },
+        "RouteTableId": {
+          "Ref": "PublicRouteTable"
+        }
+      }
+    },
+    "DefaultPrivateRoute": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "NatGatewayId": {
+          "Ref": "NatGateway"
+        },
+        "RouteTableId": {
+          "Ref": "PrivateRouteTable"
+        }
+      }
+    },
+    "PublicSubnet": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "CidrBlock": {
+          "Ref": "PublicSubnetCIDR"
+        },
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "GoCD public"
+          }
+        ],
+        "MapPublicIpOnLaunch": true
+      }
+    },
+    "PrivateSubnet1": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "CidrBlock": {
+          "Ref": "PrivateSubnetCIDR1"
+        },
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "GoCD private"
+          }
+        ]
+      }
+    },
+    "PrivateSubnet2": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            1,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "CidrBlock": {
+          "Ref": "PrivateSubnetCIDR2"
+        },
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "GoCD private"
+          }
+        ]
+      }
+    },
+    "PrivateSubnet3": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            2,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "CidrBlock": {
+          "Ref": "PrivateSubnetCIDR3"
+        },
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "GoCD private"
+          }
+        ]
+      }
+    },
+    "PublicSubnetRoute": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PublicRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "PublicSubnet"
+        }
+      }
+    },
+    "PrivateSubnet1Route": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PrivateRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "PrivateSubnet1"
+        }
+      }
+    },
+    "PrivateSubnet2Route": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PrivateRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "PrivateSubnet2"
+        }
+      }
+    },
+    "PrivateSubnet3Route": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PrivateRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "PrivateSubnet3"
+        }
+      }
+    },
+    "GOMasterSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Allow TCP 8153 from GO Agents and ELB",
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 8153,
+            "ToPort": 8153,
+            "SourceSecurityGroupId": {
+              "Ref": "ELBSecurityGroup"
+            }
+          }
+        ]
+      }
+    },
+    "SSHSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "SSH",
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "SecurityGroupIngress": [
+          {
+            "CidrIp": {
+              "Ref": "ExternalAccessCIDR"
+            },
+            "FromPort": 22,
+            "IpProtocol": "tcp",
+            "ToPort": 22
+          }
+        ]
+      }
+    },
+    "ELBSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "HTTP",
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "SecurityGroupIngress": [
+          {
+            "CidrIp": {
+              "Ref": "ExternalAccessCIDR"
+            },
+            "FromPort": 80,
+            "IpProtocol": "tcp",
+            "ToPort": 80
+          }
+        ]
+      }
+    },
+    "GoMasterELB": {
+      "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+      "DependsOn": [
+        "InternetGatewayAttachment"
+      ],
+      "Properties": {
+        "Subnets": [
+          {
+            "Ref": "PublicSubnet"
+          }
+        ],
+        "ConnectionDrainingPolicy": {
+          "Enabled": true,
+          "Timeout": 300
+        },
+        "HealthCheck": {
+          "HealthyThreshold": "2",
+          "Interval": "5",
+          "Target": "TCP:8153",
+          "Timeout": "3",
+          "UnhealthyThreshold": "2"
+        },
+        "Listeners": [
+          {
+            "InstancePort": 8153,
+            "LoadBalancerPort": 80,
+            "Protocol": "HTTP"
+          }
+        ],
+        "SecurityGroups": [
+          {
+            "Ref": "ELBSecurityGroup"
+          }
+        ]
+      }
+    },
+    "PorterELB1": {
+      "Properties": {
+        "ConnectionDrainingPolicy": {
+          "Enabled": true,
+          "Timeout": 300
+        },
+        "CrossZone": true,
+        "HealthCheck": {
+          "HealthyThreshold": "3",
+          "Interval": "5",
+          "Target": "HTTP:80/custom_health_check",
+          "Timeout": "3",
+          "UnhealthyThreshold": "2"
+        },
+        "Listeners": [
+          {
+            "InstancePort": 80,
+            "LoadBalancerPort": "80",
+            "Protocol": "HTTP"
+          }
+        ],
+        "SecurityGroups": [
+          {
+            "Ref": "ELBSecurityGroup"
+          }
+        ],
+        "Subnets": [
+          {
+            "Ref": "PublicSubnet"
+          }
+        ]
+      },
+      "Type": "AWS::ElasticLoadBalancing::LoadBalancer"
+    },
+    "PorterELB2": {
+      "Properties": {
+        "ConnectionDrainingPolicy": {
+          "Enabled": true,
+          "Timeout": 300
+        },
+        "CrossZone": true,
+        "HealthCheck": {
+          "HealthyThreshold": "3",
+          "Interval": "5",
+          "Target": "HTTP:80/custom_health_check",
+          "Timeout": "3",
+          "UnhealthyThreshold": "2"
+        },
+        "Listeners": [
+          {
+            "InstancePort": 80,
+            "LoadBalancerPort": "80",
+            "Protocol": "HTTP"
+          }
+        ],
+        "SecurityGroups": [
+          {
+            "Ref": "ELBSecurityGroup"
+          }
+        ],
+        "Subnets": [
+          {
+            "Ref": "PublicSubnet"
+          }
+        ]
+      },
+      "Type": "AWS::ElasticLoadBalancing::LoadBalancer"
+    },
+    "GoCDMasterAutoScalingGroup": {
+      "Type": "AWS::AutoScaling::AutoScalingGroup",
+      "Properties": {
+        "VPCZoneIdentifier": [
+          {
+            "Ref": "PublicSubnet"
+          }
+        ],
+        "LaunchConfigurationName": {
+          "Ref": "GoCDMasterAutoScalingLaunchConfiguration"
+        },
+        "LoadBalancerNames": [
+          {
+            "Ref": "GoMasterELB"
+          }
+        ],
+        "MaxSize": "1",
+        "MinSize": "1",
+        "Tags": [
+          {
+            "Key": "Name",
+            "PropagateAtLaunch": true,
+            "Value": "GoCD Master"
+          },
+          {
+            "Key": "GoCDMaster",
+            "PropagateAtLaunch": true,
+            "Value": "true"
+          }
+        ]
+      }
+    },
+    "GoCDAgentsAutoScalingGroup": {
+      "Type": "AWS::AutoScaling::AutoScalingGroup",
+      "Properties": {
+        "VPCZoneIdentifier": [
+          {
+            "Ref": "PrivateSubnet1"
+          },
+          {
+            "Ref": "PrivateSubnet2"
+          },
+          {
+            "Ref": "PrivateSubnet3"
+          }
+        ],
+        "LaunchConfigurationName": {
+          "Ref": "GoCDAgentAutoScalingLaunchConfiguration"
+        },
+        "MaxSize": {
+          "Ref": "AgentDesiredCapacity"
+        },
+        "DesiredCapacity": {
+          "Ref": "AgentDesiredCapacity"
+        },
+        "TerminationPolicies": [
+          "OldestInstance"
+        ],
+        "MinSize": "1",
+        "Tags": [
+          {
+            "Key": "Name",
+            "PropagateAtLaunch": true,
+            "Value": "GoCD Agent"
+          }
+        ]
+      }
+    },
+    "GoCDMasterAutoScalingLaunchConfiguration": {
+      "Type": "AWS::AutoScaling::LaunchConfiguration",
+      "DependsOn": [
+        "InternetGatewayAttachment"
+      ],
+      "Metadata": {
+        "AWS::CloudFormation::Init": {
+          "configSets": {
+            "cfnMasterStep0": [
+              "installServer"
+            ],
+            "cfnMasterStep1": [
+              "configAndStartServer"
+            ]
+          },
+          "installServer": {
+            "commands": {
+              "1_installServer": {
+                "command": "[[ -f /etc/init.d/go-server ]] || rpm -i /go-server.noarch.rpm"
+              },
+              "2_stopServer": {
+                "command": "service go-server stop"
+              }
+            },
+            "files": {
+              "/go-server.noarch.rpm": {
+                "source": "https://download.go.cd/binaries/16.3.0-3183/rpm/go-server-16.3.0-3183.noarch.rpm",
+                "group": "root",
+                "mode": "000644",
+                "owner": "root"
+              }
+            }
+          },
+          "configAndStartServer": {
+            "commands": {
+              "1_sshKey": {
+                "command": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "KEY='",
+                      {
+                        "Ref": "TestRepoDeployKey"
+                      },
+                      "'\n",
+                      "if [[ \"$KEY\" != '' ]]; then\n",
+                      "  echo \"$KEY\" | perl -wn /usr/bin/rebuild_rsa_key > /var/go/.ssh/id_rsa\n",
+                      "  chmod 400 /var/go/.ssh/id_rsa\n",
+                      "fi\n"
+                    ]
+                  ]
+                }
+              },
+              "2_startServer": {
+                "command": "service go-server start"
+              }
+            },
+            "files": {
+              "/etc/go/cruise-config.xml": {
+                "context": {
+                  "test_repo_url": {
+                    "Ref": "TestRepoUrl"
+                  },
+                  "test_repo_branch": {
+                    "Ref": "TestRepoBranch"
+                  },
+                  "slack_notification_webhook": {
+                    "Ref": "SlackNotificationWebhook"
+                  },
+                  "go_notification_url": {
+                    "Fn::GetAtt": [
+                      "GoMasterELB",
+                      "DNSName"
+                    ]
+                  },
+                  "external_access_cidr": {
+                    "Ref": "ExternalAccessCIDR"
+                  },
+                  "ssh_key_name": {
+                    "Ref": "SSHKeyName"
+                  },
+                  "aws_account_id": {
+                    "Ref": "AWS::AccountId"
+                  },
+                  "vpc_id": {
+                    "Ref": "VPC"
+                  },
+                  "public_subnet_id": {
+                    "Ref": "PublicSubnet"
+                  },
+                  "porter_elb_1": {
+                    "Ref": "PorterELB1"
+                  },
+                  "porter_elb_2": {
+                    "Ref": "PorterELB2"
+                  }
+                },
+                "content": {
+                  "Fn::Join": [
+                    "\n",
+                    [
+                      "<?xml version=\"1.0\" encoding=\"utf-8\"?>",
+                      "<cruise xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"cruise-config.xsd\" schemaVersion=\"81\">",
+                      "  <server artifactsdir=\"artifacts\" purgeStart=\"10.0\" purgeUpto=\"50.0\" jobTimeout=\"5\" agentAutoRegisterKey=\"dcf16b5c94ba9fccbc428949d940cc76\" commandRepositoryLocation=\"default\" serverId=\"6335d7f3-5c72-410c-865a-d92067e9d693\" />",
+                      "  <pipelines group=\"porter-test\">",
+                      "    <pipeline name=\"porter-test-pack\" template=\"Porter-Pack\">",
+                      "      <materials>",
+                      "        <git url=\"{{test_repo_url}}\" branch=\"{{test_repo_branch}}\" shallowClone=\"true\" />",
+                      "      </materials>",
+                      "    </pipeline>",
+                      "    <pipeline name=\"CustomVPC-deploy\" template=\"Porter-Deploy\">",
+                      "      <params>",
+                      "        <param name=\"pack_pipeline\">porter-test-pack</param>",
+                      "        <param name=\"porter_env\">CustomVPC</param>",
+                      "      </params>",
+                      "      <materials>",
+                      "        <pipeline pipelineName=\"porter-test-pack\" stageName=\"Pack\" />",
+                      "      </materials>",
+                      "    </pipeline>",
+                      "    <pipeline name=\"CIS-deploy\" template=\"Porter-Deploy\">",
+                      "      <params>",
+                      "        <param name=\"pack_pipeline\">porter-test-pack</param>",
+                      "        <param name=\"porter_env\">CIS</param>",
+                      "      </params>",
+                      "      <materials>",
+                      "        <pipeline pipelineName=\"porter-test-pack\" stageName=\"Pack\" />",
+                      "      </materials>",
+                      "    </pipeline>",
+                      "  </pipelines>",
+                      "  <templates>",
+                      "    <pipeline name=\"Porter-Pack\">",
+                      "      <stage name=\"Pack\" cleanWorkingDir=\"true\">",
+                      "        <environmentvariables>",
+                      "          <variable name=\"PORTER_OLD_STYLE_HOOK_ENV\">",
+                      "            <value>1</value>",
+                      "          </variable>",
+                      "          <variable name=\"DEV_MODE\">",
+                      "            <value>1</value>",
+                      "          </variable>",
+                      "          <variable name=\"DEBUG_CONFIG\">",
+                      "            <value>1</value>",
+                      "          </variable>",
+                      "          <variable name=\"LOG_DEBUG\">",
+                      "            <value>1</value>",
+                      "          </variable>",
+                      "          <variable name=\"TEST_REPO_URL\">",
+                      "            <value>{{test_repo_url}}</value>",
+                      "          </variable>",
+                      "          <variable name=\"TEST_REPO_BRANCH\">",
+                      "            <value>{{test_repo_branch}}</value>",
+                      "          </variable>",
+                      "          <variable name=\"EXTERNAL_ACCESS_CIDR\">",
+                      "            <value>{{external_access_cidr}}</value>",
+                      "          </variable>",
+                      "          <variable name=\"SPLUNK_WEBHOOK_URL\">",
+                      "            <value>{{slack_notification_webhook}}</value>",
+                      "          </variable>",
+                      "          <variable name=\"GO_NOTIFICATION_URL\">",
+                      "            <value>http://{{go_notification_url}}</value>",
+                      "          </variable>",
+                      "          <variable name=\"SSH_KEY\">",
+                      "            <value>{{ssh_key_name}}</value>",
+                      "          </variable>",
+                      "          <variable name=\"AWS_ACCOUNT_ID\">",
+                      "            <value>{{aws_account_id}}</value>",
+                      "          </variable>",
+                      "          <variable name=\"VPC_ID\">",
+                      "            <value>{{vpc_id}}</value>",
+                      "          </variable>",
+                      "          <variable name=\"SUBNET_ID\">",
+                      "            <value>{{public_subnet_id}}</value>",
+                      "          </variable>",
+                      "          <variable name=\"ELB_1_NAME\">",
+                      "            <value>{{porter_elb_1}}</value>",
+                      "          </variable>",
+                      "          <variable name=\"ELB_2_NAME\">",
+                      "            <value>{{porter_elb_2}}</value>",
+                      "          </variable>",
+                      "        </environmentvariables>",
+                      "        <jobs>",
+                      "          <job name=\"Pack\">",
+                      "            <tasks>",
+                      "              <exec command=\"/bin/bash\" workingdir=\"testintegration\">",
+                      "                <arg>-c</arg>",
+                      "                <arg>/usr/bin/download_porter ./.porter/config</arg>",
+                      "                <runif status=\"passed\" />",
+                      "              </exec>",
+                      "              <exec command=\"/bin/bash\" workingdir=\"testintegration\">",
+                      "                <arg>-c</arg>",
+                      "                <arg>git submodule update --init --recursive</arg>",
+                      "                <runif status=\"passed\" />",
+                      "              </exec>",
+                      "              <exec command=\"ls\" workingdir=\"testintegration\">",
+                      "                <arg>-alh</arg>",
+                      "                <runif status=\"passed\" />",
+                      "              </exec>",
+                      "              <exec command=\"./porter\" workingdir=\"testintegration\">",
+                      "                <arg>build</arg>",
+                      "                <arg>pack</arg>",
+                      "                <runif status=\"passed\" />",
+                      "              </exec>",
+                      "              <exec command=\"./porter\" workingdir=\"testintegration\">",
+                      "                <arg>build</arg>",
+                      "                <arg>notify</arg>",
+                      "                <arg>-go-ci</arg>",
+                      "                <arg>-phase</arg>",
+                      "                <arg>pack</arg>",
+                      "                <arg>-success=t</arg>",
+                      "                <runif status=\"passed\" />",
+                      "              </exec>",
+                      "              <exec command=\"./porter\" workingdir=\"testintegration\">",
+                      "                <arg>build</arg>",
+                      "                <arg>notify</arg>",
+                      "                <arg>-go-ci</arg>",
+                      "                <arg>-phase</arg>",
+                      "                <arg>pack</arg>",
+                      "                <arg>-success=f</arg>",
+                      "                <runif status=\"failed\" />",
+                      "              </exec>",
+                      "            </tasks>",
+                      "            <artifacts>",
+                      "              <artifact src=\"testintegration/**/*\" />",
+                      "            </artifacts>",
+                      "          </job>",
+                      "        </jobs>",
+                      "      </stage>",
+                      "    </pipeline>",
+                      "    <pipeline name=\"Porter-Deploy\">",
+                      "      <stage name=\"Provision\" cleanWorkingDir=\"true\">",
+                      "        <environmentvariables>",
+                      "          <variable name=\"DEV_MODE\">",
+                      "            <value>1</value>",
+                      "          </variable>",
+                      "          <variable name=\"LOG_DEBUG\">",
+                      "            <value>1</value>",
+                      "          </variable>",
+                      "          <variable name=\"GO_NOTIFICATION_URL\">",
+                      "            <value>http://{{go_notification_url}}</value>",
+                      "          </variable>",
+                      "        </environmentvariables>",
+                      "        <jobs>",
+                      "          <job name=\"Provision\">",
+                      "            <tasks>",
+                      "              <fetchartifact pipeline=\"#{pack_pipeline}\" stage=\"Pack\" job=\"Pack\" srcdir=\"./\">",
+                      "                <runif status=\"passed\" />",
+                      "              </fetchartifact>",
+                      "              <exec command=\"ls\">",
+                      "                <arg>-alh</arg>",
+                      "                <runif status=\"passed\" />",
+                      "              </exec>",
+                      "              <exec command=\"chmod\">",
+                      "                <arg>+x</arg>",
+                      "                <arg>porter</arg>",
+                      "                <runif status=\"passed\" />",
+                      "              </exec>",
+                      "              <exec command=\"./porter\">",
+                      "                <arg>build</arg>",
+                      "                <arg>provision</arg>",
+                      "                <arg>-e</arg>",
+                      "                <arg>#{porter_env}</arg>",
+                      "                <runif status=\"passed\" />",
+                      "              </exec>",
+                      "              <exec command=\"./porter\">",
+                      "                <arg>build</arg>",
+                      "                <arg>notify</arg>",
+                      "                <arg>-go-ci</arg>",
+                      "                <arg>-phase</arg>",
+                      "                <arg>provision</arg>",
+                      "                <arg>-success=t</arg>",
+                      "                <runif status=\"passed\" />",
+                      "              </exec>",
+                      "              <exec command=\"./porter\">",
+                      "                <arg>build</arg>",
+                      "                <arg>notify</arg>",
+                      "                <arg>-go-ci</arg>",
+                      "                <arg>-phase</arg>",
+                      "                <arg>provision</arg>",
+                      "                <arg>-success=f</arg>",
+                      "                <runif status=\"failed\" />",
+                      "              </exec>",
+                      "            </tasks>",
+                      "            <artifacts>",
+                      "              <artifact src=\"**/*\" />",
+                      "            </artifacts>",
+                      "          </job>",
+                      "        </jobs>",
+                      "      </stage>",
+                      "      <stage name=\"Promote\" cleanWorkingDir=\"true\">",
+                      "        <environmentvariables>",
+                      "          <variable name=\"DEV_MODE\">",
+                      "            <value>1</value>",
+                      "          </variable>",
+                      "          <variable name=\"LOG_DEBUG\">",
+                      "            <value>1</value>",
+                      "          </variable>",
+                      "          <variable name=\"GO_NOTIFICATION_URL\">",
+                      "            <value>http://{{go_notification_url}}</value>",
+                      "          </variable>",
+                      "        </environmentvariables>",
+                      "        <jobs>",
+                      "          <job name=\"Promote\">",
+                      "            <tasks>",
+                      "              <fetchartifact pipeline=\"\" stage=\"Provision\" job=\"Provision\" srcdir=\"./\">",
+                      "                <runif status=\"passed\" />",
+                      "              </fetchartifact>",
+                      "              <exec command=\"ls\">",
+                      "                <arg>-alh</arg>",
+                      "                <runif status=\"passed\" />",
+                      "              </exec>",
+                      "              <exec command=\"chmod\">",
+                      "                <arg>+x</arg>",
+                      "                <arg>porter</arg>",
+                      "                <runif status=\"passed\" />",
+                      "              </exec>",
+                      "              <exec command=\"./porter\">",
+                      "                <arg>build</arg>",
+                      "                <arg>promote</arg>",
+                      "                <runif status=\"passed\" />",
+                      "              </exec>",
+                      "              <exec command=\"./porter\">",
+                      "                <arg>build</arg>",
+                      "                <arg>notify</arg>",
+                      "                <arg>-go-ci</arg>",
+                      "                <arg>-phase</arg>",
+                      "                <arg>promote</arg>",
+                      "                <arg>-success=t</arg>",
+                      "                <runif status=\"passed\" />",
+                      "              </exec>",
+                      "              <exec command=\"./porter\">",
+                      "                <arg>build</arg>",
+                      "                <arg>notify</arg>",
+                      "                <arg>-go-ci</arg>",
+                      "                <arg>-phase</arg>",
+                      "                <arg>promote</arg>",
+                      "                <arg>-success=f</arg>",
+                      "                <runif status=\"failed\" />",
+                      "              </exec>",
+                      "            </tasks>",
+                      "            <artifacts>",
+                      "              <artifact src=\"**/*\" />",
+                      "            </artifacts>",
+                      "          </job>",
+                      "        </jobs>",
+                      "      </stage>",
+                      "      <stage name=\"Prune\" cleanWorkingDir=\"true\">",
+                      "        <environmentvariables>",
+                      "          <variable name=\"DEV_MODE\">",
+                      "            <value>1</value>",
+                      "          </variable>",
+                      "          <variable name=\"LOG_DEBUG\">",
+                      "            <value>1</value>",
+                      "          </variable>",
+                      "          <variable name=\"GO_NOTIFICATION_URL\">",
+                      "            <value>http://{{go_notification_url}}</value>",
+                      "          </variable>",
+                      "        </environmentvariables>",
+                      "        <jobs>",
+                      "          <job name=\"Prune\">",
+                      "            <tasks>",
+                      "              <fetchartifact pipeline=\"\" stage=\"Provision\" job=\"Provision\" srcdir=\"./\">",
+                      "                <runif status=\"passed\" />",
+                      "              </fetchartifact>",
+                      "              <exec command=\"ls\">",
+                      "                <arg>-alh</arg>",
+                      "                <runif status=\"passed\" />",
+                      "              </exec>",
+                      "              <exec command=\"chmod\">",
+                      "                <arg>+x</arg>",
+                      "                <arg>porter</arg>",
+                      "                <runif status=\"passed\" />",
+                      "              </exec>",
+                      "              <exec command=\"./porter\">",
+                      "                <arg>build</arg>",
+                      "                <arg>prune</arg>",
+                      "                <runif status=\"passed\" />",
+                      "              </exec>",
+                      "            </tasks>",
+                      "          </job>",
+                      "        </jobs>",
+                      "      </stage>",
+                      "    </pipeline>",
+                      "  </templates>",
+                      "</cruise>"
+                    ]
+                  ]
+                },
+                "group": "go",
+                "mode": "000664",
+                "owner": "go"
+              },
+              "/var/go/.ssh/config": {
+                "content": {
+                  "Fn::Join": [
+                    "\n",
+                    [
+                      "Host github.com",
+                      "    StrictHostKeyChecking no",
+                      ""
+                    ]
+                  ]
+                },
+                "group": "go",
+                "mode": "000644",
+                "owner": "go"
+              },
+              "/var/go/.ssh/id_rsa": {
+                "content": "content and mode are replaced",
+                "group": "go",
+                "mode": "000222",
+                "owner": "go"
+              },
+              "/usr/bin/rebuild_rsa_key": {
+                "content": {
+                  "Fn::Join": [
+                    "\n",
+                    [
+                      "#!/usr/bin/perl",
+                      "my @key = split \" \";",
+                      "print \"@key[0..3]\\n\";",
+                      "my @mid = splice @key, 4, -4;",
+                      "foreach (@mid) {",
+                      "  print \"$_\\n\";",
+                      "}",
+                      "print \"@key[-4..-1]\\n\";"
+                    ]
+                  ]
+                },
+                "group": "root",
+                "mode": "000755",
+                "owner": "root"
+              }
+            }
+          }
+        }
+      },
+      "Properties": {
+        "InstanceMonitoring": false,
+        "IamInstanceProfile": {
+          "Ref": "IAMInstanceProfile"
+        },
+        "ImageId": {
+          "Fn::FindInMap": [
+            "RegionToAmazonLinuxAMI",
+            {
+              "Ref": "AWS::Region"
+            },
+            "Key"
+          ]
+        },
+        "InstanceType": {
+          "Ref": "MasterInstanceType"
+        },
+        "KeyName": {
+          "Ref": "SSHKeyName"
+        },
+        "SecurityGroups": [
+          {
+            "Ref": "SSHSecurityGroup"
+          },
+          {
+            "Ref": "GOMasterSecurityGroup"
+          },
+          {
+            "Fn::GetAtt": [
+              "VPC",
+              "DefaultSecurityGroup"
+            ]
+          }
+        ],
+        "BlockDeviceMappings": [
+          {
+            "DeviceName": "/dev/xvda",
+            "Ebs": {
+              "VolumeSize": "500",
+              "VolumeType": "gp2"
+            }
+          }
+        ],
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              [
+                "#cloud-config\n",
+                "repo_upgrade: security\n",
+                "repo_releasever: 2015.03\n",
+                "\n",
+                "packages:\n",
+                "  - git-daemon\n",
+                "\n",
+                "runcmd:\n",
+                "  - echo running cfn-init -c cfnMasterStep0,cfnMasterStep1\n",
+                "  - /opt/aws/bin/cfn-init -c cfnMasterStep0,cfnMasterStep1",
+                " --region ",
+                {
+                  "Ref": "AWS::Region"
+                },
+                " --stack ",
+                {
+                  "Ref": "AWS::StackId"
+                },
+                " -r GoCDMasterAutoScalingLaunchConfiguration\n",
+                "\n"
+              ]
+            ]
+          }
+        }
+      }
+    },
+    "GoCDAgentAutoScalingLaunchConfiguration": {
+      "Type": "AWS::AutoScaling::LaunchConfiguration",
+      "DependsOn": [
+        "GoCDMasterAutoScalingGroup",
+        "NatGateway"
+      ],
+      "Metadata": {
+        "AWS::CloudFormation::Init": {
+          "configSets": {
+            "cfnAgentStep0": [
+              "installAgent"
+            ],
+            "cfnAgentStep1": [
+              "dockerSetup",
+              "agentFirstRunAndUnpack"
+            ],
+            "cfnAgentStep2": [
+              "agentAutoregisterConfig"
+            ]
+          },
+          "installAgent": {
+            "commands": {
+              "installAgent": {
+                "command": "rpm -i /go-agent.noarch.rpm"
+              }
+            },
+            "files": {
+              "/go-agent.noarch.rpm": {
+                "source": "https://download.go.cd/binaries/16.3.0-3183/rpm/go-agent-16.3.0-3183.noarch.rpm",
+                "group": "root",
+                "mode": "000644",
+                "owner": "root"
+              },
+              "/usr/bin/download_porter": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "#!/bin/bash -e\n",
+                      "#\n",
+                      "# This script will be used by CI servers to download the version of porter\n",
+                      "# defined in user config file ./porter/config or the script downloads the latest.\n",
+                      "#\n",
+                      "#\n",
+                      "VERSION=$(perl -wne 'print \"v$1\" if /porter_version: \\\"?v(([A-Z]|[0-9]|\\.)+)/' $1)\n",
+                      "echo \"Downloading porter $VERSION\"\n",
+                      "curl --compressed -so porter ",
+                      {
+                        "Ref": "PorterBuildsURI"
+                      },
+                      "/$VERSION/porter_linux386\n",
+                      "chmod 555 ./porter\n"
+                    ]
+                  ]
+                },
+                "group": "root",
+                "mode": "000755",
+                "owner": "root"
+              }
+            }
+          },
+          "agentFirstRunAndUnpack": {
+            "commands": {
+              "go_initialize_agent": {
+                "command": "/usr/bin/go_initialize_agent"
+              }
+            },
+            "files": {
+              "/usr/bin/go_initialize_agent": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "export AWS_DEFAULT_REGION=",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      "\n",
+                      "curl -Lo /usr/bin/jq https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64\n",
+                      "chmod 755 /usr/bin/jq\n",
+                      "MASTER_IP=$(aws ec2 describe-instances --filters 'Name=tag:Name,Values=GoCD Master'",
+                      " | jq '.Reservations | map(select(.Instances[0].State.Name == \"running\"))[0]'",
+                      " | jq -r '.Instances[0].NetworkInterfaces[0].PrivateIpAddresses[0].PrivateIpAddress')\n",
+                      "sed -i -e \"s/GO_SERVER=127.0.0.1/GO_SERVER=$MASTER_IP/\" /etc/default/go-agent\n",
+                      "service go-agent start\n",
+                      "service go-agent stop"
+                    ]
+                  ]
+                },
+                "group": "root",
+                "mode": "000755",
+                "owner": "root"
+              }
+            }
+          },
+          "agentAutoregisterConfig": {
+            "commands": {
+              "1_sshKey": {
+                "command": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "KEY='",
+                      {
+                        "Ref": "TestRepoDeployKey"
+                      },
+                      "'\n",
+                      "if [[ \"$KEY\" != '' ]]; then\n",
+                      "  echo \"$KEY\" | perl -wn /usr/bin/rebuild_rsa_key > /var/go/.ssh/id_rsa\n",
+                      "  chmod 400 /var/go/.ssh/id_rsa\n",
+                      "fi\n"
+                    ]
+                  ]
+                }
+              },
+              "2_restartAgent": {
+                "command": "service go-agent start"
+              }
+            },
+            "files": {
+              "/var/lib/go-agent/config/autoregister.properties": {
+                "content": {
+                  "Fn::Join": [
+                    "\n",
+                    [
+                      "agent.auto.register.key=dcf16b5c94ba9fccbc428949d940cc76"
+                    ]
+                  ]
+                },
+                "group": "go",
+                "mode": "000644",
+                "owner": "go"
+              },
+              "/var/go/.ssh/config": {
+                "content": {
+                  "Fn::Join": [
+                    "\n",
+                    [
+                      "Host github.com",
+                      "    StrictHostKeyChecking no",
+                      ""
+                    ]
+                  ]
+                },
+                "group": "go",
+                "mode": "000644",
+                "owner": "go"
+              },
+              "/var/go/.ssh/id_rsa": {
+                "content": "content and mode are replaced",
+                "group": "go",
+                "mode": "000222",
+                "owner": "go"
+              },
+              "/usr/bin/rebuild_rsa_key": {
+                "content": {
+                  "Fn::Join": [
+                    "\n",
+                    [
+                      "#!/usr/bin/perl",
+                      "my @key = split \" \";",
+                      "print \"@key[0..3]\\n\";",
+                      "my @mid = splice @key, 4, -4;",
+                      "foreach (@mid) {",
+                      "  print \"$_\\n\";",
+                      "}",
+                      "print \"@key[-4..-1]\\n\";"
+                    ]
+                  ]
+                },
+                "group": "root",
+                "mode": "000755",
+                "owner": "root"
+              }
+            }
+          },
+          "dockerSetup": {
+            "commands": {
+              "dockerSetup": {
+                "command": {
+                  "Fn::Join": [
+                    "\n",
+                    [
+                      "usermod -G go,wheel,docker go",
+                      "service docker restart"
+                    ]
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "Properties": {
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              [
+                "#cloud-config\n",
+                "repo_upgrade: security\n",
+                "repo_releasever: 2015.03\n",
+                "\n",
+                "packages:\n",
+                "  - git\n",
+                "  - docker\n",
+                "\n",
+                "runcmd:\n",
+                "  - echo running cfn-init -c cfnAgentStep0,cfnAgentStep1,cfnAgentStep2\n",
+                "  - /opt/aws/bin/cfn-init -c cfnAgentStep0,cfnAgentStep1,cfnAgentStep2",
+                " --region ",
+                {
+                  "Ref": "AWS::Region"
+                },
+                " --stack ",
+                {
+                  "Ref": "AWS::StackId"
+                },
+                " -r GoCDAgentAutoScalingLaunchConfiguration",
+                "\n"
+              ]
+            ]
+          }
+        },
+        "InstanceMonitoring": false,
+        "IamInstanceProfile": {
+          "Ref": "IAMInstanceProfile"
+        },
+        "ImageId": {
+          "Fn::FindInMap": [
+            "RegionToAmazonLinuxAMI",
+            {
+              "Ref": "AWS::Region"
+            },
+            "Key"
+          ]
+        },
+        "InstanceType": {
+          "Ref": "AgentInstanceType"
+        },
+        "KeyName": {
+          "Ref": "SSHKeyName"
+        },
+        "SecurityGroups": [
+          {
+            "Ref": "SSHSecurityGroup"
+          },
+          {
+            "Fn::GetAtt": [
+              "VPC",
+              "DefaultSecurityGroup"
+            ]
+          }
+        ],
+        "BlockDeviceMappings": [
+          {
+            "DeviceName": "/dev/xvda",
+            "Ebs": {
+              "VolumeSize": "100",
+              "VolumeType": "gp2"
+            }
+          }
+        ]
+      }
+    },
+    "ScheduledActionUp": {
+      "Type": "AWS::AutoScaling::ScheduledAction",
+      "Properties": {
+        "AutoScalingGroupName": {
+          "Ref": "GoCDAgentsAutoScalingGroup"
+        },
+        "MaxSize": {
+          "Ref": "AgentDesiredCapacity"
+        },
+        "DesiredCapacity": {
+          "Ref": "AgentDesiredCapacity"
+        },
+        "MinSize": "1",
+        "Recurrence": "0 16 * * 1-5"
+      }
+    },
+    "ScheduledActionDown": {
+      "Type": "AWS::AutoScaling::ScheduledAction",
+      "Properties": {
+        "AutoScalingGroupName": {
+          "Ref": "GoCDAgentsAutoScalingGroup"
+        },
+        "MaxSize": "1",
+        "MinSize": "1",
+        "Recurrence": "0 2 * * *"
+      }
+    },
+    "IAMRole": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "sts:AssumeRole"
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "ec2.amazonaws.com"
+                ]
+              }
+            }
+          ],
+          "Version": "2012-10-17"
+        },
+        "Path": "/",
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "ec2:DescribeInstances",
+                    "sts:AssumeRole"
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*"
+                }
+              ]
+            },
+            "PolicyName": "build-box"
+          }
+        ]
+      },
+      "Type": "AWS::IAM::Role"
+    },
+    "IAMInstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Path": "/",
+        "Roles": [
+          {
+            "Ref": "IAMRole"
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "GoMasterDNS": {
+      "Description": "GoCD master ELB",
+      "Value": {
+        "Fn::GetAtt": [
+          "GoMasterELB",
+          "DNSName"
+        ]
+      }
+    }
+  }
+}

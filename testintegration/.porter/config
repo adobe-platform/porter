@@ -1,0 +1,118 @@
+service_name: porter-test
+
+porter_version: vBCOOK
+
+slack:
+  # pack_success_webhook_url: $SPLUNK_WEBHOOK_URL
+  pack_failure_webhook_url: $SPLUNK_WEBHOOK_URL
+
+  # provision_success_webhook_url: $SPLUNK_WEBHOOK_URL
+  provision_failure_webhook_url: $SPLUNK_WEBHOOK_URL
+
+  # promote_success_webhook_url: $SPLUNK_WEBHOOK_URL
+  promote_failure_webhook_url: $SPLUNK_WEBHOOK_URL
+
+hooks:
+  pre_pack:
+  - dockerfile: hooks/pre-pack
+    environment:
+      VPC_ID:
+      SUBNET_ID:
+      SPLUNK_WEBHOOK_URL:
+      EXTERNAL_ACCESS_CIDR:
+      TEST_REPO_URL:
+      TEST_REPO_BRANCH:
+      ELB_1_NAME:
+      ELB_2_NAME:
+      AWS_ACCOUNT_ID:
+      SSH_KEY:
+  post_pack:
+  - repo: $TEST_REPO_URL
+    ref: $TEST_REPO_BRANCH
+    dockerfile: testintegration/plugins/post-pack
+    concurrent: true
+  - repo: $TEST_REPO_URL
+    ref: $TEST_REPO_BRANCH
+    dockerfile: testintegration/plugins/post-pack
+    concurrent: true
+  - repo: $TEST_REPO_URL
+    ref: $TEST_REPO_BRANCH
+    dockerfile: testintegration/plugins/post-pack
+    concurrent: true
+  - repo: $TEST_REPO_URL
+    ref: $TEST_REPO_BRANCH
+    dockerfile: testintegration/plugins/post-pack
+  ec2_bootstrap:
+  - dockerfile: hooks/ec2-bootstrap
+    environment:
+      DEV_MODE:
+      FOO: bar
+
+_container_base: &CONTAINER_BASE
+  name: primary
+  topology: inet
+  inet_port: 3000
+  dockerfile: Dockerfile
+  dockerfile_build: Dockerfile.build
+  health_check:
+    method: GET
+    path: /custom_health_check
+
+environments:
+- name: CustomVPC
+
+  stack_definition_path: vpc.json
+
+  instance_type: t2.medium
+
+  regions:
+  - name: us-west-2
+
+    azs:
+    - name: us-west-2a
+      subnet_id: $SUBNET_ID
+
+    vpc_id: $VPC_ID
+    role_arn: arn:aws:iam::$AWS_ACCOUNT_ID:role/porter-deployment
+    s3_bucket: porter-sandbox-us-west-2
+    key_pair_name: $SSH_KEY
+
+    containers:
+    - <<: *CONTAINER_BASE
+      src_env_file:
+        exec_name: cat
+        exec_args:
+        - secrets.env-file
+      dst_env_file:
+        s3_bucket: porter-sandbox-us-west-2
+
+    elb: $ELB_1_NAME
+
+- name: CIS
+
+  stack_definition_path: cis_ami.json
+
+  instance_type: t2.medium
+
+  regions:
+  - name: us-west-2
+
+    azs:
+    - name: us-west-2a
+      subnet_id: $SUBNET_ID
+
+    vpc_id: $VPC_ID
+    role_arn: arn:aws:iam::$AWS_ACCOUNT_ID:role/porter-deployment
+    s3_bucket: porter-sandbox-us-west-2
+    key_pair_name: $SSH_KEY
+
+    containers:
+    - <<: *CONTAINER_BASE
+      src_env_file:
+        s3_bucket: porter-sandbox-us-west-2
+        s3_key: env-file
+        s3_region: us-west-2
+      dst_env_file:
+        s3_bucket: porter-sandbox-us-west-2
+
+    elb: $ELB_2_NAME
