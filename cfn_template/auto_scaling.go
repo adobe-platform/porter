@@ -45,7 +45,8 @@ type (
 
 		PorterBinaryUrl string
 
-		DevMode bool
+		DevMode  bool
+		LogDebug bool
 
 		EC2BootstrapScript string
 
