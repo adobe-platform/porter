@@ -392,6 +392,8 @@ func setAutoScalingLaunchConfigurationMetadata(recv *stackCreator, template *cfn
 
 		DevMode:  os.Getenv(constants.EnvDevMode) != "",
 		LogDebug: os.Getenv(constants.EnvLogDebug) != "",
+
+		ContainerUserUid: constants.ContainerUserUid,
 	}
 
 	secondaryContainers := make([]cfn_template.SecondaryContainer, 0)
