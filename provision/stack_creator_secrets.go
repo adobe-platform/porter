@@ -189,7 +189,8 @@ func (recv *stackCreator) uploadSecrets() (success bool) {
 		checksumArray := md5.Sum(containerSecrets)
 		checksum := hex.EncodeToString(checksumArray[:])
 
-		dstEnvFileS3Key := fmt.Sprintf("%s/%s.env-file", recv.s3KeyRoot(), checksum)
+		dstEnvFileS3Key := fmt.Sprintf("%s/%s.env-file",
+			recv.s3KeyRoot(s3KeyOptDeployment), checksum)
 		log.Info("Set destination env file", "S3Key", dstEnvFileS3Key)
 
 		putObjectInput := &s3.PutObjectInput{

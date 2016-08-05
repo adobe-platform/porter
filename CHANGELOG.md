@@ -13,6 +13,9 @@
 - tweaked config validation so config can be created dynamically in pre_pack
 - enabled deployment hooks to run concurrently
 - CIS Docker benchmark 1.11.0 remediations (2.13, 5.12, 5.14)
+- CIS Linux 2014.09 benchmark remediation 9.2.13
+- CloudFormation templates are now uploaded to S3 to avoid the 51,200 byte limit
+- S3 keys are scoped under `porter-deployment` and `porter-template`
 
 **v1.0.5**
 
