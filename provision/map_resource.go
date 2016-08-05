@@ -1004,7 +1004,8 @@ func addInlinePolicies(recv *stackCreator, template *cfn.Template, resource map[
 						// pull down the service payload
 						"s3:GetObject",
 					},
-					"Resource": fmt.Sprintf("arn:aws:s3:::%s/%s/*", recv.region.S3Bucket, recv.s3KeyRoot()),
+					"Resource": fmt.Sprintf("arn:aws:s3:::%s/%s/*",
+						recv.region.S3Bucket, recv.s3KeyRoot(s3KeyOptDeployment)),
 				},
 			},
 		},

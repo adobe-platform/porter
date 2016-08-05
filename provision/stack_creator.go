@@ -61,6 +61,11 @@ type (
 	}
 )
 
+const (
+	s3KeyOptTemplate = 1 << iota
+	s3KeyOptDeployment
+)
+
 func (recv *stackCreator) createUpdateStackForRegion(outChan chan CreateStackRegionOutput, errChan chan struct{}) {
 
 	_, success := recv.uploadServicePayload()
@@ -104,7 +109,7 @@ func (recv *stackCreator) uploadServicePayload() (checksum string, success bool)
 	// TODO don't use a digest that requires everything to be in memory
 	checksumArray := md5.Sum(payloadBytes)
 	checksum = hex.EncodeToString(checksumArray[:])
-	recv.servicePayloadKey = fmt.Sprintf("%s/%s.tar", recv.s3KeyRoot(), checksum)
+	recv.servicePayloadKey = fmt.Sprintf("%s/%s.tar", recv.s3KeyRoot(s3KeyOptDeployment), checksum)
 
 	headObjectInput := &s3.HeadObjectInput{
 		Bucket: aws.String(recv.region.S3Bucket),
@@ -126,7 +131,7 @@ func (recv *stackCreator) uploadServicePayload() (checksum string, success bool)
 		return
 	}
 
-	input := &s3manager.UploadInput{
+	uploadInput := &s3manager.UploadInput{
 		Bucket:          aws.String(recv.region.S3Bucket),
 		Key:             aws.String(recv.servicePayloadKey),
 		Body:            bytes.NewReader(payloadBytes),
@@ -140,7 +145,7 @@ func (recv *stackCreator) uploadServicePayload() (checksum string, success bool)
 		"S3key", recv.servicePayloadKey,
 		"Concurrency", s3Manager.Concurrency)
 
-	_, err = s3Manager.Upload(input)
+	_, err = s3Manager.Upload(uploadInput)
 	if err != nil {
 		recv.log.Error("Upload failure", "Error", err)
 		return
@@ -166,11 +171,38 @@ func (recv *stackCreator) createStack() (stackId string, success bool) {
 		return
 	}
 
+	checksumArray := md5.Sum(templateBytes)
+	checksum := hex.EncodeToString(checksumArray[:])
+	templateS3Key := fmt.Sprintf("%s/%s", recv.s3KeyRoot(s3KeyOptTemplate), checksum)
+
+	uploadInput := &s3manager.UploadInput{
+		Bucket: aws.String(recv.region.S3Bucket),
+		Key:    aws.String(templateS3Key),
+		Body:   bytes.NewReader(templateBytes),
+	}
+
+	s3Manager := s3manager.NewUploader(recv.roleSession)
+	s3Manager.Concurrency = runtime.GOMAXPROCS(-1) // read, don't set, the value
+
+	recv.log.Info("Uploading CloudFormation template",
+		"S3bucket", recv.region.S3Bucket,
+		"S3key", templateS3Key,
+		"Concurrency", s3Manager.Concurrency)
+
+	_, err = s3Manager.Upload(uploadInput)
+	if err != nil {
+		recv.log.Error("Upload failure", "Error", err)
+		return
+	}
+
+	templateUrl := fmt.Sprintf("https://s3.amazonaws.com/%s/%s",
+		recv.region.S3Bucket, templateS3Key)
+
 	params := CfnApiInput{
-		Environment:   recv.environment.Name,
-		Region:        recv.region.Name,
-		SecretsKey:    recv.secretsKey,
-		TemplateBytes: templateBytes,
+		Environment: recv.environment.Name,
+		Region:      recv.region.Name,
+		SecretsKey:  recv.secretsKey,
+		TemplateUrl: templateUrl,
 	}
 
 	stackId, success = recv.cfnAPI(client, params)
@@ -249,7 +281,16 @@ func (recv *stackCreator) mutateTemplate(template *cfn.Template) (success bool) 
 	return
 }
 
-func (recv *stackCreator) s3KeyRoot() string {
-	return fmt.Sprintf("%s/%s/%s",
-		recv.config.ServiceName, recv.environment.Name, recv.serviceVersion)
+func (recv *stackCreator) s3KeyRoot(prefixOpt int) string {
+	var prefix string
+	if prefixOpt&s3KeyOptTemplate == s3KeyOptTemplate {
+		prefix = "porter-template"
+	} else if prefixOpt&s3KeyOptDeployment == s3KeyOptDeployment {
+		prefix = "porter-deployment"
+	} else {
+		panic(fmt.Errorf("invalid option %d", prefixOpt))
+	}
+
+	return fmt.Sprintf("%s/%s/%s/%s",
+		prefix, recv.config.ServiceName, recv.environment.Name, recv.serviceVersion)
 }

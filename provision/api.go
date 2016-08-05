@@ -34,10 +34,10 @@ type (
 	}
 
 	CfnApiInput struct {
-		Environment   string
-		Region        string
-		SecretsKey    string
-		TemplateBytes []byte
+		Environment string
+		Region      string
+		SecretsKey  string
+		TemplateUrl string
 	}
 
 	PackOutput struct {
@@ -80,7 +80,7 @@ func CreateStack(log log15.Logger, config *conf.Config, args StackArgs) (CreateS
 			},
 		}
 
-		stackId, err := cloudformation.CreateStack(client, stackName, input.TemplateBytes, parameters)
+		stackId, err := cloudformation.CreateStack(client, stackName, input.TemplateUrl, parameters)
 		if err != nil {
 			log.Error("CreateStack API call failed", "Error", err)
 			return
@@ -113,9 +113,13 @@ func UpdateStack(log log15.Logger, config *conf.Config, args StackArgs, createSt
 				ParameterKey:   aws.String(constants.ParameterStackName),
 				ParameterValue: aws.String(createStackOutput.StackName),
 			},
+			{
+				ParameterKey:   aws.String(constants.ParameterSecretsKey),
+				ParameterValue: aws.String(input.SecretsKey),
+			},
 		}
 
-		err := cloudformation.UpdateStack(client, regionOutput.StackId, input.TemplateBytes, parameters)
+		err := cloudformation.UpdateStack(client, regionOutput.StackId, input.TemplateUrl, parameters)
 		if err != nil {
 			log.Error("UpdateStack API call failed", "Error", err)
 			return

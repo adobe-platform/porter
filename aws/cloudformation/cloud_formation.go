@@ -28,7 +28,7 @@ func New(config *session.Session) *cfnlib.CloudFormation {
 }
 
 // CreateStack using AWS http://docs.aws.amazon.com/sdk-for-go/api/service/cloudformation/CloudFormation.html#CreateStack-instance_method
-func CreateStack(client *cfnlib.CloudFormation, stackName string, cfnTemplate []byte, parameters []*cfnlib.Parameter) (string, error) {
+func CreateStack(client *cfnlib.CloudFormation, stackName string, cfnTemplateUrl string, parameters []*cfnlib.Parameter) (string, error) {
 	input := &cfnlib.CreateStackInput{
 		StackName: aws.String(stackName),
 		Capabilities: []*string{
@@ -36,7 +36,7 @@ func CreateStack(client *cfnlib.CloudFormation, stackName string, cfnTemplate []
 		},
 		OnFailure:        aws.String("ROLLBACK"),
 		Parameters:       parameters,
-		TemplateBody:     aws.String(string(cfnTemplate)),
+		TemplateURL:      aws.String(cfnTemplateUrl),
 		TimeoutInMinutes: aws.Int64(int64(constants.StackCreationTimeout().Minutes())),
 	}
 
@@ -57,10 +57,10 @@ func DeleteStack(client *cfnlib.CloudFormation, stackName string) error {
 	return err
 }
 
-func UpdateStack(client *cfnlib.CloudFormation, stackName string, cfnTemplate []byte, parameters []*cfnlib.Parameter) error {
+func UpdateStack(client *cfnlib.CloudFormation, stackName string, cfnTemplateUrl string, parameters []*cfnlib.Parameter) error {
 	input := &cfnlib.UpdateStackInput{
 		StackName:    aws.String(stackName),
-		TemplateBody: aws.String(string(cfnTemplate)),
+		TemplateURL:  aws.String(cfnTemplateUrl),
 		Capabilities: []*string{aws.String("CAPABILITY_IAM")},
 		Parameters:   parameters,
 	}
