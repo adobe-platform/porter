@@ -64,15 +64,17 @@ type (
 	}
 
 	Container struct {
-		Name         string `yaml:"name"`
-		OriginalName string
-		Topology     string       `yaml:"topology"`
-		InetPort     int          `yaml:"inet_port"`
-		Primary      bool         `yaml:"primary"`
-		Uid          *int         `yaml:"uid"`
-		HealthCheck  *HealthCheck `yaml:"health_check"`
-		SrcEnvFile   *SrcEnvFile  `yaml:"src_env_file"`
-		DstEnvFile   *DstEnvFile  `yaml:"dst_env_file"`
+		Name            string `yaml:"name"`
+		OriginalName    string
+		Topology        string       `yaml:"topology"`
+		InetPort        int          `yaml:"inet_port"`
+		Primary         bool         `yaml:"primary"`
+		Uid             *int         `yaml:"uid"`
+		Dockerfile      string       `yaml:"dockerfile"`
+		DockerfileBuild string       `yaml:"dockerfile_build"`
+		HealthCheck     *HealthCheck `yaml:"health_check"`
+		SrcEnvFile      *SrcEnvFile  `yaml:"src_env_file"`
+		DstEnvFile      *DstEnvFile  `yaml:"dst_env_file"`
 	}
 
 	SrcEnvFile struct {
@@ -602,6 +604,12 @@ func (recv *Config) SetDefaults() {
 
 			for _, container := range region.Containers {
 
+				if container.Dockerfile == "" {
+					container.Dockerfile = "Dockerfile"
+				}
+				if container.DockerfileBuild == "" {
+					container.DockerfileBuild = "Dockerfile.build"
+				}
 				if container.HealthCheck == nil {
 					container.HealthCheck = &HealthCheck{}
 				}

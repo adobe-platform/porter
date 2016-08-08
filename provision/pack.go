@@ -69,14 +69,14 @@ func Package(log log15.Logger, config *conf.Config) (success bool) {
 
 					imagePath := fmt.Sprintf("%s/%s.docker", constants.PayloadWorkingDir, container.Name)
 
-					_, err := os.Stat("Dockerfile")
+					_, err := os.Stat(container.Dockerfile)
 					if err != nil {
 						log.Error("Dockerfile stat", "Error", err)
 						return
 					}
 
 					haveBuilder := true
-					_, err = os.Stat("Dockerfile.build")
+					_, err = os.Stat(container.DockerfileBuild)
 					if err != nil {
 						haveBuilder = false
 					}
@@ -84,7 +84,7 @@ func Package(log log15.Logger, config *conf.Config) (success bool) {
 					if haveBuilder {
 						var err error
 
-						buildBuilderCmd := exec.Command("docker", "build", "-t", container.Name+"-builder", "-f", "Dockerfile.build", ".")
+						buildBuilderCmd := exec.Command("docker", "build", "-t", container.Name+"-builder", "-f", container.DockerfileBuild, ".")
 						buildBuilderCmd.Stdout = os.Stdout
 						buildBuilderCmd.Stderr = os.Stderr
 						err = buildBuilderCmd.Run()
@@ -101,7 +101,10 @@ func Package(log log15.Logger, config *conf.Config) (success bool) {
 							return
 						}
 
-						buildCmd := exec.Command("docker", "build", "-t", container.Name, "-")
+						buildCmd := exec.Command("docker", "build",
+							"-t", container.Name,
+							"-f", container.Dockerfile,
+							"-")
 						buildCmd.Stdin = runCmdStdoutPipe
 						buildCmd.Stdout = os.Stdout
 						buildCmd.Stderr = os.Stderr
@@ -121,7 +124,10 @@ func Package(log log15.Logger, config *conf.Config) (success bool) {
 						runCmd.Wait()
 						buildCmd.Wait()
 					} else {
-						buildCmd := exec.Command("docker", "build", "-t", container.Name, ".")
+						buildCmd := exec.Command("docker", "build",
+							"-t", container.Name,
+							"-f", container.Dockerfile,
+							".")
 						buildCmd.Stdout = os.Stdout
 						buildCmd.Stderr = os.Stderr
 						err := buildCmd.Run()
