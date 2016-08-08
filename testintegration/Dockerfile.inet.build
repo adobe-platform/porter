@@ -8,4 +8,4 @@ ENV CGO_ENABLED=0
 RUN go build -v -a --installsuffix cgo -ldflags '-s' -o main
 
 # Produce the docker context
-CMD ["tar", "-c", "main", "Dockerfile"]
+CMD ["tar", "-c", "main", "Dockerfile.inet"]
