@@ -70,6 +70,11 @@ func promoteService(log log15.Logger, env string, provisionedRegion provision_ou
 		return
 	}
 
+	if region.PrimaryTopology() != conf.Topology_Inet {
+		success = true
+		return
+	}
+
 	roleARN, err := environment.GetRoleARN(region.Name)
 	if err != nil {
 		log.Error("GetRoleARN", "Error", err)

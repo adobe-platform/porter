@@ -271,25 +271,28 @@ stackEventPoll:
 
 	cfnTemplate.ParseResources()
 
-	elbLogicalId, err = cfnTemplate.GetResourceName(cfn.ElasticLoadBalancing_LoadBalancer)
-	if err != nil {
-		log.Error("GetResourceName", "Error", err)
-		failureChan <- struct{}{}
-		return
-	}
+	if region.PrimaryTopology() == conf.Topology_Inet {
 
-	//Once stack provisioned get the provisoned elb
-	retryMsg := func(i int) { log.Warn("DescribeStackResource retrying", "Count", i) }
-	if !util.SuccessRetryer(9, retryMsg, func() bool {
-		physicalResourceID, err = cloudformation.DescribeStackResource(cfnClient, stackRegionOutput.StackId, elbLogicalId)
+		elbLogicalId, err = cfnTemplate.GetResourceName(cfn.ElasticLoadBalancing_LoadBalancer)
 		if err != nil {
-			log.Error("Error on getting physicalResourceId", "Error", err)
-			return false
+			log.Error("GetResourceName", "Error", err)
+			failureChan <- struct{}{}
+			return
 		}
-		return true
-	}) {
-		failureChan <- struct{}{}
-		return
+
+		//Once stack provisioned get the provisoned elb
+		retryMsg := func(i int) { log.Warn("DescribeStackResource retrying", "Count", i) }
+		if !util.SuccessRetryer(9, retryMsg, func() bool {
+			physicalResourceID, err = cloudformation.DescribeStackResource(cfnClient, stackRegionOutput.StackId, elbLogicalId)
+			if err != nil {
+				log.Error("Error on getting physicalResourceId", "Error", err)
+				return false
+			}
+			return true
+		}) {
+			failureChan <- struct{}{}
+			return
+		}
 	}
 
 	provisionDetails := provision_output.Region{

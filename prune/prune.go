@@ -66,13 +66,14 @@ func Do(log log15.Logger, config *conf.Config, environment *conf.Environment,
 	for _, region := range environment.Regions {
 		switch region.PrimaryTopology() {
 		case conf.Topology_Inet:
-			go pruneELBStacks(
-				log, region, environment,
+			go pruneStacks(log, region, environment,
 				stackName, keepCount, pruneStackChan, elbFilter, elbTag)
+		case conf.Topology_Worker:
+			go pruneStacks(log, region, environment,
+				stackName, keepCount, pruneStackChan, false, elbTag)
 		default:
-			for i := 0; i < regionCount; i++ {
-				pruneStackChan <- true
-			}
+			log.Error("Unsupported topology")
+			return
 		}
 	}
 
@@ -93,7 +94,7 @@ func Do(log log15.Logger, config *conf.Config, environment *conf.Environment,
 	return
 }
 
-func pruneELBStacks(log log15.Logger, region *conf.Region,
+func pruneStacks(log log15.Logger, region *conf.Region,
 	environment *conf.Environment, stackName string, keepCount int,
 	pruneStackChan chan bool, elbFilter bool, elbTag string) {
 
