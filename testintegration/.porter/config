@@ -48,8 +48,7 @@ hooks:
       DEV_MODE:
       FOO: bar
 
-_container_base: &CONTAINER_BASE
-  name: primary
+_container_base_inet: &CONTAINER_BASE_INET
   topology: inet
   inet_port: 3000
   dockerfile: Dockerfile.inet
@@ -57,6 +56,11 @@ _container_base: &CONTAINER_BASE
   health_check:
     method: GET
     path: /custom_health_check
+
+_container_base_worker: &CONTAINER_BASE_WORKER
+  topology: worker
+  dockerfile: Dockerfile.inet
+  dockerfile_build: Dockerfile.inet.build
 
 environments:
 - name: CustomVPC
@@ -78,13 +82,14 @@ environments:
     key_pair_name: $SSH_KEY
 
     containers:
-    - <<: *CONTAINER_BASE
+    - <<: *CONTAINER_BASE_INET
       src_env_file:
         exec_name: cat
         exec_args:
         - secrets.env-file
       dst_env_file:
         s3_bucket: porter-sandbox-us-west-2
+    - <<: *CONTAINER_BASE_WORKER
 
     elb: $ELB_1_NAME
 
@@ -107,7 +112,7 @@ environments:
     key_pair_name: $SSH_KEY
 
     containers:
-    - <<: *CONTAINER_BASE
+    - <<: *CONTAINER_BASE_INET
       src_env_file:
         s3_bucket: porter-sandbox-us-west-2
         s3_key: env-file
