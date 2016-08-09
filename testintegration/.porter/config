@@ -49,6 +49,7 @@ hooks:
       FOO: bar
 
 _container_base_inet: &CONTAINER_BASE_INET
+  name: inet
   topology: inet
   inet_port: 3000
   dockerfile: Dockerfile.inet
@@ -58,6 +59,7 @@ _container_base_inet: &CONTAINER_BASE_INET
     path: /custom_health_check
 
 _container_base_worker: &CONTAINER_BASE_WORKER
+  name: worker
   topology: worker
   dockerfile: Dockerfile.inet
   dockerfile_build: Dockerfile.inet.build
