@@ -95,6 +95,27 @@ environments:
 
     elb: $ELB_1_NAME
 
+- name: Worker
+
+  stack_definition_path: vpc.json
+
+  instance_type: t2.medium
+
+  regions:
+  - name: us-west-2
+
+    azs:
+    - name: us-west-2a
+      subnet_id: $SUBNET_ID
+
+    vpc_id: $VPC_ID
+    role_arn: arn:aws:iam::$AWS_ACCOUNT_ID:role/porter-deployment
+    s3_bucket: porter-sandbox-us-west-2
+    key_pair_name: $SSH_KEY
+
+    containers:
+    - <<: *CONTAINER_BASE_WORKER
+
 - name: CIS
 
   stack_definition_path: cis_ami.json
