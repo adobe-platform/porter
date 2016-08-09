@@ -674,9 +674,17 @@
                     "Ref": "SlackNotificationWebhook"
                   },
                   "go_notification_url": {
-                    "Fn::GetAtt": [
-                      "GoMasterELB",
-                      "DNSName"
+                    "Fn::Join": [
+                      "/",
+                      [
+                        {
+                          "Fn::GetAtt": [
+                            "GoMasterELB",
+                            "DNSName"
+                          ]
+                        },
+                        "go"
+                      ]
                     ]
                   },
                   "external_access_cidr": {
