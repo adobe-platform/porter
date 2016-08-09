@@ -41,7 +41,6 @@ func (recv *stackCreator) mapResources(template *cfn.Template) (success bool) {
 			setKeyName,
 			setIamInstanceProfile,
 			setImageId,
-			setDependsOnWaitConditionHandle,
 			setAutoScalingLaunchConfigurationMetadata,
 			setUserData,
 		}
@@ -95,6 +94,12 @@ func (recv *stackCreator) mapResources(template *cfn.Template) (success bool) {
 		}
 		ops[cfn.EC2_SecurityGroup] = []MapResource{
 			setVpcId,
+		}
+		ops[cfn.CloudFormation_WaitCondition] = []MapResource{
+			setTimeout,
+			setCount,
+			setDependsOnAutoScalingGroup,
+			setHandle,
 		}
 		ops[cfn.IAM_InstanceProfile] = []MapResource{
 			setRoleAndPath,
@@ -482,22 +487,6 @@ func setIamInstanceProfile(recv *stackCreator, template *cfn.Template, resource 
 	return
 }
 
-func setDependsOnWaitConditionHandle(recv *stackCreator, template *cfn.Template, resource map[string]interface{}) (success bool) {
-	if _, exists := resource["DependsOn"]; !exists {
-
-		waitConditionHandle, err := template.GetResourceName(cfn.CloudFormation_WaitConditionHandle)
-		if err != nil {
-			recv.log.Error("template.GetResourceName", "Error", err)
-			return
-		}
-
-		resource["DependsOn"] = waitConditionHandle
-	}
-
-	success = true
-	return
-}
-
 func setImageId(recv *stackCreator, template *cfn.Template, resource map[string]interface{}) bool {
 	var (
 		props map[string]interface{}
@@ -554,6 +543,10 @@ func setCount(recv *stackCreator, template *cfn.Template, resource map[string]in
 	return true
 }
 
+// The WaitCondition DependsOn the ASG because its timeout starts as soon as its
+// created an the ASG is the last thing to be created so we want the timeout
+// countdown to start as soon as all the other resources in the stack have been
+// created
 func setDependsOnAutoScalingGroup(recv *stackCreator, template *cfn.Template, resource map[string]interface{}) (success bool) {
 	if _, exists := resource["DependsOn"]; !exists {
 

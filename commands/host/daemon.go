@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"text/template"
 	"time"
 
@@ -96,8 +97,8 @@ func (recv *DaemonCmd) Execute(args []string) bool {
 				AwsStackId:        os.Getenv("AWS_STACKID"),
 				Environment:       environment,
 				ServiceName:       serviceName,
-				HealthCheckMethod: healthCheckMethod,
-				HealthCheckPath:   healthCheckPath,
+				HealthCheckMethod: strconv.Quote(healthCheckMethod),
+				HealthCheckPath:   strconv.Quote(healthCheckPath),
 				Elbs:              elbs,
 			}
 
@@ -114,9 +115,7 @@ func (recv *DaemonCmd) Execute(args []string) bool {
 			flagSet.Parse(args[1:])
 
 			if flags.Environment == "" ||
-				flags.ServiceName == "" ||
-				flags.HealthCheckMethod == "" ||
-				flags.HealthCheckPath == "" {
+				flags.ServiceName == "" {
 				return false
 			}
 
@@ -196,7 +195,7 @@ func installDaemon(context initConfigContext) {
 			time.Sleep(2 * time.Second)
 		}
 
-		healthURL := "http://localhost:" + constants.PorterDaemonBindPort + constants.PorterDaemonHealthPath
+		healthURL := "http://127.0.0.1:" + constants.PorterDaemonBindPort + constants.PorterDaemonHealthPath
 		errMsg := "GET " + healthURL
 
 		resp, err := http.Get(healthURL)

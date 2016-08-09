@@ -58,14 +58,14 @@ func (recv *stackCreator) ensureResources(template *cfn.Template) (success bool)
 		return
 	}
 
+	success = recv.ensureWaitCondition(template)
+	if !success {
+		return
+	}
+
 	switch recv.region.PrimaryTopology() {
 	case conf.Topology_Inet:
 		success = recv.ensureELB(template)
-		if !success {
-			return
-		}
-
-		success = recv.ensureWaitCondition(template)
 		if !success {
 			return
 		}
