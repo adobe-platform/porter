@@ -139,11 +139,11 @@ func (recv *DockerCmd) Execute(args []string) bool {
 
 func startContainers(environmentStr, regionStr string) {
 	var (
-		err                      error
-		success                  bool
-		containerToDstEnvKey     map[string]string
-		primaryContainerInetPort int
-		stdoutBuf                bytes.Buffer
+		err                  error
+		success              bool
+		containerToDstEnvKey map[string]string
+		stdoutBuf            bytes.Buffer
+		haproxyStdin         HAPStdin
 	)
 
 	log := logger.Host("cmd", "docker")
@@ -228,41 +228,73 @@ func startContainers(environmentStr, regionStr string) {
 
 		runArgs = append(runArgs, container.Name)
 
-		if container.Primary {
-			primaryContainerInetPort = container.InetPort
+		if container.Topology == conf.Topology_Inet {
 
 			cmd := exec.Command("docker", runArgs...)
 			cmd.Stdout = &stdoutBuf
 			err = cmd.Run()
+			if err != nil {
+				log.Crit("docker run", "Error", err)
+				os.Exit(1)
+			}
 
+			containerId := strings.TrimSpace(stdoutBuf.String())
+			if containerId == "" {
+				log.Crit("missing container id")
+				os.Exit(1)
+			}
+			stdoutBuf.Reset()
+
+			hostPort, hostPortsuccess := getInetHostPort(log, container.InetPort, containerId)
+			if !hostPortsuccess {
+				os.Exit(1)
+			}
+
+			hapContainer := HAPContainer{
+				Id:                containerId,
+				HealthCheckMethod: container.HealthCheck.Method,
+				HealthCheckPath:   container.HealthCheck.Path,
+				HostPort:          hostPort,
+			}
+
+			haproxyStdin.Containers = append(haproxyStdin.Containers, hapContainer)
 		} else {
 
 			err = exec.Command("docker", runArgs...).Run()
-		}
-
-		if err != nil {
-			log.Crit("docker run", "Error", err)
-			os.Exit(1)
+			if err != nil {
+				log.Crit("docker run", "Error", err)
+				os.Exit(1)
+			}
 		}
 	}
 
-	primaryContainerId := strings.TrimSpace(stdoutBuf.String())
-	if primaryContainerId == "" {
-		log.Crit("missing container id")
+	stdoutBytes, err := json.Marshal(haproxyStdin)
+	if err != nil {
+		log.Error("json.Marshal", "Error", err)
 		os.Exit(1)
 	}
-	stdoutBuf.Reset()
+
+	_, err = os.Stdout.Write(stdoutBytes)
+	if err != nil {
+		log.Error("os.Stdout.Write", "Error", err)
+		os.Exit(1)
+	}
+}
+
+func getInetHostPort(log log15.Logger, inetPort int, containerId string) (hostPort uint16, success bool) {
+
+	var stdoutBuf bytes.Buffer
 
 	//
-	// Get port mappings for primary container id
+	// Get port mappings for container id
 	//
 	inspectFilter := "{{ range $containerPort, $host := .NetworkSettings.Ports }}{{ println $containerPort (index $host 0).HostPort }}{{ end }}"
-	cmd := exec.Command("docker", "inspect", "-f", inspectFilter, primaryContainerId)
+	cmd := exec.Command("docker", "inspect", "-f", inspectFilter, containerId)
 	cmd.Stdout = &stdoutBuf
-	err = cmd.Run()
+	err := cmd.Run()
 	if err != nil {
 		log.Crit("docker inspect", "Error", err)
-		os.Exit(1)
+		return
 	}
 
 	// portMappings should look like this []string{"1234/tcp 56789"}
@@ -271,12 +303,12 @@ func startContainers(environmentStr, regionStr string) {
 
 	if len(portMappings) == 0 {
 		log.Crit("No port mappings found. Does the Dockerfile EXPOSE any ports?")
-		os.Exit(1)
+		return
 	}
 
-	if primaryContainerInetPort == 0 && len(portMappings) > 1 {
+	if inetPort == 0 && len(portMappings) > 1 {
 		log.Crit("There are multiple EXPOSEd ports and no designated internet port")
-		os.Exit(1)
+		return
 	}
 
 	for _, portMapping := range portMappings {
@@ -285,35 +317,39 @@ func startContainers(environmentStr, regionStr string) {
 
 		containerPort := containerPortParts[0]
 		containerProtocol := containerPortParts[1]
-		hostPort := mappingParts[1]
+		hostPortStr := mappingParts[1]
 
-		log.Info("port mapping", "HostPort", hostPort, "ContainerPort", containerPort, "ContainerProtocol", containerProtocol)
+		log.Info("port mapping", "HostPort", hostPortStr, "ContainerPort", containerPort, "ContainerProtocol", containerProtocol)
 
 		containerPortInt, err := strconv.Atoi(containerPort)
 		if err != nil {
 			log.Crit("Atoi", "Error", err, "PortMapping", portMapping)
-			os.Exit(1)
+			return
 		}
 
 		// either there's a single container and no configured inet_port (validated above)
 		// or we wait for a match on the configured inet_port
-		if primaryContainerInetPort == 0 || primaryContainerInetPort == containerPortInt {
+		if inetPort == 0 || inetPort == containerPortInt {
 			if containerProtocol != "tcp" {
 				log.Crit("cannot route internet traffic to a protocol other than TCP", "PortMapping", portMapping)
-				os.Exit(1)
+				return
 			}
 
-			log.Info("primary container", "HostPort", containerPort)
-			fmt.Fprint(os.Stdout, hostPort)
+			log.Info("inet container", "HostPort", containerPort)
 
-			// exit here so multiple writes to os.Stdout don't occur
-			os.Exit(0)
+			hostPortInt, err := strconv.Atoi(hostPortStr)
+			if err != nil {
+				log.Error("strconv.Atoi", "Error", err)
+				return
+			}
+
+			hostPort = uint16(hostPortInt)
+			success = true
+			return
 		}
 	}
 
-	log.Crit("unhandled error")
-	log.Crit("Do the EXPOSEd port and configured inet_port match?")
-	os.Exit(2)
+	return
 }
 
 func cleanContainers(environmentStr, regionStr string) {

@@ -70,8 +70,9 @@ func Do(log log15.Logger, config *conf.Config, environment *conf.Environment,
 				log, region, environment,
 				stackName, keepCount, pruneStackChan, elbFilter, elbTag)
 		default:
-			log.Error("Unsupported topology", "Topology", region.PrimaryTopology())
-			return
+			for i := 0; i < regionCount; i++ {
+				pruneStackChan <- true
+			}
 		}
 	}
 

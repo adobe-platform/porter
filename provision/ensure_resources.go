@@ -41,6 +41,23 @@ func (recv *stackCreator) ensureResources(template *cfn.Template) (success bool)
 		return
 	}
 
+	success = recv.ensureAutoScalingLaunchConfig(template)
+	if !success {
+		return
+	}
+
+	success = recv.ensureAutoScalingGroup(template)
+	if !success {
+		return
+	}
+
+	// overloaded to include metadata which is why it applies
+	// to all topologies
+	success = recv.ensureWaitConditionHandle(template)
+	if !success {
+		return
+	}
+
 	switch recv.region.PrimaryTopology() {
 	case conf.Topology_Inet:
 		success = recv.ensureELB(template)
@@ -48,22 +65,7 @@ func (recv *stackCreator) ensureResources(template *cfn.Template) (success bool)
 			return
 		}
 
-		success = recv.ensureAutoScalingLaunchConfig(template)
-		if !success {
-			return
-		}
-
-		success = recv.ensureAutoScalingGroup(template)
-		if !success {
-			return
-		}
-
 		success = recv.ensureWaitCondition(template)
-		if !success {
-			return
-		}
-
-		success = recv.ensureWaitConditionHandle(template)
 		if !success {
 			return
 		}
