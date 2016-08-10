@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"runtime"
 	"strings"
 
@@ -97,6 +98,8 @@ func (recv *stackCreator) createUpdateStackForRegion(outChan chan CreateStackReg
 }
 
 func (recv *stackCreator) uploadServicePayload() (checksum string, success bool) {
+
+	defer exec.Command("rm", "-rf", constants.PayloadPath).Run()
 
 	payloadBytes, err := ioutil.ReadFile(constants.PayloadPath)
 	if err != nil {
@@ -214,36 +217,30 @@ func (recv *stackCreator) createTemplate() (templateBytes []byte, success bool) 
 	var err error
 	template := cfn.NewTemplate()
 
-	switch recv.region.PrimaryTopology() {
-	case conf.Topology_Inet:
-		stackDefinitionPath, err := recv.environment.GetStackDefinitionPath(recv.region.Name)
+	stackDefinitionPath, err := recv.environment.GetStackDefinitionPath(recv.region.Name)
+	if err != nil {
+		recv.log.Error("GetStackDefinitionPath", "Error", err)
+		return
+	}
+
+	if stackDefinitionPath != "" {
+		recv.log.Info("Using custom stack definition", "Path", stackDefinitionPath)
+
+		stackFile, err := os.Open(stackDefinitionPath)
 		if err != nil {
-			recv.log.Error("GetStackDefinitionPath", "Error", err)
+			recv.log.Error("os.Open",
+				"Path", stackDefinitionPath,
+				"Error", err)
 			return
 		}
 
-		if stackDefinitionPath != "" {
-			recv.log.Info("Using custom stack definition", "Path", stackDefinitionPath)
-
-			stackFile, err := os.Open(stackDefinitionPath)
-			if err != nil {
-				recv.log.Error("os.Open",
-					"Path", stackDefinitionPath,
-					"Error", err)
-				return
-			}
-
-			err = json.NewDecoder(stackFile).Decode(template)
-			if err != nil {
-				recv.log.Error("json.Decode",
-					"Path", stackDefinitionPath,
-					"Error", err)
-				return
-			}
+		err = json.NewDecoder(stackFile).Decode(template)
+		if err != nil {
+			recv.log.Error("json.Decode",
+				"Path", stackDefinitionPath,
+				"Error", err)
+			return
 		}
-	case conf.Topology_Worker:
-		recv.log.Error("not yet supporting worker topologies")
-		return
 	}
 
 	template.ParseResources()

@@ -17,13 +17,10 @@
 package conf
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"regexp"
-	"strings"
-	"time"
 
 	"github.com/adobe-platform/porter/constants"
 	"github.com/adobe-platform/porter/stdin"
@@ -64,15 +61,16 @@ type (
 	}
 
 	Container struct {
-		Name         string `yaml:"name"`
-		OriginalName string
-		Topology     string       `yaml:"topology"`
-		InetPort     int          `yaml:"inet_port"`
-		Primary      bool         `yaml:"primary"`
-		Uid          *int         `yaml:"uid"`
-		HealthCheck  *HealthCheck `yaml:"health_check"`
-		SrcEnvFile   *SrcEnvFile  `yaml:"src_env_file"`
-		DstEnvFile   *DstEnvFile  `yaml:"dst_env_file"`
+		Name            string `yaml:"name"`
+		OriginalName    string
+		Topology        string       `yaml:"topology"`
+		InetPort        int          `yaml:"inet_port"`
+		Uid             *int         `yaml:"uid"`
+		Dockerfile      string       `yaml:"dockerfile"`
+		DockerfileBuild string       `yaml:"dockerfile_build"`
+		HealthCheck     *HealthCheck `yaml:"health_check"`
+		SrcEnvFile      *SrcEnvFile  `yaml:"src_env_file"`
+		DstEnvFile      *DstEnvFile  `yaml:"dst_env_file"`
 	}
 
 	SrcEnvFile struct {
@@ -172,406 +170,6 @@ func (recv *Config) GetEnvironment(envName string) (*Environment, error) {
 	return nil, fmt.Errorf("Environment %s doesn't exist in the config", envName)
 }
 
-// inet is a superset of worker which are almost identical to cron
-func (recv *Region) PrimaryTopology() (dominant string) {
-	for _, container := range recv.Containers {
-		switch container.Topology {
-		case Topology_Inet:
-			dominant = container.Topology
-		case Topology_Worker:
-			if dominant != Topology_Inet {
-				dominant = container.Topology
-			}
-		}
-	}
-	return
-}
-
-func (recv *Environment) GetELBForRegion(reg string, elb string) (string, error) {
-	region, err := recv.GetRegion(reg)
-	if err != nil {
-		return "", err
-	}
-
-	// always return this if defined. it supersedes the old scheme
-	if region.ELB != "" {
-		return region.ELB, nil
-	}
-
-	// backward compatibility with old scheme
-	for _, loadBalancer := range region.ELBs {
-		if loadBalancer.ELBTag == elb {
-			return loadBalancer.Name, nil
-		}
-	}
-
-	return "", fmt.Errorf("ELB tagged %s doesn't exist in the config for region %s", elb, reg)
-}
-
-func (recv *Environment) GetRegion(regionName string) (*Region, error) {
-	for _, region := range recv.Regions {
-		if region.Name == regionName {
-			return region, nil
-		}
-	}
-	return nil, fmt.Errorf("Region %s missing in environment %s", regionName, recv.Name)
-}
-
-func (recv *Environment) GetRoleARN(regionName string) (string, error) {
-	region, err := recv.GetRegion(regionName)
-	if err != nil {
-		return "", err
-	}
-
-	if region.RoleARN != "" {
-		return region.RoleARN, nil
-	}
-
-	if recv.RoleARN == "" {
-		return "", errors.New("previous validation failure led to missing RoleARN")
-	}
-
-	return recv.RoleARN, nil
-}
-
-func (recv Environment) GetStackDefinitionPath(regionName string) (string, error) {
-	region, err := recv.GetRegion(regionName)
-	if err != nil {
-		return "", err
-	}
-
-	if region.StackDefinitionPath != "" {
-		return region.StackDefinitionPath, nil
-	}
-
-	return recv.StackDefinitionPath, nil
-}
-
-func (recv *Environment) IsWithinBlackoutWindow() error {
-	now := time.Now()
-
-	for _, window := range recv.BlackoutWindows {
-		startTime, err := time.Parse(time.RFC3339, window.StartTime)
-		if err != nil {
-			return err
-		}
-
-		endTime, err := time.Parse(time.RFC3339, window.EndTime)
-		if err != nil {
-			return err
-		}
-
-		if startTime.After(endTime) {
-			return errors.New("start_time is after end_time")
-		}
-
-		if now.After(startTime) && now.Before(endTime) {
-			return errors.New(now.Format(time.RFC3339) + " is currently within a blackout window")
-		}
-	}
-
-	return nil
-}
-
-func (recv *Config) Validate() (err error) {
-	err = recv.ValidateTopLevelKeys()
-	if err != nil {
-		return
-	}
-
-	err = recv.ValidateHooks()
-	if err != nil {
-		return
-	}
-
-	err = recv.ValidateEnvironments()
-	if err != nil {
-		return
-	}
-
-	return
-}
-
-func (recv *Config) ValidateTopLevelKeys() error {
-
-	// TODO validate this doesn't have spaces and can be used as a key in S3
-	// and wherever else we use it
-	if !serviceNameRegex.MatchString(recv.ServiceName) {
-		return errors.New("Invalid service_name")
-	}
-
-	if os.Getenv(constants.EnvDevMode) == "" &&
-		!porterVersionRegex.MatchString(recv.PorterVersion) {
-		return errors.New("Invalid porter_version")
-	}
-
-	return nil
-}
-
-func (recv *Config) ValidateHooks() (err error) {
-
-	err = validateHook(constants.HookPrePack, recv.Hooks.PrePack)
-	if err != nil {
-		return
-	}
-
-	err = validateHook(constants.HookPostPack, recv.Hooks.PostPack)
-	if err != nil {
-		return
-	}
-
-	err = validateHook(constants.HookPreProvision, recv.Hooks.PreProvision)
-	if err != nil {
-		return
-	}
-
-	err = validateHook(constants.HookPostProvision, recv.Hooks.PostProvision)
-	if err != nil {
-		return
-	}
-
-	err = validateHook(constants.HookPrePromote, recv.Hooks.PrePromote)
-	if err != nil {
-		return
-	}
-
-	err = validateHook(constants.HookPostPromote, recv.Hooks.PostPromote)
-	if err != nil {
-		return
-	}
-
-	err = validateHook(constants.HookPrePrune, recv.Hooks.PrePrune)
-	if err != nil {
-		return
-	}
-
-	err = validateHook(constants.HookPostPrune, recv.Hooks.PostPrune)
-	if err != nil {
-		return
-	}
-
-	err = validateHook(constants.HookEC2Bootstrap, recv.Hooks.EC2Bootstrap)
-	if err != nil {
-		return
-	}
-
-	return
-}
-
-func validateHook(name string, hooks []Hook) error {
-	for _, hook := range hooks {
-
-		if hook.Repo == "" {
-
-			if hook.Dockerfile == "" {
-				return errors.New("A " + name + " hook is missing dockerfile")
-			}
-		} else {
-
-			if hook.Ref == "" {
-				return errors.New("A " + name + " hook has a configured repo but no ref")
-			}
-		}
-
-	}
-
-	return nil
-}
-
-func (recv *Config) ValidateEnvironments() error {
-	if len(recv.Environments) == 0 {
-		return errors.New("No environments defined")
-	}
-
-	for _, environment := range recv.Environments {
-
-		if len(environment.Regions) == 0 {
-			return errors.New("Environment [" + environment.Name + "] doesn't define any regions")
-		}
-
-		validateRegionRoleArn := true
-
-		if environment.RoleARN != "" {
-
-			validateRegionRoleArn = false
-			if !roleARNRegex.MatchString(environment.RoleARN) {
-				return errors.New("Invalid role_arn for environment " + environment.Name)
-			}
-		}
-
-		for _, region := range environment.Regions {
-			err := ValidateRegion(region, validateRegionRoleArn)
-			if err != nil {
-				return errors.New("Error in environment [" + environment.Name + "] " + err.Error())
-			}
-		}
-
-		if _, exists := constants.AwsInstanceTypes[environment.InstanceType]; !exists {
-			return errors.New("Invalid instance_type for environment [" + environment.Name + "]")
-		}
-
-		if !environmentNameRegex.MatchString(environment.Name) {
-			return errors.New("Invalid name for environment [" + environment.Name + "]. Valid characters are [0-9a-zA-Z]")
-		}
-	}
-
-	return nil
-}
-
-func ValidateRegion(region *Region, validateRoleArn bool) error {
-
-	err := region.ValidateContainers()
-	if err != nil {
-		return err
-	}
-
-	if _, exists := constants.AwsRegions[region.Name]; !exists {
-		return errors.New("Invalid region name " + region.Name)
-	}
-
-	if validateRoleArn && !roleARNRegex.MatchString(region.RoleARN) {
-		return errors.New("Invalid role_arn for region " + region.Name)
-	}
-
-	// TODO validate characters
-	if region.HostedZoneName != "" {
-		// normalize with ending period
-		region.HostedZoneName = strings.TrimRight(region.HostedZoneName, ".") + "."
-	}
-
-	// TODO validate the bucket prefix is one that S3 allows
-	if region.S3Bucket == "" {
-		return errors.New("Empty or missing s3_bucket")
-	}
-
-	if len(region.AZs) == 0 {
-		return errors.New("Missing availability zone for region " + region.Name)
-	}
-
-	definedVPC := false
-	if region.VpcId != "" {
-		definedVPC = true
-		if !vpcIdRegex.MatchString(region.VpcId) {
-			return errors.New("Invalid vpc_id for region " + region.Name)
-		}
-	}
-
-	for _, az := range region.AZs {
-		if az.Name == "" {
-			return errors.New("Empty AZ name for region " + region.Name)
-		}
-
-		if definedVPC {
-			if !subnetIdRegex.MatchString(az.SubnetID) {
-				return errors.New("Invalid subnet_id for region " + region.Name)
-			}
-		} else {
-			if az.SubnetID != "" {
-				return errors.New("Defined subnet_id but no vpc_id for region " + region.Name)
-			}
-		}
-	}
-
-	return nil
-}
-
-func (recv *Region) ValidateContainers() error {
-
-	// TODO remove once we support multi-container deployment
-	if len(recv.Containers) > 1 {
-		return fmt.Errorf("Only supporting single-container deployments. Found %d container definitions", len(recv.Containers))
-	}
-
-	if len(recv.Containers) == 0 {
-
-		return errors.New("No containers are defined. Was SetDefaults() run?")
-	} else if len(recv.Containers) == 1 {
-		// nothing to do. SetDefaults will mark a primary container
-	} else {
-
-		foundPrimary := false
-		for _, container := range recv.Containers {
-
-			if container.Primary {
-				if foundPrimary {
-
-					return errors.New("Only one primary container is allowed")
-				} else {
-
-					foundPrimary = true
-				}
-			}
-		}
-
-		if !foundPrimary {
-			return errors.New("One container must be marked as primary")
-		}
-	}
-
-	containerNames := make(map[string]interface{})
-	for _, container := range recv.Containers {
-
-		if container.SrcEnvFile == nil && container.DstEnvFile != nil {
-
-			return errors.New("dst_env_file defined but src_env_file undefined")
-		} else if container.SrcEnvFile != nil && container.DstEnvFile == nil {
-
-			return errors.New("src_env_file defined but dst_env_file undefined")
-		} else if container.SrcEnvFile != nil && container.DstEnvFile != nil {
-
-			if container.SrcEnvFile.S3Bucket != "" ||
-				container.SrcEnvFile.S3Key != "" {
-
-				if container.SrcEnvFile.S3Bucket == "" {
-					return errors.New("src_env_file missing s3_bucket")
-				}
-
-				if container.SrcEnvFile.S3Key == "" {
-					return errors.New("src_env_file missing s3_key")
-				}
-
-			} else if container.SrcEnvFile.ExecName == "" {
-
-				return errors.New("src_env_file missing exec_name")
-			}
-
-			if container.DstEnvFile.S3Bucket == "" {
-				return errors.New("dst_env_file missing s3_bucket")
-			}
-		}
-
-		if !containerNameRegex.MatchString(container.Name) {
-			return errors.New("Invalid container name")
-		}
-
-		if _, exists := containerNames[container.Name]; exists {
-			return fmt.Errorf("Duplicate container %s", container.Name)
-		}
-
-		if !healthMethodRegex.MatchString(container.HealthCheck.Method) {
-			return fmt.Errorf("Invalid health check method %s on container %s", container.HealthCheck.Method, container.Name)
-		}
-
-		containerNames[container.Name] = nil
-
-		switch container.Topology {
-		case Topology_Inet:
-			// valid
-		default:
-			return fmt.Errorf("Missing or invalid topology. Valid values are [%s]",
-				Topology_Inet)
-		}
-
-		// TODO check if Dockerfile EXPOSEs more than one port.
-		// if so, the ServicePort is required
-		/*if container.ServicePort < 80 || container.ServicePort > 65535 {
-			return fmt.Errorf("invalid service_port %d", container.ServicePort)
-		}*/
-	}
-
-	return nil
-}
-
 // Convention over configuration
 func (recv *Config) SetDefaults() {
 
@@ -602,23 +200,28 @@ func (recv *Config) SetDefaults() {
 
 			for _, container := range region.Containers {
 
-				if container.HealthCheck == nil {
-					container.HealthCheck = &HealthCheck{}
+				if container.Dockerfile == "" {
+					container.Dockerfile = "Dockerfile"
 				}
-				if container.HealthCheck.Method == "" {
-					container.HealthCheck.Method = "GET"
+				if container.DockerfileBuild == "" {
+					container.DockerfileBuild = "Dockerfile.build"
 				}
-				if container.HealthCheck.Path == "" {
-					container.HealthCheck.Path = "/health"
+
+				if container.Topology == Topology_Inet {
+
+					if container.HealthCheck == nil {
+						container.HealthCheck = &HealthCheck{}
+					}
+					if container.HealthCheck.Method == "" {
+						container.HealthCheck.Method = "GET"
+					}
+					if container.HealthCheck.Path == "" {
+						container.HealthCheck.Path = "/health"
+					}
 				}
 			}
 
 			if len(region.Containers) == 1 {
-				region.Containers[0].Primary = true
-
-				if region.Containers[0].Name == "" {
-					region.Containers[0].Name = "primary"
-				}
 
 				if region.Containers[0].Topology == "" {
 					region.Containers[0].Topology = Topology_Inet
@@ -677,10 +280,11 @@ func (recv *Config) Print() {
 			for _, container := range region.Containers {
 				fmt.Println("      - .Name", container.Name)
 				fmt.Println("        .InetPort", container.InetPort)
-				fmt.Println("        .Primary", container.Primary)
 
-				fmt.Println("        .HealthCheck.Method", container.HealthCheck.Method)
-				fmt.Println("        .HealthCheck.Path", container.HealthCheck.Path)
+				if container.Topology == Topology_Inet {
+					fmt.Println("        .HealthCheck.Method", container.HealthCheck.Method)
+					fmt.Println("        .HealthCheck.Path", container.HealthCheck.Path)
+				}
 
 				if container.SrcEnvFile == nil {
 					fmt.Println("        .SrcEnvFile nil")

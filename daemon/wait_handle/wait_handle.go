@@ -84,6 +84,11 @@ func Call() {
 	}
 
 	for {
+		// assume a worker or cron primary topology
+		if flags.HealthCheckMethod == "" && flags.HealthCheckPath == "" {
+			break
+		}
+
 		time.Sleep(sleepDuration)
 
 		msg := flags.HealthCheckMethod + " " + flags.HealthCheckPath

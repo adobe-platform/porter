@@ -41,7 +41,6 @@ func (recv *stackCreator) mapResources(template *cfn.Template) (success bool) {
 			setKeyName,
 			setIamInstanceProfile,
 			setImageId,
-			setDependsOnWaitConditionHandle,
 			setAutoScalingLaunchConfigurationMetadata,
 			setUserData,
 		}
@@ -60,6 +59,38 @@ func (recv *stackCreator) mapResources(template *cfn.Template) (success bool) {
 			setCrossZone,
 			setConnectionDrainingPolicy,
 			setHealthCheck,
+		}
+		ops[cfn.EC2_SecurityGroup] = []MapResource{
+			setVpcId,
+		}
+		ops[cfn.CloudFormation_WaitCondition] = []MapResource{
+			setTimeout,
+			setCount,
+			setDependsOnAutoScalingGroup,
+			setHandle,
+		}
+		ops[cfn.IAM_InstanceProfile] = []MapResource{
+			setRoleAndPath,
+		}
+		ops[cfn.IAM_Role] = []MapResource{
+			addInlinePolicies,
+		}
+
+	case conf.Topology_Worker, conf.Topology_Cron:
+		ops[cfn.AutoScaling_LaunchConfiguration] = []MapResource{
+			addASGSecurityGroups,
+			setInstanceType,
+			setKeyName,
+			setIamInstanceProfile,
+			setImageId,
+			setAutoScalingLaunchConfigurationMetadata,
+			setUserData,
+		}
+		ops[cfn.AutoScaling_AutoScalingGroup] = []MapResource{
+			addAutoScaleGroupTags,
+			setPoolSize,
+			setAutoScalingGroupMultiAZ,
+			setLaunchConfigurationName,
 		}
 		ops[cfn.EC2_SecurityGroup] = []MapResource{
 			setVpcId,
@@ -388,6 +419,9 @@ func setAutoScalingLaunchConfigurationMetadata(recv *stackCreator, template *cfn
 		ServicePayloadKey:        recv.servicePayloadKey,
 		ServicePayloadConfigPath: constants.ServicePayloadConfigPath,
 
+		InetHealthCheckMethod: strconv.Quote(recv.region.HealthCheckMethod()),
+		InetHealthCheckPath:   strconv.Quote(recv.region.HealthCheckPath()),
+
 		PorterBinaryUrl: constants.BinaryUrl,
 
 		DevMode:  os.Getenv(constants.EnvDevMode) != "",
@@ -396,25 +430,9 @@ func setAutoScalingLaunchConfigurationMetadata(recv *stackCreator, template *cfn
 		ContainerUserUid: constants.ContainerUserUid,
 	}
 
-	secondaryContainers := make([]cfn_template.SecondaryContainer, 0)
 	for _, container := range recv.region.Containers {
-
-		// Config.Validate() and Config.SetDefaults() should ensure this is run once
-		if container.Primary {
-			cfnInitContext.PrimaryContainer = cfn_template.PrimaryContainer{
-				Name:              container.Name,
-				InetPort:          container.InetPort,
-				HealthCheckMethod: container.HealthCheck.Method,
-				HealthCheckPath:   container.HealthCheck.Path,
-			}
-		} else {
-			secondaryContainer := cfn_template.SecondaryContainer{
-				Name: container.Name,
-			}
-			secondaryContainers = append(secondaryContainers, secondaryContainer)
-		}
+		cfnInitContext.ImageNames = append(cfnInitContext.ImageNames, container.Name)
 	}
-	cfnInitContext.SecondaryContainers = secondaryContainers
 
 	autoScalingLaunchConfiguration, err := template.GetResourceName(cfn.AutoScaling_LaunchConfiguration)
 	if err != nil {
@@ -463,22 +481,6 @@ func setIamInstanceProfile(recv *stackCreator, template *cfn.Template, resource 
 		props["IamInstanceProfile"] = map[string]interface{}{
 			"Ref": iamInstanceProfile,
 		}
-	}
-
-	success = true
-	return
-}
-
-func setDependsOnWaitConditionHandle(recv *stackCreator, template *cfn.Template, resource map[string]interface{}) (success bool) {
-	if _, exists := resource["DependsOn"]; !exists {
-
-		waitConditionHandle, err := template.GetResourceName(cfn.CloudFormation_WaitConditionHandle)
-		if err != nil {
-			recv.log.Error("template.GetResourceName", "Error", err)
-			return
-		}
-
-		resource["DependsOn"] = waitConditionHandle
 	}
 
 	success = true
@@ -541,6 +543,10 @@ func setCount(recv *stackCreator, template *cfn.Template, resource map[string]in
 	return true
 }
 
+// The WaitCondition DependsOn the ASG because its timeout starts as soon as its
+// created an the ASG is the last thing to be created so we want the timeout
+// countdown to start as soon as all the other resources in the stack have been
+// created
 func setDependsOnAutoScalingGroup(recv *stackCreator, template *cfn.Template, resource map[string]interface{}) (success bool) {
 	if _, exists := resource["DependsOn"]; !exists {
 
@@ -812,14 +818,8 @@ func setHealthCheck(recv *stackCreator, template *cfn.Template, resource map[str
 
 		healthCheckTarget := "TCP:80"
 
-		for _, container := range recv.region.Containers {
-
-			// Config.Validate() and Config.SetDefaults() should ensure this is run once
-			if container.Primary {
-				if container.HealthCheck.Method == "GET" {
-					healthCheckTarget = "HTTP:80/" + strings.TrimPrefix(container.HealthCheck.Path, "/")
-				}
-			}
+		if recv.region.HealthCheckMethod() == "GET" {
+			healthCheckTarget = "HTTP:80/" + strings.TrimPrefix(recv.region.HealthCheckPath(), "/")
 		}
 
 		props["HealthCheck"] = map[string]interface{}{

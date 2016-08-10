@@ -44,8 +44,8 @@ chmod 444 {{ .EnvFile }}
 porter host daemon --init \
 -e {{ .Environment }} \
 -sn {{ .ServiceName }} \
--hm {{ .PrimaryContainer.HealthCheckMethod }} \
--hp {{ .PrimaryContainer.HealthCheckPath }} \
+-hm {{ .InetHealthCheckMethod }} \
+-hp {{ .InetHealthCheckPath }} \
 -elbs {{ .Elbs }}
 
 # A hotswap operation is identical to what happens during initial configuration

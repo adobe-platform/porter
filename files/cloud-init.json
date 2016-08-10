@@ -14,8 +14,6 @@
       "  - haproxy-1.5.2\n",
       "  - docker-1.11.2\n",
       "  - sysstat-9.0.4\n",
-      "  # GNU tar doesn't have --include filter\n",
-      "  - bsdtar-3.0.4\n",
       "\n",
       "runcmd:\n",
       "  - echo running cfn-init -c bootstrap\n",

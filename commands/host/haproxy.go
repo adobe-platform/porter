@@ -13,24 +13,48 @@ package host
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
-	"strconv"
-	"strings"
 	"text/template"
 	"time"
 
 	"github.com/adobe-platform/porter/constants"
 	"github.com/adobe-platform/porter/files"
 	"github.com/adobe-platform/porter/logger"
+	"github.com/adobe-platform/porter/stdin"
+	"github.com/inconshreveable/log15"
 	"github.com/phylake/go-cli"
 )
 
-type HAProxyCmd struct{}
+type (
+	HAProxyCmd struct{}
+
+	haProxyConfigContext struct {
+		BackendName     string
+		FrontEndPorts   []uint16
+		HAPStdin        HAPStdin
+		StatsUsername   string
+		StatsPassword   string
+		StatsUri        string
+		IpBlacklistPath string
+	}
+
+	HAPStdin struct {
+		Containers []HAPContainer `json:"containers"`
+	}
+
+	HAPContainer struct {
+		Id                string `json:"id"`
+		HealthCheckMethod string `json:"healthCheckMethod"`
+		HealthCheckPath   string `json:"healthCheckPath"`
+		HostPort          uint16 `json:"hostPort"`
+	}
+)
 
 func (recv *HAProxyCmd) Name() string {
 	return "haproxy"
@@ -45,7 +69,7 @@ func (recv *HAProxyCmd) LongHelp() string {
     haproxy -- Manipulate haproxy configuration
 
 SYNOPSIS
-    haproxy -sn <service name> -hm <health check method> -hp <health check path>
+    haproxy -sn <service name>
 
 DESCRIPTION
     haproxy creates and rewrites /etc/haproxy/haproxy.cfg to work with a primary
@@ -54,8 +78,19 @@ DESCRIPTION
     with .porter/config to determine from which port the container wishes to
     receive internet traffic.
 
-    This command additionally expects on STDIN a host port to route internet
-    traffic to.`
+    This command additionally expects on STDIN the following JSON describing
+    how to configure HAProxy
+
+    {
+      "containers": [
+        {
+          "id": "abc123",
+          "healthCheckMethod": "GET",
+          "healthCheckPath": "/health",
+          "hostPort": 12345
+        }
+      ]
+    }`
 }
 
 func (recv *HAProxyCmd) SubCommands() []cli.Command {
@@ -65,38 +100,29 @@ func (recv *HAProxyCmd) SubCommands() []cli.Command {
 func (recv *HAProxyCmd) Execute(args []string) bool {
 	if len(args) > 0 {
 		var (
-			servicePort       int
-			serviceName       string
-			healthCheckMethod string
-			healthCheckPath   string
+			stdinStruct HAPStdin
+			serviceName string
 		)
+		log := logger.Host("cmd", "haproxy")
 
 		flagSet := flag.NewFlagSet("", flag.ExitOnError)
 		flagSet.StringVar(&serviceName, "sn", "", "")
-		flagSet.StringVar(&healthCheckMethod, "hm", "", "")
-		flagSet.StringVar(&healthCheckPath, "hp", "", "")
 		flagSet.Usage = func() {
 			fmt.Println(recv.LongHelp())
 		}
 		flagSet.Parse(args)
 
-		stat, err := os.Stdin.Stat()
+		stdinBytes, err := stdin.GetBytes()
 		if err != nil {
+			log.Error("stdin.GetBytes", "Error", err)
+			return false
+		}
+		if len(stdinBytes) == 0 {
+			log.Error("Nothing on stdin")
 			return false
 		}
 
-		// nothing on STDIN
-		if (stat.Mode() & os.ModeCharDevice) != 0 {
-			return false
-		}
-
-		servicePortBytes, err := ioutil.ReadAll(os.Stdin)
-		if err != nil {
-			return false
-		}
-
-		servicePortString := strings.TrimSpace(string(servicePortBytes))
-		servicePort, err = strconv.Atoi(servicePortString)
+		err = json.Unmarshal(stdinBytes, &stdinStruct)
 		if err != nil {
 			return false
 		}
@@ -108,18 +134,16 @@ func (recv *HAProxyCmd) Execute(args []string) bool {
 		}
 
 		context := haProxyConfigContext{
-			BackendName:       serviceName,
-			FrontEndPorts:     constants.InetBindPorts,
-			ContainerPort:     uint16(servicePort),
-			HealthCheckMethod: healthCheckMethod,
-			HealthCheckPath:   healthCheckPath,
-			StatsUsername:     constants.HAProxyStatsUsername,
-			StatsPassword:     constants.HAProxyStatsPassword,
-			StatsUri:          constants.HAProxyStatsUri,
-			IpBlacklistPath:   ipBlacklistPath,
+			BackendName:     serviceName,
+			FrontEndPorts:   constants.InetBindPorts,
+			HAPStdin:        stdinStruct,
+			StatsUsername:   constants.HAProxyStatsUsername,
+			StatsPassword:   constants.HAProxyStatsPassword,
+			StatsUri:        constants.HAProxyStatsUri,
+			IpBlacklistPath: ipBlacklistPath,
 		}
 
-		if !rewriteConfig(context) {
+		if !rewriteConfig(log, context) {
 			os.Exit(1)
 		}
 		return true
@@ -128,57 +152,9 @@ func (recv *HAProxyCmd) Execute(args []string) bool {
 	return false
 }
 
-type haProxyConfigContext struct {
-	BackendName       string
-	FrontEndPorts     []uint16
-	ContainerPort     uint16
-	HealthCheckMethod string
-	HealthCheckPath   string
-	StatsUsername     string
-	StatsPassword     string
-	StatsUri          string
-	IpBlacklistPath   string
-}
+func rewriteConfig(log log15.Logger, context haProxyConfigContext) (success bool) {
 
-func rewriteConfig(context haProxyConfigContext) (success bool) {
-	log := logger.Host("cmd", "haproxy")
-
-	successfulHealthCheck := false
-	methodPath := context.HealthCheckMethod + " " + context.HealthCheckPath
-
-	sleepDuration := 2 * time.Second
-	n := int(constants.StackCreationTimeout().Seconds() / sleepDuration.Seconds())
-	for i := 0; i < n; i++ {
-		time.Sleep(sleepDuration)
-
-		healthURL := fmt.Sprintf("http://localhost:%d%s", context.ContainerPort, context.HealthCheckPath)
-
-		req, err := http.NewRequest(context.HealthCheckMethod, healthURL, nil)
-		if err != nil {
-			log.Warn("http.NewRequest", "Error", err)
-			continue
-		}
-
-		resp, err := http.DefaultClient.Do(req)
-
-		if err != nil {
-			log.Warn(methodPath, "Error", err)
-			continue
-		}
-
-		if resp.StatusCode != 200 {
-			log.Warn(methodPath, "StatusCode", resp.StatusCode)
-			continue
-		}
-
-		log.Info("successful health check on container. rewriting haproxy config")
-		successfulHealthCheck = true
-		break
-
-	}
-
-	if !successfulHealthCheck {
-		log.Error("never received a 200 response for " + methodPath)
+	if !healthCheckContainers(log, context.HAPStdin) {
 		return
 	}
 
@@ -209,5 +185,69 @@ func rewriteConfig(context haProxyConfigContext) (success bool) {
 	}
 
 	success = true
+	return
+}
+
+func healthCheckContainers(log log15.Logger, stdin HAPStdin) (success bool) {
+
+	successChan := make(chan bool)
+	for _, container := range stdin.Containers {
+		go func(container HAPContainer) {
+			if healthCheckContainer(log, container) {
+				successChan <- true
+			} else {
+				successChan <- false
+			}
+		}(container)
+	}
+
+	for i := 0; i < len(stdin.Containers); i++ {
+		chanSuccess := <-successChan
+		if !chanSuccess {
+			return
+		}
+	}
+
+	success = true
+	return
+}
+
+func healthCheckContainer(log log15.Logger, container HAPContainer) (success bool) {
+	log = log.New("ContainerId", container.Id)
+	methodPath := container.HealthCheckMethod + " " + container.HealthCheckPath
+	healthURL := fmt.Sprintf("http://127.0.0.1:%d%s", container.HostPort, container.HealthCheckPath)
+
+	sleepDuration := 2 * time.Second
+	n := int(constants.StackCreationTimeout().Seconds() / sleepDuration.Seconds())
+	for i := 0; i < n; i++ {
+		time.Sleep(sleepDuration)
+
+		req, err := http.NewRequest(container.HealthCheckMethod, healthURL, nil)
+		if err != nil {
+			log.Warn("http.NewRequest", "Error", err)
+			continue
+		}
+
+		resp, err := http.DefaultClient.Do(req)
+
+		if err != nil {
+			log.Warn(methodPath, "Error", err)
+			continue
+		}
+
+		if resp.StatusCode != 200 {
+			log.Warn(methodPath, "StatusCode", resp.StatusCode)
+			continue
+		}
+
+		log.Info("successful health check on container. rewriting haproxy config")
+		success = true
+		break
+	}
+
+	if !success {
+		log.Error("never received a 200 response for " + methodPath)
+	}
+
 	return
 }

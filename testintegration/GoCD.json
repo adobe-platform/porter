@@ -674,9 +674,17 @@
                     "Ref": "SlackNotificationWebhook"
                   },
                   "go_notification_url": {
-                    "Fn::GetAtt": [
-                      "GoMasterELB",
-                      "DNSName"
+                    "Fn::Join": [
+                      "/",
+                      [
+                        {
+                          "Fn::GetAtt": [
+                            "GoMasterELB",
+                            "DNSName"
+                          ]
+                        },
+                        "go"
+                      ]
                     ]
                   },
                   "external_access_cidr": {
@@ -735,6 +743,15 @@
                       "      <params>",
                       "        <param name=\"pack_pipeline\">porter-test-pack</param>",
                       "        <param name=\"porter_env\">CIS</param>",
+                      "      </params>",
+                      "      <materials>",
+                      "        <pipeline pipelineName=\"porter-test-pack\" stageName=\"Pack\" />",
+                      "      </materials>",
+                      "    </pipeline>",
+                      "    <pipeline name=\"Worker-deploy\" template=\"Porter-Deploy\">",
+                      "      <params>",
+                      "        <param name=\"pack_pipeline\">porter-test-pack</param>",
+                      "        <param name=\"porter_env\">Worker</param>",
                       "      </params>",
                       "      <materials>",
                       "        <pipeline pipelineName=\"porter-test-pack\" stageName=\"Pack\" />",

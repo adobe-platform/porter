@@ -40,8 +40,10 @@ type (
 		ServicePayloadKey        string
 		ServicePayloadConfigPath string
 
-		PrimaryContainer    PrimaryContainer
-		SecondaryContainers []SecondaryContainer
+		InetHealthCheckMethod string
+		InetHealthCheckPath   string
+
+		ImageNames []string
 
 		PorterBinaryUrl string
 
@@ -53,17 +55,6 @@ type (
 		Elbs string
 
 		ContainerUserUid string
-	}
-
-	PrimaryContainer struct {
-		Name              string
-		InetPort          int
-		HealthCheckMethod string
-		HealthCheckPath   string
-	}
-
-	SecondaryContainer struct { // TODO figure out linking between containers
-		Name string
 	}
 )
 
