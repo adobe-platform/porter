@@ -819,7 +819,7 @@ func setHealthCheck(recv *stackCreator, template *cfn.Template, resource map[str
 		healthCheckTarget := "TCP:80"
 
 		if recv.region.HealthCheckMethod() == "GET" {
-			healthCheckTarget = "HTTP:80/" + strings.TrimPrefix(recv.region.HealthCheckMethod(), "/")
+			healthCheckTarget = "HTTP:80/" + strings.TrimPrefix(recv.region.HealthCheckPath(), "/")
 		}
 
 		props["HealthCheck"] = map[string]interface{}{
