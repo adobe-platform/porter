@@ -70,7 +70,7 @@ func Do(log log15.Logger, config *conf.Config, environment *conf.Environment,
 				stackName, keepCount, pruneStackChan, elbFilter, elbTag)
 		case conf.Topology_Worker:
 			go pruneStacks(log, region, environment,
-				stackName, keepCount, pruneStackChan, false, elbTag)
+				stackName, keepCount+1, pruneStackChan, false, elbTag)
 		default:
 			log.Error("Unsupported topology")
 			return
