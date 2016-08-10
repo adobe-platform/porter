@@ -14,7 +14,7 @@ reviewers:
     members:
     - phylake
   - name: reviewer
-    required: 2
+    required: 1
     members:
     - cdmurph32
     - davepersing

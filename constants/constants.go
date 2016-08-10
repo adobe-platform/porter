@@ -126,8 +126,6 @@ const (
 	DstELBSecurityGroup = "DestinationELBToInstance"
 
 	ContainerUserUid = "1001"
-
-	DockerBinaryDarwinURL = "https://get.docker.com/builds/Darwin/x86_64/docker-1.7.1"
 )
 
 var (

@@ -50,12 +50,6 @@ STACK_CREATION_POLL_INTERVAL
     stack provisioning. The value is a string parsed by
     https://golang.org/pkg/time/#ParseDuration. The default value is 10 seconds.
 
-NO_DOCKER_OVERRIDE
-    Due to a regression in Docker, porter will attempt to download and use
-    Docker client 1.7 during create-stack to work around the issue
-
-    https://github.com/docker/docker/issues/15785#issuecomment-153871706
-
 NO_LOG_COLOR
     The default logger has color. This option turns it off.
 

@@ -322,9 +322,6 @@ outer:
 }
 
 func preFlight(log log15.Logger) bool {
-	if !util.OverrideDockerClient(log) {
-		return false
-	}
 
 	util.GitIgnoreTempDir(log)
 	util.DockerIgnoreTempDir(log)
