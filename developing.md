@@ -30,7 +30,7 @@ Users of porter should checkout the [the documentation](docs)
 
 - Golang 1.6
 - [godep](https://github.com/tools/godep#readme)
-- Docker 1.7.1
+- Docker 1.11.2
 
 The following are probably already installed which is part of why we use them -
 they're ubiquitous. The versions likely won't matter but they're here for
@@ -58,8 +58,9 @@ cd && mkdir go && export GOPATH=~/go
 
 ##### Install godep
 
-`go get github.com/tools/godep`
-
+```
+go get github.com/tools/godep
+```
 
 #### Docker
 
@@ -76,13 +77,13 @@ Follow the instructions to install VirtualBox
 Add `~/bin` to your `$PATH` and run
 
 ```
-curl -L https://github.com/docker/machine/releases/download/v0.3.1/docker-machine_darwin-386 > ~/bin/docker-machine && chmod 0755 !#:4
+curl -Lo ~/bin/docker-machine https://github.com/docker/machine/releases/download/v0.6.0/docker-machine-Darwin-x86_64 && chmod 0755 !#:2
 ```
 
 ##### Docker client
 
 ```
-curl https://get.docker.com/builds/Darwin/x86_64/docker-1.7.1 > ~/bin/docker && chmod 0755 !#:3
+curl -Lo ~/bin/docker https://get.docker.com/builds/Darwin/x86_64/docker-1.11.2 && chmod 0755 !#:2
 ```
 
 ##### Docker server
@@ -92,7 +93,7 @@ docker-machine create \
 --driver virtualbox \
 --virtualbox-memory 2048 \
 --virtualbox-disk-size 20000 \
---virtualbox-boot2docker-url https://github.com/boot2docker/boot2docker/releases/download/v1.7.1/boot2docker.iso \
+--virtualbox-boot2docker-url https://github.com/boot2docker/boot2docker/releases/download/v1.11.2/boot2docker.iso \
 porter
 ```
 
@@ -105,16 +106,21 @@ Once complete you should be able to run `docker version` and see this output
 
 ```
 [bcook:~]$ docker version
-Client version: 1.7.1
-Client API version: 1.19
-Go version (client): go1.4.2
-Git commit (client): 786b29d
-OS/Arch (client): darwin/amd64
-Server version: 1.7.1
-Server API version: 1.19
-Go version (server): go1.4.2
-Git commit (server): 786b29d
-OS/Arch (server): linux/amd64
+Client:
+ Version:      1.11.2
+ API version:  1.23
+ Go version:   go1.5.4
+ Git commit:   b9f10c9
+ Built:        Wed Jun  1 21:20:08 2016
+ OS/Arch:      darwin/amd64
+
+Server:
+ Version:      1.11.2
+ API version:  1.23
+ Go version:   go1.5.4
+ Git commit:   b9f10c9
+ Built:        Wed Jun  1 21:20:08 2016
+ OS/Arch:      linux/amd64
 ```
 
 #### Environment variables

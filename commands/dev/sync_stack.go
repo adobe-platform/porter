@@ -24,7 +24,6 @@ import (
 	"github.com/adobe-platform/porter/constants"
 	"github.com/adobe-platform/porter/logger"
 	"github.com/adobe-platform/porter/provision"
-	"github.com/adobe-platform/porter/util"
 	"github.com/inconshreveable/log15"
 	"github.com/phylake/go-cli"
 )
@@ -116,10 +115,6 @@ func UpdateStack(stackArgs provision.StackArgs) {
 	var regionOutput provision.CreateStackRegionOutput
 	for _, output := range createStackOutput.Regions {
 		regionOutput = output
-	}
-
-	if !util.OverrideDockerClient(log) {
-		os.Exit(1)
 	}
 
 	if success := provision.Package(log, config); !success {
