@@ -29,6 +29,7 @@ import (
 	"github.com/adobe-platform/porter/aws_session"
 	"github.com/adobe-platform/porter/conf"
 	"github.com/adobe-platform/porter/constants"
+	dockerutil "github.com/adobe-platform/porter/docker/util"
 	"github.com/adobe-platform/porter/logger"
 	"github.com/adobe-platform/porter/secrets"
 	"github.com/adobe-platform/porter/util"
@@ -169,6 +170,10 @@ func startContainers(environmentStr, regionStr string) {
 
 	dockerIPv4 := dockerIfaceIPv4(log)
 
+	if !prepareNetwork(log) {
+		os.Exit(1)
+	}
+
 	containerToDstEnvKey, success = getContainerToDstEnvS3Key(log, region.Name)
 	if !success {
 		os.Exit(1)
@@ -198,6 +203,8 @@ func startContainers(environmentStr, regionStr string) {
 			// set ulimit for container
 			// TODO calculate this
 			"--ulimit", "nofile=200000",
+
+			"--net", "porter",
 
 			// Read in additional variables written during bootstrap
 			"--env-file", constants.EnvFile,
@@ -281,7 +288,44 @@ func startContainers(environmentStr, regionStr string) {
 	}
 }
 
-func getInetHostPort(log log15.Logger, inetPort int, containerId string) (hostPort uint16, success bool) {
+func prepareNetwork(log log15.Logger) (success bool) {
+	var stdoutBuf bytes.Buffer
+
+	cmd := exec.Command("docker", "network", "ls")
+	cmd.Stdout = &stdoutBuf
+	err := cmd.Run()
+	if err != nil {
+		log.Crit("docker network ls", "Error", err)
+		return
+	}
+
+	networks, err := dockerutil.NetworkNameToId(&stdoutBuf)
+	if err != nil {
+		log.Error("NetworkNameToId", "Error", err)
+		return
+	}
+
+	foundNetwork := false
+	for networkName := range networks {
+		if networkName == "porter" {
+			foundNetwork = true
+			break
+		}
+	}
+
+	if !foundNetwork {
+		err = exec.Command("docker", "network", "create", "porter").Run()
+		if err != nil {
+			log.Crit("docker network create porter", "Error", err)
+			return
+		}
+	}
+
+	success = true
+	return
+}
+
+func getInetHostPort(log log15.Logger, inetContainerPort int, containerId string) (hostPort uint16, success bool) {
 
 	var stdoutBuf bytes.Buffer
 
@@ -306,7 +350,7 @@ func getInetHostPort(log log15.Logger, inetPort int, containerId string) (hostPo
 		return
 	}
 
-	if inetPort == 0 && len(portMappings) > 1 {
+	if inetContainerPort == 0 && len(portMappings) > 1 {
 		log.Crit("There are multiple EXPOSEd ports and no designated internet port")
 		return
 	}
@@ -329,7 +373,7 @@ func getInetHostPort(log log15.Logger, inetPort int, containerId string) (hostPo
 
 		// either there's a single container and no configured inet_port (validated above)
 		// or we wait for a match on the configured inet_port
-		if inetPort == 0 || inetPort == containerPortInt {
+		if inetContainerPort == 0 || inetContainerPort == containerPortInt {
 			if containerProtocol != "tcp" {
 				log.Crit("cannot route internet traffic to a protocol other than TCP", "PortMapping", portMapping)
 				return
