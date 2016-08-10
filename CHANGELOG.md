@@ -1,3 +1,7 @@
+**v2.1**
+
+- supporting worker stacks and workers in inet stacks
+
 **v2.0**
 
 - improved secrets handling in transit
