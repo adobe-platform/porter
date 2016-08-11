@@ -22,14 +22,14 @@ uses by default. See [Versions](versions.md) for details
 # https://benchmarks.cisecurity.org/downloads/show-single/index.cfm?file=docker16.110
 # ------------------------------------------------------------------------------
 
-Initializing Fri Aug  5 17:00:25 UTC 2016
+Initializing Wed Aug 10 23:07:18 UTC 2016
 
 
 [INFO] 1 - Host Configuration
 [WARN] 1.1  - Create a separate partition for containers
 [PASS] 1.2  - Use an updated Linux Kernel
 [WARN] 1.4  - Remove all non-essential services from the host - Network
-[WARN]      * Host listening on: 14 ports
+[WARN]      * Host listening on: 16 ports
 [WARN] 1.5  - Keep Docker up to date
 [WARN]       * Using 1.11.2, when 1.12.0 is current as of 2016-07-28
 [INFO]       * Your operating system vendor may provide support and security maintenance for docker
@@ -53,7 +53,7 @@ Initializing Fri Aug  5 17:00:25 UTC 2016
 
 
 [INFO] 2 - Docker Daemon Configuration
-[WARN] 2.1  - Restrict network traffic between containers
+[PASS] 2.1  - Restrict network traffic between containers
 [PASS] 2.2  - Set the logging level
 [PASS] 2.3  - Allow Docker to make changes to iptables
 [PASS] 2.4  - Do not use insecure registries
@@ -115,9 +115,11 @@ Initializing Fri Aug  5 17:00:25 UTC 2016
 
 [INFO] 5  - Container Runtime
 [WARN] 5.1  - Verify AppArmor Profile, if applicable
-[WARN]      * No AppArmorProfile Found: happy_ardinghelli
+[WARN]      * No AppArmorProfile Found: fervent_thompson
+[WARN]      * No AppArmorProfile Found: sick_kowalevski
 [WARN] 5.2  - Verify SELinux security options, if applicable
-[WARN]      * No SecurityOptions Found: happy_ardinghelli
+[WARN]      * No SecurityOptions Found: fervent_thompson
+[WARN]      * No SecurityOptions Found: sick_kowalevski
 [PASS] 5.3  - Restrict Linux Kernel Capabilities within containers
 [PASS] 5.4  - Do not use privileged containers
 [PASS] 5.5  - Do not mount sensitive host system directories on containers
@@ -125,13 +127,17 @@ Initializing Fri Aug  5 17:00:25 UTC 2016
 [PASS] 5.7  - Do not map privileged ports within containers
 [PASS] 5.9 - Do not share the host's network namespace
 [WARN] 5.10 - Limit memory usage for container
-[WARN]      * Container running without memory restrictions: happy_ardinghelli
+[WARN]      * Container running without memory restrictions: fervent_thompson
+[WARN]      * Container running without memory restrictions: sick_kowalevski
 [WARN] 5.11 - Set container CPU priority appropriately
-[WARN]      * Container running without CPU restrictions: happy_ardinghelli
+[WARN]      * Container running without CPU restrictions: fervent_thompson
+[WARN]      * Container running without CPU restrictions: sick_kowalevski
 [PASS] 5.12 - Mount container's root filesystem as read only
 [WARN] 5.13 - Bind incoming container traffic to a specific host interface
-[WARN]      * Port being bound to wildcard IP: 0.0.0.0 in happy_ardinghelli
-[WARN]      * Port being bound to wildcard IP: 0.0.0.0 in happy_ardinghelli
+[WARN]      * Port being bound to wildcard IP: 0.0.0.0 in fervent_thompson
+[WARN]      * Port being bound to wildcard IP: 0.0.0.0 in fervent_thompson
+[WARN]      * Port being bound to wildcard IP: 0.0.0.0 in sick_kowalevski
+[WARN]      * Port being bound to wildcard IP: 0.0.0.0 in sick_kowalevski
 [PASS] 5.14 - Set the 'on-failure' container restart policy to 5
 [PASS] 5.15 - Do not share the host's process namespace
 [PASS] 5.16 - Do not share the host's IPC namespace
@@ -142,12 +148,13 @@ Initializing Fri Aug  5 17:00:25 UTC 2016
 [PASS] 5.21 - Do not disable default seccomp profile
 [PASS] 5.24 - Confirm cgroup usage
 [WARN] 5.25 - Restrict container from acquiring additional privileges
-[WARN]      * Privileges not restricted: happy_ardinghelli
+[WARN]      * Privileges not restricted: fervent_thompson
+[WARN]      * Privileges not restricted: sick_kowalevski
 
 
 [INFO] 6  - Docker Security Operations
 [INFO] 6.4 - Avoid image sprawl
 [INFO]      * There are currently: 2 images
 [INFO] 6.5 - Avoid container sprawl
-[INFO]      * There are currently a total of 2 containers, with 2 of them currently running
+[INFO]      * There are currently a total of 3 containers, with 3 of them currently running
 ```

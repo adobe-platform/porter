@@ -16,6 +16,8 @@ env
 adduser porter-docker -u {{ .ContainerUserUid }}
 # CIS Docker Benchmark 1.11.0 2.13
 echo 'OPTIONS="$OPTIONS --disable-legacy-registry"' >> /etc/sysconfig/docker
+# CIS Docker Benchmark 1.11.0 2.1
+echo 'OPTIONS="$OPTIONS --icc=false"' >> /etc/sysconfig/docker
 service haproxy start
 service docker restart
 docker version
