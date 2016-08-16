@@ -9,8 +9,6 @@ test: prebuild
 	docker build -t porter-test -f Dockerfile.test .
 	docker run -it --rm \
 	-e TEST=true \
-	-v $$PWD:/go/src/github.com/adobe-platform/porter \
-	-w /go/src/github.com/adobe-platform/porter \
 	porter-test
 
 build_darwin: prebuild

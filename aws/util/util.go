@@ -15,10 +15,6 @@ import "github.com/adobe-platform/porter/constants"
 
 // ValidRegion validates the input an actual AWS region
 func ValidRegion(region string) bool {
-	for _, validRegion := range constants.AwsRegions {
-		if region == validRegion {
-			return true
-		}
-	}
-	return false
+	_, exists := constants.AwsRegions[region]
+	return exists
 }
