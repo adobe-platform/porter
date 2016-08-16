@@ -1,10 +1,4 @@
-# This image's lineage
-# golang:1.6.2
-#   buildpack-deps:jessie-scm
-#     buildpack-deps:jessie-curl
-#       debian:jessie
-#         scratch
-FROM golang:1.6.2
+FROM golang:1.6.3
 
 RUN go get github.com/onsi/ginkgo/ginkgo
 RUN go get github.com/onsi/gomega
