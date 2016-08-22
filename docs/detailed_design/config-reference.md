@@ -36,6 +36,8 @@ For each field the following notation is used
       - name
       - [topology](#topology) (==1?)
       - [inet_port](#inet_port) (==1?)
+      - [dockerfile](#container-dockerfile) (==1?)
+      - [dockerfile_build](#container-dockerfile-build) (==1?)
       - [uid](#uid) (==1?)
       - [health_check](#health_check) (==1?)
       - [src_env_file](#src_env_file) (==1?)
@@ -333,6 +335,18 @@ If a service EXPOSEs more than one port this field is required.
 
 This enables services to open up ports for things like profiling tools.
 
+### container dockerfile
+
+`dockerfile`: the path to a container's Dockerfile
+
+Defaults to `Dockerfile` if undefined.
+
+### container dockerfile build
+
+`dockerfile_build`: the path to a container's Dockerfile used in the [builder pattern](docker-builder-pattern.md)
+
+Defaults to `Dockerfile.build` if undefined.
+
 ### uid
 
 This specifies the uid the container is run with (i.e. `docker run -u`).
@@ -380,9 +394,9 @@ The branch or tag to use.
 
 Hooks are cloned with `git clone --depth 1 --branch <ref> <repo>`
 
-### dockerfile
+### hook dockerfile
 
-The relative path from the repo root to a dockerfile
+`dockerfile`: the relative path from the repo root to a hook's Dockerfile
 
 ### hook-environment
 
