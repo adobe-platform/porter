@@ -4,10 +4,30 @@ porter
 `porter` is a platform built on AWS APIs to enable continuous delivery of
 Docker containers to EC2.
 
+Lots of useful documentation is built into porter itself.
+
+Run `porter help`, and most porter commands with no arguments for details on how
+to call them.
+
 - [Features](#features)
 - [Project fit](#project-fit)
-- [Documentation](#documentation)
 - [Getting started](#getting-started)
+- Configuration
+  - [Platform `.porter/config` reference](detailed_design/config-reference.md)
+  - [Container runtime config (including secrets)](detailed_design/container-config.md)
+  - [Platform-Service interface](detailed_design/platform-service.md)
+- Deployment
+  - [Deployment flow](https://www.lucidchart.com/documents/view/95a3fdca-ff76-40c5-98fd-6b3071ba86bc)
+  - [CI/CD integration](detailed_design/ci-cd-integration.md)
+  - [Deployment customization](detailed_design/deployment-hooks.md)
+- Infrastructure
+  - [CloudFormation customizations](detailed_design/cfn-customization.md)
+- Misc
+  - [Security](detailed_design/security.md)
+  - [Porter's dependencies](detailed_design/versions.md)
+  - [Porter components](detailed_design/components.md)
+  - [Migrating between versions](../MIGRATING.md)
+  - [FAQ](faq.md)
 
 Features
 --------
@@ -65,27 +85,6 @@ others. Here's some examples of each
 - Entirely stateless services (not even in-memory caching) - consider Lambda
 - Projects needing cloud-agnostic or alternative infrastructure provisioning - consider [Terraform](https://www.terraform.io)
 - Projects need cloud-agnosticism. Porter is tied to AWS.
-
-Documentation
--------------
-
-Lots of useful documentation is built into porter itself.
-
-Run `porter help`, and most porter commands with no arguments for details on how
-to call them.
-
-- [Service config reference](detailed_design/config-reference.md)
-- [Service interface](detailed_design/platform-service.md)
-- [CI/CD integration](detailed_design/ci-cd-integration.md)
-- [Deployment flow](https://www.lucidchart.com/documents/view/95a3fdca-ff76-40c5-98fd-6b3071ba86bc)
-- [Container config (including secrets)](detailed_design/container-config.md)
-- [Security](detailed_design/security.md)
-- [Deployment customization](detailed_design/deployment-hooks.md)
-- [CloudFormation customizations](detailed_design/cfn-customization.md)
-- [Porter's dependencies](detailed_design/versions.md)
-- [Porter components](detailed_design/components.md)
-- [Migrating between versions](../MIGRATING.md)
-- [FAQ](faq.md)
 
 Getting started
 ---------------
