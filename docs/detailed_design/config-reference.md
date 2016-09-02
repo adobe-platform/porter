@@ -39,6 +39,7 @@ For each field the following notation is used
       - [dockerfile](#container-dockerfile) (==1?)
       - [dockerfile_build](#container-dockerfile-build) (==1?)
       - [uid](#uid) (==1?)
+      - [read_only](#read_only) (==1?)
       - [health_check](#health_check) (==1?)
       - [src_env_file](#src_env_file) (==1?)
       - [dst_env_file](#dst_env_file) (==1?)
@@ -301,7 +302,7 @@ Cloudformation stacks are eligible for deletion.
 
 ### containers
 
-container is a container definition and complex object.
+Define containers that should be built and run.
 
 If undefined a single default container definition is provided:
 
@@ -314,15 +315,27 @@ containers:
     path: /health
 ```
 
+If multiple containers are defined they must have unique names.
+
 ### topology
 
 topology describes the basic topology of the service and allow porter to do
 certain validation around the CloudFormation template to ensure things like
 a load balancer are defined.
 
-The only topology currently supported is `inet`
+`inet` and `worker` toplogies are supported. If an environment defines all
+`worker` containers then no ELB will be created.
 
-Future work will support `worker` and `cron`
+Multiple `inet` and `worker` containers can be deployed at the same time.
+
+**Limitations**
+
+The containers can communicate because they exist on the same docker network but
+no information is provided so containers can easily discover each other.
+
+No L7 routing occurs so all `inet` containers have to be identical.
+
+Future work will support service discovery and the `cron` topology.
 
 ### inet_port
 
@@ -349,11 +362,18 @@ Defaults to `Dockerfile.build` if undefined.
 
 ### uid
 
-This specifies the uid the container is run with (i.e. `docker run -u`).
+CIS Docker Benchmark 1.11.0 4.1 recommends running containers with a non-root
+user. Porter creates a porter-docker user on the host and runs docker with the
+porter-docker user's uid (`docker run -u <uid of the user porter-docker>`).
 
-The default if left unset is to use the provisioned porter-docker user.
+If your container must run as root set `uid: 0`
 
-If your container expects to run as root set this value to 0.
+### read_only
+
+CIS Docker Benchmark 1.11.0 5.12 recommends running containers with
+`--read-only`.
+
+Set `read_only: false` to disable this.
 
 ### health_check
 

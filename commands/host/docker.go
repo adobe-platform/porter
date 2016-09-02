@@ -187,18 +187,12 @@ func startContainers(environmentStr, regionStr string) {
 			// daemonize
 			"-d",
 
-			// publish to an ephemeral port
-			"-P",
-
 			// log driver with defaults since facility override doesn't work
 			"--log-driver=syslog",
 
 			// try to keep the container alive
 			// CIS Docker Benchmark 1.11.0 5.14
 			"--restart=on-failure:5",
-
-			// CIS Docker Benchmark 1.11.0 5.12
-			"--read-only",
 
 			// set ulimit for container
 			// TODO calculate this
@@ -222,6 +216,16 @@ func startContainers(environmentStr, regionStr string) {
 			// porterd
 			"-e", "PORTERD_TCP_ADDR=" + dockerIPv4,
 			"-e", "PORTERD_TCP_PORT=" + constants.PorterDaemonBindPort,
+		}
+
+		if container.Topology == conf.Topology_Inet {
+			// publish to an ephemeral port
+			runArgs = append(runArgs, "-P")
+		}
+
+		if container.ReadOnly == nil || *container.ReadOnly == true {
+			// CIS Docker Benchmark 1.11.0 5.12
+			runArgs = append(runArgs, "--read-only")
 		}
 
 		// TODO revisit --cap-drop=ALL with override https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities

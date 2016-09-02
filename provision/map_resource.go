@@ -543,10 +543,10 @@ func setCount(recv *stackCreator, template *cfn.Template, resource map[string]in
 	return true
 }
 
-// The WaitCondition DependsOn the ASG because its timeout starts as soon as its
-// created an the ASG is the last thing to be created so we want the timeout
-// countdown to start as soon as all the other resources in the stack have been
-// created
+// The WaitCondition DependsOn the ASG because its timeout starts as soon as
+// it's created and the ASG is the last thing to be created so we want the
+// timeout countdown to start as soon as all the other resources in the stack
+// have been created
 func setDependsOnAutoScalingGroup(recv *stackCreator, template *cfn.Template, resource map[string]interface{}) (success bool) {
 	if _, exists := resource["DependsOn"]; !exists {
 

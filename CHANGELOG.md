@@ -1,8 +1,9 @@
-**v2.1**
+**v2.1.0**
 
-- supporting worker stacks and workers in inet stacks
+- `topology: worker` now supported
+- configurable `read_only: false` to disable `docker run --read-only`
 
-**v2.0**
+**v2.0.0**
 
 - improved secrets handling in transit
 - enabled pluggable secrets provider

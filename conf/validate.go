@@ -224,7 +224,8 @@ func ValidateRegion(region *Region, validateRoleArn bool) error {
 
 func (recv *Region) ValidateContainers() error {
 
-	if len(recv.Containers) == 0 {
+	containerCount := len(recv.Containers)
+	if containerCount == 0 {
 
 		return errors.New("No containers are defined. Was SetDefaults() run?")
 	}
@@ -264,7 +265,7 @@ func (recv *Region) ValidateContainers() error {
 			}
 		}
 
-		if !containerNameRegex.MatchString(container.Name) {
+		if containerCount > 1 && !containerNameRegex.MatchString(container.Name) {
 			return errors.New("Invalid container name")
 		}
 
