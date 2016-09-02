@@ -93,6 +93,12 @@ environments:
         s3_bucket: porter-sandbox-us-west-2
     - <<: *CONTAINER_BASE_INET
       name: inet2
+      src_env_file:
+        exec_name: cat
+        exec_args:
+        - secrets.env-file
+      dst_env_file:
+        s3_bucket: porter-sandbox-us-west-2
     - <<: *CONTAINER_BASE_WORKER
       no_read_only: true
 
