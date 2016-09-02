@@ -91,6 +91,7 @@ environments:
         - secrets.env-file
       dst_env_file:
         s3_bucket: porter-sandbox-us-west-2
+    - <<: *CONTAINER_BASE_INET
     - <<: *CONTAINER_BASE_WORKER
       no_read_only: true
 
