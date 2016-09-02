@@ -100,7 +100,12 @@ environments:
       dst_env_file:
         s3_bucket: porter-sandbox-us-west-2
     - <<: *CONTAINER_BASE_WORKER
-      no_read_only: true
+      read_only: false
+    - <<: *CONTAINER_BASE_WORKER
+      name: worker2
+      read_only: true
+    - <<: *CONTAINER_BASE_WORKER
+      name: worker3
 
     elb: $ELB_1_NAME
 
