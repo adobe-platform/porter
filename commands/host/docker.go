@@ -187,9 +187,6 @@ func startContainers(environmentStr, regionStr string) {
 			// daemonize
 			"-d",
 
-			// publish to an ephemeral port
-			"-P",
-
 			// log driver with defaults since facility override doesn't work
 			"--log-driver=syslog",
 
@@ -219,6 +216,11 @@ func startContainers(environmentStr, regionStr string) {
 			// porterd
 			"-e", "PORTERD_TCP_ADDR=" + dockerIPv4,
 			"-e", "PORTERD_TCP_PORT=" + constants.PorterDaemonBindPort,
+		}
+
+		if container.Topology == conf.Topology_Inet {
+			// publish to an ephemeral port
+			runArgs = append(runArgs, "-P")
 		}
 
 		if container.ReadOnly == nil || *container.ReadOnly == true {
