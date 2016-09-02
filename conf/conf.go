@@ -227,6 +227,10 @@ func (recv *Config) SetDefaults() {
 				if region.Containers[0].Topology == "" {
 					region.Containers[0].Topology = Topology_Inet
 				}
+
+				if region.Containers[0].Name == "" {
+					region.Containers[0].Name = "primary"
+				}
 			}
 		}
 	}
