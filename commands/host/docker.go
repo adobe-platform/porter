@@ -197,9 +197,6 @@ func startContainers(environmentStr, regionStr string) {
 			// CIS Docker Benchmark 1.11.0 5.14
 			"--restart=on-failure:5",
 
-			// CIS Docker Benchmark 1.11.0 5.12
-			"--read-only",
-
 			// set ulimit for container
 			// TODO calculate this
 			"--ulimit", "nofile=200000",
@@ -222,6 +219,11 @@ func startContainers(environmentStr, regionStr string) {
 			// porterd
 			"-e", "PORTERD_TCP_ADDR=" + dockerIPv4,
 			"-e", "PORTERD_TCP_PORT=" + constants.PorterDaemonBindPort,
+		}
+
+		if container.ReadOnly == nil || *container.ReadOnly == true {
+			// CIS Docker Benchmark 1.11.0 5.12
+			runArgs = append(runArgs, "--read-only")
 		}
 
 		// TODO revisit --cap-drop=ALL with override https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities

@@ -66,6 +66,7 @@ type (
 		Topology        string       `yaml:"topology"`
 		InetPort        int          `yaml:"inet_port"`
 		Uid             *int         `yaml:"uid"`
+		ReadOnly        *bool        `yaml:"read_only"`
 		Dockerfile      string       `yaml:"dockerfile"`
 		DockerfileBuild string       `yaml:"dockerfile_build"`
 		HealthCheck     *HealthCheck `yaml:"health_check"`
