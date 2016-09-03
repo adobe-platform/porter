@@ -4,7 +4,7 @@ aws s3 cp s3://{{ .ServicePayloadBucket }}/{{ .ServicePayloadKey }} payload.tar
 # load all the containers in this tar
 echo "loading containers"
 {{ range $imageName := .ImageNames -}}
-tar -xOf /payload.tar ./{{ $imageName }}.docker | docker load
+tar -xOf payload.tar ./{{ $imageName }}.docker | docker load
 {{ end -}}
 
 echo "starting containers"
