@@ -1,4 +1,4 @@
-#!/bin/bash -ex
+#!/bin/bash -e
 echo "porter bootstrap BEGIN"
 
 export PORTER_VERSION={{ .PorterVersion }}
