@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"sync/atomic"
 
 	"github.com/adobe-platform/porter/aws/elb"
 	"github.com/adobe-platform/porter/aws_session"
@@ -36,6 +37,10 @@ type (
 		RunStderr io.Writer
 	}
 )
+
+// Multi-region deployment means we need an additional unique id for git clones
+// and image names
+var globalCounter *uint32 = new(uint32)
 
 func newOpts() *Opts {
 	return &Opts{
@@ -139,8 +144,6 @@ func Execute(log log15.Logger,
 				log.Error("GetRegion", "Error", err)
 				return
 			}
-
-			log := log.New("Region", region.Name)
 
 			roleARN, err := env.GetRoleARN(region.Name)
 			if err != nil {
@@ -337,16 +340,16 @@ func runConfigHook(log log15.Logger, config conf.Config, hookName string,
 	}
 
 	dockerFilePath := hook.Dockerfile
+	hookCounter := atomic.AddUint32(globalCounter, 1)
 
 	if hook.Repo != "" {
 
-		repoDir := fmt.Sprintf("%s-clone-%d", hookName, hookIndex)
+		repoDir := fmt.Sprintf("%s_clone_%d_%d", hookName, hookIndex, hookCounter)
 		repoDir = path.Join(constants.TempDir, repoDir)
-		defer func() {
-			exec.Command("rm", "-fr", repoDir).Run()
-		}()
 
-		log.Info("Cloning",
+		defer exec.Command("rm", "-fr", repoDir).Run()
+
+		log.Info("git clone",
 			"Repo", hook.Repo,
 			"Ref", hook.Ref,
 			"Directory", repoDir,
@@ -365,7 +368,8 @@ func runConfigHook(log log15.Logger, config conf.Config, hookName string,
 			return
 		}
 
-		// TODO do this in conf.SetDefaults()
+		// Validation ensures that local hooks have a dockerfile path
+		// Plugins default to Dockerfile
 		if dockerFilePath == "" {
 			dockerFilePath = "Dockerfile"
 		}
@@ -373,7 +377,7 @@ func runConfigHook(log log15.Logger, config conf.Config, hookName string,
 		dockerFilePath = path.Join(repoDir, dockerFilePath)
 	}
 
-	imageName := fmt.Sprintf("%s-%s-%d", config.ServiceName, hookName, hookIndex)
+	imageName := fmt.Sprintf("%s-%s-%d-%d", config.ServiceName, hookName, hookIndex, hookCounter)
 
 	if !buildAndRun(log, imageName, dockerFilePath, runArgs, opts) {
 		return
@@ -385,6 +389,12 @@ func runConfigHook(log log15.Logger, config conf.Config, hookName string,
 
 func buildAndRun(log log15.Logger, imageName, dockerFilePath string,
 	runArgs []string, opts *Opts) (success bool) {
+
+	log = log.New("Dockerfile", dockerFilePath, "ImageName", imageName)
+
+	log.Debug("buildAndRun() BEGIN")
+	defer log.Debug("buildAndRun() END")
+	log.Info("docker build")
 
 	dockerBuildCmd := exec.Command("docker", "build",
 		"-t", imageName,
@@ -405,6 +415,8 @@ func buildAndRun(log log15.Logger, imageName, dockerFilePath string,
 	runCmd := exec.Command("docker", runArgs...)
 	runCmd.Stdout = opts.RunStdout
 	runCmd.Stderr = opts.RunStderr
+
+	log.Debug("docker run", "Args", runArgs)
 
 	err = runCmd.Run()
 	if err != nil {
