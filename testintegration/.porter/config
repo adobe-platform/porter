@@ -47,6 +47,15 @@ hooks:
     environment:
       DEV_MODE:
       FOO: bar
+    concurrent: true
+  - repo: $TEST_REPO_URL
+    ref: $TEST_REPO_BRANCH
+    dockerfile: testintegration/plugins/ec2-bootstrap
+    concurrent: true
+  - repo: $TEST_REPO_URL
+    ref: $TEST_REPO_BRANCH
+    dockerfile: testintegration/plugins/ec2-bootstrap
+    concurrent: true
 
 _container_base_inet: &CONTAINER_BASE_INET
   name: inet
