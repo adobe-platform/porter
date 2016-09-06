@@ -1,3 +1,9 @@
+**v2.1.1**
+
+- fix ec2-bootstrap hook clone for multi-region deployment
+- configurable `-x` in `/var/log/cloud-init-output.log`
+- service payload path is relative to support non-root volume
+
 **v2.1.0**
 
 - `topology: worker` now supported
