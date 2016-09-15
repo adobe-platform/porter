@@ -1,6 +1,6 @@
 /var/log/porter.log
 {
-  size 10M
+  size 100M
   nodateext
   rotate 4
   missingok
