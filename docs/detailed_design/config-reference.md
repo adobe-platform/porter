@@ -414,8 +414,6 @@ The branch or tag to use.
 
 ### hook dockerfile
 
-`dockerfile`: the relative path from the repo root to a hook's Dockerfile
-
 When `repo` and `ref` are defined, the relative path from the cloned repo root
 to the `Dockerfile`.
 
