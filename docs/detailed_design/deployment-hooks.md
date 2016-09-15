@@ -53,6 +53,8 @@ the contents of a repo.
 
 Environment variables are injected as they are available.
 
+See the [config reference](config-reference.md#hook-dockerfile) for more.
+
 ### Standard environment variables
 
 These are available to all hooks and provided by porter.
