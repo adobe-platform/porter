@@ -47,55 +47,55 @@ For each field the following notation is used
   - pre_pack (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
-    - [dockerfile](#dockerfile) (==1?)
+    - [dockerfile](#hook-dockerfile) (==1?)
     - [environment](#hook-environment) (==1?)
     - [concurrent](#concurrent) (==1?)
   - post_pack (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
-    - [dockerfile](#dockerfile) (==1?)
+    - [dockerfile](#hook-dockerfile) (==1?)
     - [environment](#hook-environment) (==1?)
     - [concurrent](#concurrent) (==1?)
   - pre_provision (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
-    - [dockerfile](#dockerfile) (==1?)
+    - [dockerfile](#hook-dockerfile) (==1?)
     - [environment](#hook-environment) (==1?)
     - [concurrent](#concurrent) (==1?)
   - post_provision (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
-    - [dockerfile](#dockerfile) (==1?)
+    - [dockerfile](#hook-dockerfile) (==1?)
     - [environment](#hook-environment) (==1?)
     - [concurrent](#concurrent) (==1?)
   - pre_promote (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
-    - [dockerfile](#dockerfile) (==1?)
+    - [dockerfile](#hook-dockerfile) (==1?)
     - [environment](#hook-environment) (==1?)
     - [concurrent](#concurrent) (==1?)
   - post_promote (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
-    - [dockerfile](#dockerfile) (==1?)
+    - [dockerfile](#hook-dockerfile) (==1?)
     - [environment](#hook-environment) (==1?)
     - [concurrent](#concurrent) (==1?)
   - pre_prune (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
-    - [dockerfile](#dockerfile) (==1?)
+    - [dockerfile](#hook-dockerfile) (==1?)
     - [environment](#hook-environment) (==1?)
     - [concurrent](#concurrent) (==1?)
   - post_prune (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
-    - [dockerfile](#dockerfile) (==1?)
+    - [dockerfile](#hook-dockerfile) (==1?)
     - [environment](#hook-environment) (==1?)
     - [concurrent](#concurrent) (==1?)
   - ec2_bootstrap (==1?)
     - [repo](#repo) (==1!)
     - [ref](#ref) (==1!)
-    - [dockerfile](#dockerfile) (==1?)
+    - [dockerfile](#hook-dockerfile) (==1?)
     - [environment](#hook-environment) (==1?)
     - [concurrent](#concurrent) (==1?)
 
@@ -406,19 +406,42 @@ Read more about [deployment hooks](deployment-hooks.md)
 ### repo
 
 The repo to pull from. Porter simply does a git clone on whatever value is given
-meaning URLs and relative paths to a repo are supported.
+meaning you can use any value `git clone` accepts.
 
 ### ref
 
 The branch or tag to use.
 
-Hooks are cloned with `git clone --depth 1 --branch <ref> <repo>`
-
 ### hook dockerfile
 
 `dockerfile`: the relative path from the repo root to a hook's Dockerfile
 
-### hook-environment
+When `repo` and `ref` are defined, the relative path from the cloned repo root
+to the `Dockerfile`.
+
+Otherwise the relative path from the repo root.
+
+The Dockerfile's context is always the same as its location.
+
+**Example**
+
+```yaml
+hooks:
+  pre_pack:
+  - dockerfile: path/to/Dockerfile
+    repo: https://github.com/person/repo.git
+    ref: v1.0.0
+```
+
+porter will perform roughly the following commands
+
+```bash
+git clone --depth 1 --branch v1.0.0 https://github.com/person/repo.git
+docker build -t some_tag -f path/to/Dockerfile path/to/
+docker run -v $PWD:/repo_root some_tag
+```
+
+### hook environment
 
 The hook's environment
 
