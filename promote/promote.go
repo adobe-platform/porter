@@ -43,11 +43,9 @@ func Promote(log log15.Logger, config *conf.Config, provisionedEnv *provision_ou
 	}
 
 	for i := 0; i < stackCount; i++ {
-		select {
-		case promoteSuccess := <-promoteServiceChan:
-			if !promoteSuccess {
-				return
-			}
+		promoteSuccess := <-promoteServiceChan
+		if !promoteSuccess {
+			return
 		}
 	}
 
