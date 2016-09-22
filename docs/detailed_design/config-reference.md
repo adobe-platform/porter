@@ -28,6 +28,7 @@ For each field the following notation is used
     - [hosted_zone_name](#hosted_zone_name) (==1?)
     - [key_pair_name](#key_pair_name) (==1?)
     - [s3_bucket](#s3_bucket) (==1!)
+    - [sse_kms_key_id](#sse_kms_key_id) (==1!)
     - [elb](#elb) (==1?)
     - [azs](#azs) (>=1!)
       - name
@@ -42,7 +43,6 @@ For each field the following notation is used
       - [read_only](#read_only) (==1?)
       - [health_check](#health_check) (==1?)
       - [src_env_file](#src_env_file) (==1?)
-      - [dst_env_file](#dst_env_file) (==1?)
 - [hooks](#hooks) (==1?)
   - pre_pack (==1?)
     - [repo](#repo) (==1!)
@@ -262,6 +262,11 @@ instances.
 
 The bucket used by porter to upload builds into.
 
+### sse_kms_key_id
+
+The ARN of a KMS key for use with SSE-KMS. If defined all uploads to the
+`s3_bucket` will be encrypted with this key.
+
 ### vpc_id
 
 The VPC id needed to create security groups
@@ -390,11 +395,6 @@ health_check:
 ```
 
 ### src_env_file
-
-See the docs on [container config](container-config.md) for more info on this
-field
-
-### dst_env_file
 
 See the docs on [container config](container-config.md) for more info on this
 field

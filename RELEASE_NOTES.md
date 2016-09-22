@@ -1,3 +1,20 @@
+v2.2
+====
+
+[Docker registries](docs/detailed_design/service-payload.md) are supported
+
+v2.1
+====
+
+It's now possible to deploy
+
+1. Worker containers in a inet topology (i.e. with an ELB)
+1. A worker-only CloudFormation stack (i.e. no ELB)
+1. More than container per EC2 host
+
+The the [topology config](docs/detailed_design/config-reference.md#topology) for
+notes and limitations
+
 v2
 ==
 

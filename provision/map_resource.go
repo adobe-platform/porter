@@ -409,7 +409,7 @@ func setAutoScalingLaunchConfigurationMetadata(recv *stackCreator, template *cfn
 		EnvFile:       constants.EnvFile,
 
 		ServiceName:    recv.config.ServiceName,
-		ServiceVersion: recv.serviceVersion,
+		ServiceVersion: recv.config.ServiceVersion,
 
 		EC2BootstrapScript: eC2BootstrapScript.String(),
 
@@ -418,6 +418,10 @@ func setAutoScalingLaunchConfigurationMetadata(recv *stackCreator, template *cfn
 		ServicePayloadBucket:     recv.region.S3Bucket,
 		ServicePayloadKey:        recv.servicePayloadKey,
 		ServicePayloadConfigPath: constants.ServicePayloadConfigPath,
+
+		SecretsPayloadKey: recv.secretPayloadKey,
+
+		RegistryDeployment: recv.registryDeployment,
 
 		InetHealthCheckMethod: strconv.Quote(recv.region.HealthCheckMethod()),
 		InetHealthCheckPath:   strconv.Quote(recv.region.HealthCheckPath()),
@@ -428,6 +432,10 @@ func setAutoScalingLaunchConfigurationMetadata(recv *stackCreator, template *cfn
 		LogDebug: os.Getenv(constants.EnvLogDebug) != "",
 
 		ContainerUserUid: constants.ContainerUserUid,
+	}
+
+	if os.Getenv(constants.EnvDockerInsecureRegistry) != "" {
+		cfnInitContext.InsecureRegistry = os.Getenv(constants.EnvDockerRegistry)
 	}
 
 	for _, container := range recv.region.Containers {

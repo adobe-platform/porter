@@ -9,6 +9,13 @@ import (
 
 const AesBytes = 32
 
+type Payload struct {
+	ContainerSecrets   map[string]string
+	DockerRegistry     string
+	DockerPullUsername string
+	DockerPullPassword string
+}
+
 func GenerateKey() (symmetricKey []byte, err error) {
 	symmetricKey = make([]byte, AesBytes)
 	_, err = rand.Read(symmetricKey)

@@ -21,6 +21,12 @@ import (
 )
 
 func (recv *Config) Validate() (err error) {
+
+	err = recv.ValidateRegistryConfig()
+	if err != nil {
+		return
+	}
+
 	err = recv.ValidateTopLevelKeys()
 	if err != nil {
 		return
@@ -37,6 +43,55 @@ func (recv *Config) Validate() (err error) {
 	}
 
 	return
+}
+
+func (recv *Config) ValidateRegistryConfig() error {
+	dockerRegistry := os.Getenv(constants.EnvDockerRegistry)
+	dockerRepository := os.Getenv(constants.EnvDockerRepository)
+	dockerPullUsername := os.Getenv(constants.EnvDockerPullUsername)
+	dockerPullPassword := os.Getenv(constants.EnvDockerPullPassword)
+	dockerPushUsername := os.Getenv(constants.EnvDockerPushUsername)
+	dockerPushPassword := os.Getenv(constants.EnvDockerPushPassword)
+
+	if strings.Contains(dockerRegistry, "/") {
+		return errors.New("slashes disallowed in " + constants.EnvDockerRegistry)
+	}
+
+	if strings.Contains(dockerRepository, "/") {
+		return errors.New("slashes disallowed in " + constants.EnvDockerRepository)
+	}
+
+	if dockerRegistry != "" && dockerRepository == "" {
+		return fmt.Errorf("%s defined: missing %s",
+			constants.EnvDockerRegistry, constants.EnvDockerRepository)
+	}
+
+	if dockerRepository != "" && dockerRegistry == "" {
+		return fmt.Errorf("%s defined: missing %s",
+			constants.EnvDockerRepository, constants.EnvDockerRegistry)
+	}
+
+	if dockerPullUsername != "" && dockerPullPassword == "" {
+		return fmt.Errorf("%s defined: missing %s",
+			constants.EnvDockerPullUsername, constants.EnvDockerPullPassword)
+	}
+
+	if dockerPullPassword != "" && dockerPullUsername == "" {
+		return fmt.Errorf("%s defined: missing %s",
+			constants.EnvDockerPullPassword, constants.EnvDockerPullUsername)
+	}
+
+	if dockerPushUsername != "" && dockerPushPassword == "" {
+		return fmt.Errorf("%s defined: missing %s",
+			constants.EnvDockerPushUsername, constants.EnvDockerPushPassword)
+	}
+
+	if dockerPushPassword != "" && dockerPushUsername == "" {
+		return fmt.Errorf("%s defined: missing %s",
+			constants.EnvDockerPushPassword, constants.EnvDockerPushUsername)
+	}
+
+	return nil
 }
 
 func (recv *Config) ValidateTopLevelKeys() error {
@@ -236,13 +291,7 @@ func (recv *Region) ValidateContainers() error {
 	containerNames := make(map[string]interface{})
 	for _, container := range recv.Containers {
 
-		if container.SrcEnvFile == nil && container.DstEnvFile != nil {
-
-			return errors.New("dst_env_file defined but src_env_file undefined")
-		} else if container.SrcEnvFile != nil && container.DstEnvFile == nil {
-
-			return errors.New("src_env_file defined but dst_env_file undefined")
-		} else if container.SrcEnvFile != nil && container.DstEnvFile != nil {
+		if container.SrcEnvFile != nil {
 
 			if container.SrcEnvFile.S3Bucket != "" ||
 				container.SrcEnvFile.S3Key != "" {
@@ -258,10 +307,6 @@ func (recv *Region) ValidateContainers() error {
 			} else if container.SrcEnvFile.ExecName == "" {
 
 				return errors.New("src_env_file missing exec_name")
-			}
-
-			if container.DstEnvFile.S3Bucket == "" {
-				return errors.New("dst_env_file missing s3_bucket")
 			}
 		}
 

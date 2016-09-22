@@ -14,12 +14,12 @@ package provision
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	yaml "gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 	"time"
 
@@ -46,9 +46,12 @@ func Package(log log15.Logger, config *conf.Config) (success bool) {
 	}
 
 	now := time.Now().Unix()
-	sha1 := strings.TrimSpace(string(revParseOutput))
+	config.ServiceVersion = strings.TrimSpace(string(revParseOutput))
 
 	builtContainers := make(map[string]interface{})
+
+	dockerRegistry := os.Getenv(constants.EnvDockerRegistry)
+	dockerRepository := os.Getenv(constants.EnvDockerRepository)
 
 	// This is in a loop but assumes we're building a single container
 	// TODO support multiple containers
@@ -63,7 +66,16 @@ func Package(log log15.Logger, config *conf.Config) (success bool) {
 				// Alter the name in the config so we know which image names are part
 				// of the service payload. This is important for hotswap to know which
 				// of the available images on the host are the ones to be swapped in.
-				container.Name = fmt.Sprintf("%s-%d-%s", sha1, now, container.Name)
+				if dockerRegistry == "" && dockerRepository == "" {
+
+					container.Name = fmt.Sprintf("s3/s3/porter-%s-%d-%s",
+						config.ServiceVersion, now, container.Name)
+				} else {
+
+					container.Name = fmt.Sprintf("%s/%s/porter-%s-%d-%s",
+						dockerRegistry, dockerRepository,
+						config.ServiceVersion, now, container.Name)
+				}
 
 				if _, exists := builtContainers[container.OriginalName]; !exists {
 
@@ -137,15 +149,19 @@ func Package(log log15.Logger, config *conf.Config) (success bool) {
 						}
 					}
 
-					log.Info(fmt.Sprintf("saving docker image to %s", imagePath))
+					if dockerRegistry == "" {
+						log.Info(fmt.Sprintf("saving docker image to %s", imagePath))
 
-					saveCmd := exec.Command("docker", "save", "-o", imagePath, container.Name)
-					saveCmd.Stdout = os.Stdout
-					saveCmd.Stderr = os.Stderr
-					err = saveCmd.Run()
-					if err != nil {
-						log.Error("docker save", "Error", err)
-						return
+						exec.Command("mkdir", "-p", path.Dir(imagePath)).Run()
+
+						saveCmd := exec.Command("docker", "save", "-o", imagePath, container.Name)
+						saveCmd.Stdout = os.Stdout
+						saveCmd.Stderr = os.Stderr
+						err = saveCmd.Run()
+						if err != nil {
+							log.Error("docker save", "Error", err)
+							return
+						}
 					}
 
 					builtContainers[container.OriginalName] = nil
@@ -187,8 +203,6 @@ func Package(log log15.Logger, config *conf.Config) (success bool) {
 		log.Error("tar", "Error", err)
 		return
 	}
-
-	writePackOutput(sha1)
 
 	success = true
 	return
@@ -241,20 +255,4 @@ func digestAndCopy(log log15.Logger, filePath string) (string, bool) {
 	}
 
 	return newFilePath, true
-}
-
-func writePackOutput(sha1 string) {
-	receipt := PackOutput{
-		SHA: sha1,
-	}
-	receiptFile, err := os.Create(constants.PackOutputPath)
-	if err != nil {
-		return
-	}
-	defer receiptFile.Close()
-
-	err = json.NewEncoder(receiptFile).Encode(&receipt)
-	if err != nil {
-		return
-	}
 }

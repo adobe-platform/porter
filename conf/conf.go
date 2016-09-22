@@ -43,21 +43,25 @@ var (
 	serviceNameRegex     = regexp.MustCompile(`^[a-zA-Z][-a-zA-Z0-9]*$`)
 	roleARNRegex         = regexp.MustCompile(`^arn:aws:iam::\d+:role`)
 	environmentNameRegex = regexp.MustCompile(`^[0-9a-zA-Z]+$`)
-	containerNameRegex   = regexp.MustCompile(`^[0-9a-zA-Z]+$`)
 	healthMethodRegex    = regexp.MustCompile(`^GET$`)
 	porterVersionRegex   = regexp.MustCompile(`^v\d+\.\d+\.\d+$`)
 	vpcIdRegex           = regexp.MustCompile(`^vpc-(\d|\w){8}$`)
 	subnetIdRegex        = regexp.MustCompile(`^subnet-(\d|\w){8}$`)
+
+	// https://github.com/docker/docker/blob/v1.11.2/utils/names.go#L6
+	// minus '-' which is reserved
+	containerNameRegex = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.]+$`)
 )
 
 type (
 	// Config supports multi-container deployments
 	Config struct {
-		ServiceName   string         `yaml:"service_name"`
-		PorterVersion string         `yaml:"porter_version"`
-		Environments  []*Environment `yaml:"environments"`
-		Slack         Slack          `yaml:"slack"`
-		Hooks         Hooks          `yaml:"hooks"`
+		ServiceName    string `yaml:"service_name"`
+		ServiceVersion string
+		PorterVersion  string         `yaml:"porter_version"`
+		Environments   []*Environment `yaml:"environments"`
+		Slack          Slack          `yaml:"slack"`
+		Hooks          Hooks          `yaml:"hooks"`
 	}
 
 	Container struct {
@@ -71,7 +75,6 @@ type (
 		DockerfileBuild string       `yaml:"dockerfile_build"`
 		HealthCheck     *HealthCheck `yaml:"health_check"`
 		SrcEnvFile      *SrcEnvFile  `yaml:"src_env_file"`
-		DstEnvFile      *DstEnvFile  `yaml:"dst_env_file"`
 	}
 
 	SrcEnvFile struct {
@@ -80,11 +83,6 @@ type (
 		S3Region string   `yaml:"s3_region"`
 		ExecName string   `yaml:"exec_name"`
 		ExecArgs []string `yaml:"exec_args"`
-	}
-
-	DstEnvFile struct {
-		S3Bucket string  `yaml:"s3_bucket"`
-		KMSARN   *string `yaml:"kms_arn"` // TODO rename to SSEKMSKeyId to match API
 	}
 
 	HealthCheck struct {
@@ -119,6 +117,7 @@ type (
 		HostedZoneName      string             `yaml:"hosted_zone_name"`
 		KeyPairName         string             `yaml:"key_pair_name"`
 		S3Bucket            string             `yaml:"s3_bucket"`
+		SSEKMSKeyId         *string            `yaml:"sse_kms_key_id"`
 		Containers          []*Container       `yaml:"containers"`
 	}
 
@@ -300,17 +299,9 @@ func (recv *Config) Print() {
 					fmt.Println("        .SrcEnvFile.ExecName", container.SrcEnvFile.ExecName)
 					fmt.Println("        .SrcEnvFile.ExecArgs", container.SrcEnvFile.ExecArgs)
 				}
-
-				if container.DstEnvFile == nil {
-					fmt.Println("        .DstEnvFile nil")
-				} else {
-					fmt.Println("        .DstEnvFile.S3Bucket", container.DstEnvFile.S3Bucket)
-					fmt.Println("        .DstEnvFile.KMSARN", container.DstEnvFile.KMSARN)
-				}
 			}
 		}
 	}
-
 }
 
 func printHooks(name string, hooks []Hook) {

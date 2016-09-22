@@ -12,8 +12,6 @@
 package provision
 
 import (
-	"encoding/json"
-	"os"
 	"sync"
 	"time"
 
@@ -38,10 +36,6 @@ type (
 		Region      string
 		SecretsKey  string
 		TemplateUrl string
-	}
-
-	PackOutput struct {
-		SHA string
 	}
 
 	CreateStackOutput struct {
@@ -146,24 +140,6 @@ func createUpdateStack(
 		return
 	}
 
-	packOutput := PackOutput{}
-
-	packOutputFile, err := os.Open(constants.PackOutputPath)
-	if err != nil {
-		log.Error("os.Open", "Path", constants.PackOutputPath, "Error", err)
-		return
-	}
-
-	if err := json.NewDecoder(packOutputFile).Decode(&packOutput); err != nil {
-		log.Error("json.NewDecoder", "Error", err)
-		return
-	}
-
-	if packOutput.SHA == "" {
-		log.Error("Missing SHA in pack output")
-		return
-	}
-
 	regionCount := len(environment.Regions)
 
 	regionOutputs := make(map[string]CreateStackRegionOutput)
@@ -183,8 +159,6 @@ func createUpdateStack(
 		recv := &stackCreator{
 			log:  log.New("Region", region.Name),
 			args: args,
-
-			serviceVersion: packOutput.SHA,
 
 			stackName: stackName,
 

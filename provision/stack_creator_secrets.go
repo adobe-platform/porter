@@ -13,20 +13,22 @@ package provision
 
 import (
 	"bytes"
-	"crypto/md5"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"os/exec"
+	"runtime"
 
 	"github.com/adobe-platform/porter/aws_session"
-	"github.com/adobe-platform/porter/cfn"
 	"github.com/adobe-platform/porter/conf"
 	"github.com/adobe-platform/porter/constants"
 	dockerutil "github.com/adobe-platform/porter/docker/util"
 	"github.com/adobe-platform/porter/secrets"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
 func (recv *stackCreator) getSecrets() (containerSecrets map[string]string, success bool) {
@@ -58,7 +60,7 @@ func (recv *stackCreator) getSecrets() (containerSecrets map[string]string, succ
 
 		envFile = dockerutil.CleanEnvFile(envFile)
 
-		containerSecrets[container.OriginalName] = envFile
+		containerSecrets[container.Name] = envFile
 	}
 
 	for containerName := range containerSecrets {
@@ -145,18 +147,14 @@ func (recv *stackCreator) getS3Secrets(container *conf.Container) (containerSecr
 	return
 }
 
-func (recv *stackCreator) uploadSecrets() (success bool) {
+func (recv *stackCreator) uploadSecrets(checksum string) (success bool) {
 	recv.log.Debug("uploadSecrets() BEGIN")
 	defer recv.log.Debug("uploadSecrets() END")
-
-	s3DstClient := s3.New(recv.roleSession)
 
 	containerToSecrets, getSecretsSuccess := recv.getSecrets()
 	if !getSecretsSuccess {
 		return
 	}
-
-	containerNameToDstKey := make(map[string]string)
 
 	symmetricKey, err := secrets.GenerateKey()
 	if err != nil {
@@ -165,93 +163,51 @@ func (recv *stackCreator) uploadSecrets() (success bool) {
 	}
 	recv.secretsKey = hex.EncodeToString(symmetricKey)
 
-	for _, container := range recv.region.Containers {
-
-		log := recv.log.New("ContainerName", container.OriginalName)
-
-		containerSecretString, exists := containerToSecrets[container.OriginalName]
-		if !exists {
-			log.Warn("Secrets config exists but not for this a container in this region")
-			continue
-		}
-
-		if len(containerSecretString) == 0 {
-			log.Warn("After cleaning the env file it's empty")
-			continue
-		}
-
-		containerSecrets, err := secrets.Encrypt([]byte(containerSecretString), symmetricKey)
-		if err != nil {
-			log.Crit("Secrets encryption failed", "Error", err)
-			return
-		}
-
-		checksumArray := md5.Sum(containerSecrets)
-		checksum := hex.EncodeToString(checksumArray[:])
-
-		dstEnvFileS3Key := fmt.Sprintf("%s/%s.env-file",
-			recv.s3KeyRoot(s3KeyOptDeployment), checksum)
-		log.Info("Set destination env file", "S3Key", dstEnvFileS3Key)
-
-		putObjectInput := &s3.PutObjectInput{
-			Bucket: aws.String(container.DstEnvFile.S3Bucket),
-			Key:    aws.String(dstEnvFileS3Key),
-			Body:   bytes.NewReader(containerSecrets),
-		}
-
-		if container.DstEnvFile.KMSARN != nil {
-			putObjectInput.SSEKMSKeyId = container.DstEnvFile.KMSARN
-			putObjectInput.ServerSideEncryption = aws.String("aws:kms")
-		}
-
-		_, err = s3DstClient.PutObject(putObjectInput)
-		if err != nil {
-			log.Crit("PutObject",
-				"Error", err,
-				"DstEnvFile.S3Bucket", container.DstEnvFile.S3Bucket,
-				"DstEnvFile.KMSARN", container.DstEnvFile.KMSARN,
-			)
-			return
-		}
-
-		containerNameToDstKey[container.Name] = dstEnvFileS3Key
+	secretPayload := secrets.Payload{
+		ContainerSecrets:   containerToSecrets,
+		DockerRegistry:     os.Getenv(constants.EnvDockerRegistry),
+		DockerPullUsername: os.Getenv(constants.EnvDockerPullUsername),
+		DockerPullPassword: os.Getenv(constants.EnvDockerPullPassword),
 	}
 
-	fnMeta := func(recv *stackCreator, template *cfn.Template, resource map[string]interface{}) bool {
-		var (
-			metadata map[string]interface{}
-			ok       bool
-		)
-
-		if metadata, ok = resource["Metadata"].(map[string]interface{}); !ok {
-			metadata = make(map[string]interface{})
-			resource["Metadata"] = metadata
-		}
-
-		metadata[constants.MetadataAsEnvFiles] = containerNameToDstKey
-		return true
+	secretPayloadBytes, err := json.Marshal(secretPayload)
+	if err != nil {
+		recv.log.Crit("json.Marshal", "Error", err)
+		return
 	}
 
-	// The problem is tagging. porterd already needs the EC2 instance to be
-	// tagged with constants.PorterWaitConditionHandleLogicalIdTag so it can get
-	// that resource handle and call the wait condition on behalf of a service.
-	//
-	// The next problem is where to put this metadata.
-	//
-	// While it doesn't make a ton of sense to put it on the
-	// WaitConditionHandle, it makes less sense to tag the EC2 instance (which
-	// has a tag limit) with the logical resource id of some other resource
-	// where we might put this metadata
-	var (
-		fns []MapResource
-		ok  bool
-	)
-	if fns, ok = recv.templateTransforms[cfn.CloudFormation_WaitConditionHandle]; !ok {
-		fns = make([]MapResource, 0)
+	recv.secretPayloadKey = fmt.Sprintf("%s/%s.secrets", recv.s3KeyRoot(s3KeyOptDeployment), checksum)
+
+	secretPayloadBytesEnc, err := secrets.Encrypt([]byte(secretPayloadBytes), symmetricKey)
+	if err != nil {
+		recv.log.Crit("Secrets encryption failed", "Error", err)
+		return
 	}
 
-	fns = append(fns, fnMeta)
-	recv.templateTransforms[cfn.CloudFormation_WaitConditionHandle] = fns
+	uploadInput := &s3manager.UploadInput{
+		Bucket: aws.String(recv.region.S3Bucket),
+		Key:    aws.String(recv.secretPayloadKey),
+		Body:   bytes.NewReader(secretPayloadBytesEnc),
+	}
+
+	if recv.region.SSEKMSKeyId != nil {
+		uploadInput.SSEKMSKeyId = recv.region.SSEKMSKeyId
+		uploadInput.ServerSideEncryption = aws.String("aws:kms")
+	}
+
+	s3Manager := s3manager.NewUploader(recv.roleSession)
+	s3Manager.Concurrency = runtime.GOMAXPROCS(-1) // read, don't set, the value
+
+	recv.log.Info("Uploading secrets",
+		"S3bucket", recv.region.S3Bucket,
+		"S3key", recv.secretPayloadKey,
+		"Concurrency", s3Manager.Concurrency)
+
+	_, err = s3Manager.Upload(uploadInput)
+	if err != nil {
+		recv.log.Error("Upload", "Error", err)
+		return
+	}
 
 	success = true
 	return

@@ -40,6 +40,11 @@ type (
 		ServicePayloadKey        string
 		ServicePayloadConfigPath string
 
+		SecretsPayloadKey string
+
+		RegistryDeployment bool
+		InsecureRegistry   string
+
 		InetHealthCheckMethod string
 		InetHealthCheckPath   string
 

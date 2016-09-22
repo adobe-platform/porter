@@ -1,3 +1,13 @@
+**v2.2.0**
+
+- support docker registries as an alternative to S3
+- deprecated `dst_env_file`
+- added `sse_kms_key_id` for optional SSE-KMS on all porter uploads
+
+**v2.1.2**
+
+- increase logrotate size from 10M to 100M
+
 **v2.1.1**
 
 - fix ec2-bootstrap hook clone for multi-region deployment
@@ -27,6 +37,10 @@
 - CIS Linux 2014.09 benchmark remediation 9.2.13
 - CloudFormation templates are now uploaded to S3 to avoid the 51,200 byte limit
 - S3 keys are scoped under `porter-deployment` and `porter-template`
+
+**v1.0.6**
+
+- run the container as root (configurable with uid) to fix breaking change
 
 **v1.0.5**
 

@@ -1,15 +1,21 @@
+{{ if .LogDebug -}}
+export LOG_DEBUG=1
+{{- end }}
+
 echo "downloading service payload"
 aws s3 cp s3://{{ .ServicePayloadBucket }}/{{ .ServicePayloadKey }} payload.tar
 
+{{ if not .RegistryDeployment -}}
 # load all the containers in this tar
 echo "loading containers"
 {{ range $imageName := .ImageNames -}}
 tar -xOf payload.tar ./{{ $imageName }}.docker | docker load
 {{ end -}}
+{{ end -}}
 
 echo "starting containers"
 tar -xOf payload.tar ./{{ .ServicePayloadConfigPath }} \
-| porter host docker --start -e {{ .Environment }} -r {{ .Region }} \
+| porter host docker --start -e {{ .Environment }} -r {{ .Region }} -s {{ .SecretsPayloadKey }} \
 | porter host haproxy -sn {{ .ServiceName }}
 
 echo "cleaning containers"
