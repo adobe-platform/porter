@@ -207,6 +207,9 @@ func startContainers(environmentStr, regionStr, secretsS3Key string) {
 			// CIS Docker Benchmark 1.11.0 5.14
 			"--restart=on-failure:5",
 
+			// CIS Docker Benchmark 1.11.0 5.25
+			"--security-opt=no-new-privileges",
+
 			// set ulimit for container
 			// TODO calculate this
 			"--ulimit", "nofile=200000",
