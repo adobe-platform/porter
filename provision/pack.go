@@ -68,11 +68,11 @@ func Package(log log15.Logger, config *conf.Config) (success bool) {
 				// of the available images on the host are the ones to be swapped in.
 				if dockerRegistry == "" && dockerRepository == "" {
 
-					container.Name = fmt.Sprintf("s3/s3/porter-%s-%d-%s",
+					container.Name = fmt.Sprintf("s3/s3:porter-%s-%d-%s",
 						config.ServiceVersion, now, container.Name)
 				} else {
 
-					container.Name = fmt.Sprintf("%s/%s/porter-%s-%d-%s",
+					container.Name = fmt.Sprintf("%s/%s:porter-%s-%d-%s",
 						dockerRegistry, dockerRepository,
 						config.ServiceVersion, now, container.Name)
 				}

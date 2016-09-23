@@ -462,16 +462,15 @@ func cleanContainers(environmentStr, regionStr string) {
 		}
 
 		imageName := strings.TrimSpace(string(inspectOutput))
-		imageNameParts := strings.Split(imageName, "/")
 
-		// not an image name that we manage
-		if len(imageNameParts) != 3 {
+		imageNameParts := strings.Split(imageName, ":")
+		if len(imageNameParts) <= 1 {
 			continue
 		}
 
-		imageNameParts = strings.Split(imageNameParts[2], "-")
-
-		// not an image name that we manage
+		// a registry can specify port so : can divide host:port as well as
+		// repo:tag
+		imageNameParts = strings.Split(imageNameParts[len(imageNameParts)-1], "-")
 		if len(imageNameParts) != 4 && imageNameParts[0] != "porter" {
 			continue
 		}
