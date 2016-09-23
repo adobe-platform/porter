@@ -17,7 +17,10 @@ to call them.
   - [Container runtime config (including secrets)](detailed_design/container-config.md)
   - [Platform-Service interface](detailed_design/platform-service.md)
 - Deployment
-  - [Deployment flow](https://www.lucidchart.com/documents/view/95a3fdca-ff76-40c5-98fd-6b3071ba86bc)
+  - Diagrams
+    - [Flow](https://www.lucidchart.com/documents/view/95a3fdca-ff76-40c5-98fd-6b3071ba86bc)
+    - [Steady state](https://cloudcraft.co/view/b28b95ec-19c1-4d69-9f3d-cdccc9ddc2f2?key=DuedC3Bnjqoda_LVPniJDA)
+  - [Service payload (S3 and Docker registry)](detailed_design/service-payload.md)
   - [CI/CD integration](detailed_design/ci-cd-integration.md)
   - [Deployment customization](detailed_design/deployment-hooks.md)
 - Infrastructure

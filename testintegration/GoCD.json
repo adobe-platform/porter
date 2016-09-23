@@ -1108,7 +1108,7 @@
               [
                 "#cloud-config\n",
                 "repo_upgrade: security\n",
-                "repo_releasever: 2015.03\n",
+                "repo_releasever: 2016.03\n",
                 "\n",
                 "packages:\n",
                 "  - git-daemon\n",
@@ -1333,11 +1333,11 @@
               [
                 "#cloud-config\n",
                 "repo_upgrade: security\n",
-                "repo_releasever: 2015.03\n",
+                "repo_releasever: 2016.03\n",
                 "\n",
                 "packages:\n",
                 "  - git\n",
-                "  - docker\n",
+                "  - docker-1.11.2\n",
                 "\n",
                 "runcmd:\n",
                 "  - echo running cfn-init -c cfnAgentStep0,cfnAgentStep1,cfnAgentStep2\n",

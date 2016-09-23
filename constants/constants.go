@@ -30,14 +30,23 @@ const (
 	CloudFormationTemplatePath = TempDir + "/CloudFormationTemplate.json"
 	EnvFile                    = "/dockerfile.env"
 
+	// Debug/config
 	EnvConfig                    = "DEBUG_CONFIG"
 	EnvDebugAws                  = "DEBUG_AWS"
 	EnvLogDebug                  = "LOG_DEBUG"
 	EnvStackCreation             = "STACK_CREATION_TIMEOUT"
 	EnvStackCreationPollInterval = "STACK_CREATION_POLL_INTERVAL"
-	EnvNoDockerOverride          = "NO_DOCKER_OVERRIDE"
 	EnvNoLogColor                = "NO_LOG_COLOR"
 	EnvDevMode                   = "DEV_MODE"
+
+	// Registry-based deployment
+	EnvDockerRegistry         = "DOCKER_REGISTRY"
+	EnvDockerInsecureRegistry = "DOCKER_INSECURE_REGISTRY"
+	EnvDockerRepository       = "DOCKER_REPOSITORY"
+	EnvDockerPullUsername     = "DOCKER_PULL_USERNAME"
+	EnvDockerPullPassword     = "DOCKER_PULL_PASSWORD"
+	EnvDockerPushUsername     = "DOCKER_PUSH_USERNAME"
+	EnvDockerPushPassword     = "DOCKER_PUSH_PASSWORD"
 
 	HookPrePack       = "pre_pack"
 	HookPostPack      = "post_pack"
@@ -115,8 +124,6 @@ const (
 	// A key in resource metadata to tag security groups that should be
 	// associated with a AWS::AutoScaling::LaunchConfiguration
 	MetadataAsLc = "as-lc-sg"
-
-	MetadataAsEnvFiles = "env_files"
 
 	ElbSgLogicalName = "InetToElb"
 

@@ -98,16 +98,12 @@ environments:
         exec_name: cat
         exec_args:
         - secrets.env-file
-      dst_env_file:
-        s3_bucket: porter-sandbox-us-west-2
     - <<: *CONTAINER_BASE_INET
       name: inet2
       src_env_file:
         exec_name: cat
         exec_args:
         - secrets.env-file
-      dst_env_file:
-        s3_bucket: porter-sandbox-us-west-2
     - <<: *CONTAINER_BASE_WORKER
       read_only: false
     - <<: *CONTAINER_BASE_WORKER
@@ -165,8 +161,6 @@ environments:
         s3_bucket: porter-sandbox-us-west-2
         s3_key: env-file
         s3_region: us-west-2
-      dst_env_file:
-        s3_bucket: porter-sandbox-us-west-2
     - <<: *CONTAINER_BASE_WORKER
     - <<: *CONTAINER_BASE_WORKER
       name: worker2

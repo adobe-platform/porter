@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
-	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
@@ -57,7 +56,7 @@ func (recv *DockerCmd) LongHelp() string {
     docker -- Docker container orchestration
 
 SYNOPSIS
-    docker --start -e <environment> -r <region>
+    docker --start -e <environment> -r <region> -s <key>
     docker --clean
     docker --ip
 
@@ -75,6 +74,8 @@ OPTIONS
     -e  Environment from .porter/config
 
     -r  AWS region
+
+    -s  Secrets payload S3 key
 
     --clean
         Cleanup containers not found in the config. This command removes
@@ -102,16 +103,17 @@ func (recv *DockerCmd) Execute(args []string) bool {
 				return false
 			}
 
-			var environment, region string
+			var environment, region, secretsS3Key string
 			flagSet := flag.NewFlagSet("", flag.ExitOnError)
 			flagSet.StringVar(&environment, "e", "", "")
 			flagSet.StringVar(&region, "r", "", "")
+			flagSet.StringVar(&secretsS3Key, "s", "", "")
 			flagSet.Usage = func() {
 				fmt.Println(recv.LongHelp())
 			}
 			flagSet.Parse(args[1:])
 
-			startContainers(environment, region)
+			startContainers(environment, region, secretsS3Key)
 		case "--clean":
 			if len(args) == 1 {
 				return false
@@ -138,13 +140,11 @@ func (recv *DockerCmd) Execute(args []string) bool {
 	return false
 }
 
-func startContainers(environmentStr, regionStr string) {
+func startContainers(environmentStr, regionStr, secretsS3Key string) {
 	var (
-		err                  error
-		success              bool
-		containerToDstEnvKey map[string]string
-		stdoutBuf            bytes.Buffer
-		haproxyStdin         HAPStdin
+		err          error
+		stdoutBuf    bytes.Buffer
+		haproxyStdin HAPStdin
 	)
 
 	log := logger.Host("cmd", "docker")
@@ -174,9 +174,22 @@ func startContainers(environmentStr, regionStr string) {
 		os.Exit(1)
 	}
 
-	containerToDstEnvKey, success = getContainerToDstEnvS3Key(log, region.Name)
-	if !success {
-		os.Exit(1)
+	secretsPayload := getSecretsPayload(log, region, secretsS3Key)
+
+	if secretsPayload.DockerPullUsername != "" && secretsPayload.DockerPullPassword != "" {
+		log.Info("docker login")
+
+		loginCmd := exec.Command("docker", "login",
+			"-u", secretsPayload.DockerPullUsername,
+			"-p", secretsPayload.DockerPullPassword,
+			secretsPayload.DockerRegistry)
+
+		loginCmd.Stderr = os.Stderr
+		err := loginCmd.Run()
+		if err != nil {
+			log.Error("docker login", "Error", err)
+			os.Exit(1)
+		}
 	}
 
 	for _, container := range region.Containers {
@@ -235,7 +248,7 @@ func startContainers(environmentStr, regionStr string) {
 			runArgs = append(runArgs, "-u", strconv.Itoa(*container.Uid))
 		}
 
-		runArgs = append(runArgs, getSecretEnvVars(log, region.Name, container, containerToDstEnvKey)...)
+		runArgs = append(runArgs, getSecretEnvVars(log, container, secretsPayload)...)
 
 		runArgs = append(runArgs, container.Name)
 
@@ -387,7 +400,7 @@ func getInetHostPort(log log15.Logger, inetContainerPort int, containerId string
 
 			hostPortInt, err := strconv.Atoi(hostPortStr)
 			if err != nil {
-				log.Error("strconv.Atoi", "Error", err)
+				log.Crit("strconv.Atoi", "Error", err)
 				return
 			}
 
@@ -449,10 +462,17 @@ func cleanContainers(environmentStr, regionStr string) {
 		}
 
 		imageName := strings.TrimSpace(string(inspectOutput))
-		imageNameParts := strings.Split(imageName, "-")
+		imageNameParts := strings.Split(imageName, "/")
 
 		// not an image name that we manage
 		if len(imageNameParts) != 3 {
+			continue
+		}
+
+		imageNameParts = strings.Split(imageNameParts[2], "-")
+
+		// not an image name that we manage
+		if len(imageNameParts) != 4 && imageNameParts[0] != "porter" {
 			continue
 		}
 
@@ -590,83 +610,70 @@ func dockerIfaceIPv4(log log15.Logger) string {
 	return ""
 }
 
-func getSecretEnvVars(log log15.Logger, region string, container *conf.Container,
-	containerToDstEnvKey map[string]string) (runArgs []string) {
+func getSecretEnvVars(log log15.Logger, container *conf.Container, secretsPayload secrets.Payload) []string {
 
-	runArgs = make([]string, 0)
+	runArgs := make([]string, 0)
 
-	if container.DstEnvFile == nil {
-		return
+	if containerSecrets, exists := secretsPayload.ContainerSecrets[container.Name]; exists {
+
+		kvps := strings.Split(string(containerSecrets), "\n")
+
+		for _, kvp := range kvps {
+			runArgs = append(runArgs, "-e", kvp)
+		}
 	}
 
-	containerSecretsEncPayload := getSecretsPayload(log, region, container, containerToDstEnvKey)
-	containerSecretsKey := getSecretsKey(log, region)
+	return runArgs
+}
 
-	containerSecrets, err := secrets.Decrypt(containerSecretsEncPayload, containerSecretsKey)
+func getSecretsPayload(log log15.Logger, region *conf.Region, secretsS3Key string) secrets.Payload {
+
+	log.Debug("getSecretsPayload() BEGIN")
+	defer log.Debug("getSecretsPayload() END")
+
+	s3Client := s3.New(aws_session.Get(region.Name))
+
+	getObjectInput := &s3.GetObjectInput{
+		Bucket: aws.String(region.S3Bucket),
+		Key:    aws.String(secretsS3Key),
+	}
+
+	getObjectOutput, err := s3Client.GetObject(getObjectInput)
+	if err != nil {
+		log.Crit("GetObject", "Error", err)
+		os.Exit(1)
+	}
+	defer getObjectOutput.Body.Close()
+
+	secretsPayloadBytesEnc, err := ioutil.ReadAll(getObjectOutput.Body)
+	if err != nil {
+		log.Crit("ioutil.ReadAll", "Error", err)
+		os.Exit(1)
+	}
+
+	containerSecretsKey := getSecretsKey(log, region.Name)
+
+	secretsPayloadBytes, err := secrets.Decrypt(secretsPayloadBytesEnc, containerSecretsKey)
 	if err != nil {
 		log.Crit("secrets.Decrypt", "Error", err)
 		os.Exit(1)
 	}
 
-	kvps := strings.Split(string(containerSecrets), "\n")
+	secretsPayload := secrets.Payload{}
 
-	for _, kvp := range kvps {
-		runArgs = append(runArgs, "-e", kvp)
-	}
-
-	return
-}
-
-func getSecretsPayload(log log15.Logger, region string, container *conf.Container,
-	containerToDstEnvKey map[string]string) []byte {
-
-	s3Client := s3.New(aws_session.Get(region))
-
-	var (
-		dstEnvKey string
-		exists    bool
-	)
-
-	dstEnvKey, exists = containerToDstEnvKey[container.Name]
-	if !exists {
-		log.Crit("DstEnvFile config exists but no S3 key was found",
-			"Container", container.Name,
-		)
-		os.Exit(1)
-	}
-
-	getObjectInput := &s3.GetObjectInput{
-		Bucket: aws.String(container.DstEnvFile.S3Bucket),
-		Key:    aws.String(dstEnvKey),
-	}
-
-	getObjectOutput, err := s3Client.GetObject(getObjectInput)
+	err = json.Unmarshal(secretsPayloadBytes, &secretsPayload)
 	if err != nil {
-		log.Crit("GetObject",
-			"Error", err,
-			"Container", container.Name,
-			"DstEnvFile.S3Bucket", container.DstEnvFile.S3Bucket,
-			"DstEnvFile.KMSARN", container.DstEnvFile.KMSARN,
-		)
-		os.Exit(1)
-	}
-	defer getObjectOutput.Body.Close()
-
-	getObjectBytes, err := ioutil.ReadAll(getObjectOutput.Body)
-	if err != nil {
-		log.Crit("ioutil.ReadAll",
-			"Error", err,
-			"Container", container.Name,
-			"DstEnvFile.S3Bucket", container.DstEnvFile.S3Bucket,
-			"DstEnvFile.KMSARN", container.DstEnvFile.KMSARN,
-		)
+		log.Crit("json.Unmarshal", "Error", err)
 		os.Exit(1)
 	}
 
-	return getObjectBytes
+	return secretsPayload
 }
 
 func getSecretsKey(log log15.Logger, region string) []byte {
+
+	log.Debug("getSecretsKey() BEGIN")
+	defer log.Debug("getSecretsKey() END")
 
 	var (
 		describeStacksOutput *cloudformation.DescribeStacksOutput
@@ -718,102 +725,4 @@ func getSecretsKey(log log15.Logger, region string) []byte {
 	log.Crit("missing parameter key " + constants.ParameterSecretsKey)
 	os.Exit(1)
 	return nil
-}
-
-func getContainerToDstEnvS3Key(log log15.Logger, region string) (containerToDstEnvKey map[string]string, success bool) {
-	var (
-		describeStackResourceOutput *cloudformation.DescribeStackResourceOutput
-		err                         error
-	)
-
-	log = log.New("StackId", os.Getenv("AWS_STACKID"))
-
-	cfnClient := cloudformation.New(aws_session.Get(region))
-
-	containerToDstEnvKey = make(map[string]string)
-
-	tagsUrl := fmt.Sprintf("http://localhost:%s/aws/ec2/tags", constants.PorterDaemonBindPort)
-	tagsResp, err := http.Get(tagsUrl)
-	if err != nil {
-		log.Error("GET "+tagsUrl, "Error", err)
-		return
-	}
-	defer tagsResp.Body.Close()
-
-	tagsMap := make(map[string]string)
-
-	err = json.NewDecoder(tagsResp.Body).Decode(&tagsMap)
-	if err != nil {
-		log.Error("Couldn't deserialize response",
-			"URL", tagsUrl,
-			"Error", err,
-		)
-	}
-
-	var waitHandleLogicalId string
-	for key, value := range tagsMap {
-		if key == constants.PorterWaitConditionHandleLogicalIdTag {
-			waitHandleLogicalId = value
-			break
-		}
-	}
-
-	if waitHandleLogicalId == "" {
-		log.Error("Couldn't retrieve WaitHandle Logical Id")
-		return
-	}
-
-	describeStackResourceInput := &cloudformation.DescribeStackResourceInput{
-		LogicalResourceId: aws.String(waitHandleLogicalId),
-		StackName:         aws.String(os.Getenv("AWS_STACKID")),
-	}
-
-	retryMsg := func(i int) { log.Warn("DescribeStackResource retrying", "Count", i) }
-	if !util.SuccessRetryer(9, retryMsg, func() bool {
-		describeStackResourceOutput, err = cfnClient.DescribeStackResource(describeStackResourceInput)
-		if err != nil {
-			log.Error("DescribeStackResource", "Error", err)
-			return false
-		}
-		if describeStackResourceOutput.StackResourceDetail == nil {
-			log.Error("describeStackResourceOutput.StackResourceDetail == nil")
-			return false
-		}
-		if describeStackResourceOutput.StackResourceDetail.Metadata == nil {
-			log.Error("describeStackResourceOutput.StackResourceDetail.Metadata == nil")
-			return false
-		}
-		return true
-	}) {
-		return
-	}
-
-	metadataStr := *describeStackResourceOutput.StackResourceDetail.Metadata
-
-	metadata := make(map[string]interface{})
-	err = json.NewDecoder(strings.NewReader(metadataStr)).Decode(&metadata)
-	if err != nil {
-		log.Error("json.Marshal",
-			"Error", err,
-			"metadataStr", metadataStr)
-		return
-	}
-
-	if msi, ok := metadata[constants.MetadataAsEnvFiles].(map[string]interface{}); ok {
-
-		for key, value := range msi {
-			if strVal, ok := value.(string); ok {
-				containerToDstEnvKey[key] = strVal
-			} else {
-				log.Error("Type assertion failed")
-				return
-			}
-		}
-	} else {
-		log.Error("Missing " + constants.MetadataAsEnvFiles + " on " + waitHandleLogicalId + ".Metadata")
-		return
-	}
-
-	success = true
-	return
 }
