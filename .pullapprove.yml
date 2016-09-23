@@ -16,7 +16,6 @@ reviewers:
   - name: reviewer
     required: 1
     members:
-    - cdmurph32
     - davepersing
     - gregoryfischer
     - apratina
