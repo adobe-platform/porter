@@ -20,9 +20,10 @@ Registry-based deployments are configured outside of `.porter/config` with
 environment variables.
 
 `DOCKER_REGISTRY` is the hostname of the registry excluding the `http://` or
-`https://` prefixes
+`https://` prefixes. When using public Docker Hub set this to `index.docker.io`.
 
-`DOCKER_REPOSITORY` is the repository name
+`DOCKER_REPOSITORY` is the repository name.
+For public Docker Hub use `<username>/<repository>`
 
 `DOCKER_PUSH_USERNAME` and `DOCKER_PUSH_PASSWORD`, if defined, will be used to
 perform `docker login` before doing a `docker push`. Otherwise `docker login`

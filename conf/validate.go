@@ -57,10 +57,6 @@ func (recv *Config) ValidateRegistryConfig() error {
 		return errors.New("slashes disallowed in " + constants.EnvDockerRegistry)
 	}
 
-	if strings.Contains(dockerRepository, "/") {
-		return errors.New("slashes disallowed in " + constants.EnvDockerRepository)
-	}
-
 	if dockerRegistry != "" && dockerRepository == "" {
 		return fmt.Errorf("%s defined: missing %s",
 			constants.EnvDockerRegistry, constants.EnvDockerRepository)
