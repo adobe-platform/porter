@@ -26,6 +26,8 @@ For each field the following notation is used
     - [role_arn](#role_arn) (==1!)
     - [ssl_cert_arn](#ssl_cert_arn) (==1?)
     - [hosted_zone_name](#hosted_zone_name) (==1?)
+    - auto_scaling_group
+      - [security_group_egress](#security_group_egress) (==1?)
     - [key_pair_name](#key_pair_name) (==1?)
     - [s3_bucket](#s3_bucket) (==1!)
     - [sse_kms_key_id](#sse_kms_key_id) (==1!)
@@ -252,6 +254,68 @@ provisioned ELB's A record if provided
 
 This is typically used with `ssl_cert_arn` to create a developer stack that
 works with SSL.
+
+### security_group_egress
+
+Whitelist ASG egress rules. porter needs this config is needed for 3 reasons.
+
+(1) porter manages the security groups for a
+`AWS::AutoScaling::AutoScalingGroup`, (2) additional groups may be defined in a
+[custom CloudFormation template](cfn-customization.md), and (3)
+[the most permissive rule wins](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-network-security.html#vpc-security-groups):
+
+> If there is more than one rule for a specific port, we apply the most
+> permissive rule. For example, if you have a rule that allows access to TCP
+> port 22 (SSH) from IP address 203.0.113.1 and another rule that allows access
+> to TCP port 22 from everyone, everyone has access to TCP port 22.
+>
+> When you associate multiple security groups with an instance, the rules from
+> each security group are effectively aggregated to create one set of rules. We
+> use this set of rules to determine whether to allow access.
+
+These values overwrite every AutoScalingGroup's SecurityGroup's
+[SecurityGroupEgress property](http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-security-group.html#cfn-ec2-securitygroup-securitygroupegress)
+
+Example config
+
+```yaml
+environments:
+- name: dev
+
+  regions:
+  - name: us-west-2
+
+    auto_scaling_group:
+      security_group_egress:
+
+      # allow all DNS
+      - cidr_ip: 0.0.0.0/0
+        ip_protocol: udp
+        from_port: 53
+        to_port: 53
+
+      # allow all NTP
+      - cidr_ip: 0.0.0.0/0
+        ip_protocol: udp
+        from_port: 123
+        to_port: 123
+
+      # allow connections to AWS network in us-west-2
+      # accurate as of this writing
+      # run `porter help aws-network` for more
+      - cidr_ip: 54.231.160.0/19
+        ip_protocol: tcp
+        from_port: 0
+        to_port: 65535
+      - cidr_ip: 54.240.230.0/23
+        ip_protocol: tcp
+        from_port: 0
+        to_port: 65535
+      - cidr_ip: 54.240.248.0/21
+        ip_protocol: tcp
+        from_port: 0
+        to_port: 65535
+```
 
 ### key_pair_name
 

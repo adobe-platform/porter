@@ -1,6 +1,7 @@
 **v2.2.0**
 
 - support docker registries as an alternative to S3
+- support auto scaling group egress whitelist
 - deprecated `dst_env_file`
 - added `sse_kms_key_id` for optional SSE-KMS on all porter uploads
 
