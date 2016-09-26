@@ -113,12 +113,25 @@ type (
 		ELBs                []*ELB             `yaml:"elbs"`
 		ELB                 string             `yaml:"elb"`
 		RoleARN             string             `yaml:"role_arn"`
+		AutoScalingGroup    *AutoScalingGroup  `yaml:"auto_scaling_group"`
 		SSLCertARN          string             `yaml:"ssl_cert_arn"`
 		HostedZoneName      string             `yaml:"hosted_zone_name"`
 		KeyPairName         string             `yaml:"key_pair_name"`
 		S3Bucket            string             `yaml:"s3_bucket"`
 		SSEKMSKeyId         *string            `yaml:"sse_kms_key_id"`
 		Containers          []*Container       `yaml:"containers"`
+	}
+
+	AutoScalingGroup struct {
+		SecurityGroupEgress []SecurityGroupEgress `yaml:"security_group_egress"`
+	}
+
+	SecurityGroupEgress struct {
+		CidrIp                     string `yaml:"cidr_ip" json:"CidrIp,omitempty"`
+		FromPort                   int    `yaml:"from_port" json:"FromPort"`
+		IpProtocol                 string `yaml:"ip_protocol" json:"IpProtocol,omitempty"`
+		DestinationSecurityGroupId string `yaml:"destination_security_group_id" json:"DestinationSecurityGroupId,omitempty"`
+		ToPort                     int    `yaml:"to_port" json:"ToPort"`
 	}
 
 	AvailabilityZone struct {

@@ -95,6 +95,7 @@ These commands log to STDOUT and primarily run from files/cloud-init.yaml`,
 				SubCommandList: []cli.Command{
 					help.Debug,
 					help.Issue,
+					&help.AwsNetworkCmd{},
 				},
 			},
 			&cmd.Default{

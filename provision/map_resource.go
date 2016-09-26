@@ -43,6 +43,7 @@ func (recv *stackCreator) mapResources(template *cfn.Template) (success bool) {
 			setImageId,
 			setAutoScalingLaunchConfigurationMetadata,
 			setUserData,
+			overwriteASGSecurityGroupEgress,
 		}
 		ops[cfn.AutoScaling_AutoScalingGroup] = []MapResource{
 			addAutoScaleGroupTags,
@@ -199,6 +200,85 @@ func addTaggedSecurityGroups(recv *stackCreator, template *cfn.Template, resourc
 	}
 
 	props["SecurityGroups"] = securityGroups
+	return true
+}
+
+func overwriteASGSecurityGroupEgress(recv *stackCreator, template *cfn.Template, resource map[string]interface{}) bool {
+	var (
+		props map[string]interface{}
+		ok    bool
+
+		securityGroups []interface{}
+	)
+
+	if recv.region.AutoScalingGroup == nil {
+		return true
+	}
+
+	if props, ok = resource["Properties"].(map[string]interface{}); !ok {
+		recv.log.Error("Missing Properties on resource")
+		return false
+	}
+
+	if securityGroups, ok = props["SecurityGroups"].([]interface{}); !ok {
+		recv.log.Error("Missing SecurityGroups on Properties")
+		return false
+	}
+
+	fn := func(securityGroup map[string]interface{}) bool {
+		var (
+			props map[string]interface{}
+			ok    bool
+		)
+
+		if props, ok = securityGroup["Properties"].(map[string]interface{}); !ok {
+			recv.log.Error("Missing Properties on SecurityGroup")
+			return false
+		}
+
+		delete(props, "SecurityGroupEgress")
+		securityGroupEgress := make([]interface{}, 0)
+
+		for _, configEgress := range recv.region.AutoScalingGroup.SecurityGroupEgress {
+
+			securityGroupEgress = append(securityGroupEgress, configEgress)
+		}
+
+		props["SecurityGroupEgress"] = securityGroupEgress
+		return true
+	}
+
+	logicalNameToSecurityGroup := template.GetResourcesByType(cfn.EC2_SecurityGroup)
+
+	for _, securityGroupRaw := range securityGroups {
+
+		if securityGroupMsi, ok := securityGroupRaw.(map[string]interface{}); ok {
+
+			if ref, ok := securityGroupMsi["Ref"].(string); ok {
+
+				if sgRef, exists := logicalNameToSecurityGroup[ref].(map[string]interface{}); exists {
+
+					if !fn(sgRef) {
+						return false
+					}
+				} else {
+
+					recv.log.Error("ASG security group ref doesn't exist")
+					return false
+				}
+			} else {
+
+				if !fn(securityGroupMsi) {
+					return false
+				}
+			}
+		} else {
+
+			recv.log.Error("SecurityGroup type assertion failed")
+			return false
+		}
+	}
+
 	return true
 }
 
