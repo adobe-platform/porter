@@ -1,7 +1,14 @@
+See the [CHANGELOG](CHANGELOG.md) for an exhaustive list of changes.
+
 v2.2
 ====
 
 [Docker registries](docs/detailed_design/service-payload.md) are supported
+
+[ASG egress rules can be defined](docs/detailed_design/config-reference.md#security_group_egress)
+
+This changes the porter deployment policy to include
+`ec2:AuthorizeSecurityGroupEgress` and `ec2:RevokeSecurityGroupEgress`
 
 v2.1
 ====

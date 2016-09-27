@@ -1,5 +1,6 @@
 **v2.2.0**
 
+- running docker with --security-opt=no-new-privileges
 - support docker registries as an alternative to S3
 - support auto scaling group egress whitelist
 - deprecated `dst_env_file`
