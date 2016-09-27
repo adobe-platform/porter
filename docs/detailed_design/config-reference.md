@@ -257,12 +257,13 @@ works with SSL.
 
 ### security_group_egress
 
-Whitelist ASG egress rules. porter needs this config is needed for 3 reasons.
+Whitelist ASG egress rules. porter needs this config for 3 reasons.
 
 (1) porter manages the security groups for a
-`AWS::AutoScaling::AutoScalingGroup`, (2) additional groups may be defined in a
-[custom CloudFormation template](cfn-customization.md), and (3)
-[the most permissive rule wins](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-network-security.html#vpc-security-groups):
+`AWS::AutoScaling::AutoScalingGroup` including dynamically adding ingress
+traffic for the elb into which instances will be promoted, (2) additional groups
+may be defined in a [custom CloudFormation template](cfn-customization.md), and
+(3) [the most permissive rule wins](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-network-security.html#vpc-security-groups):
 
 > If there is more than one rule for a specific port, we apply the most
 > permissive rule. For example, if you have a rule that allows access to TCP
