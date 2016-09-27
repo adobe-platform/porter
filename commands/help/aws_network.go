@@ -64,9 +64,9 @@ DESCRIPTION
     See https://aws.amazon.com/blogs/aws/aws-ip-ranges-json/ for more
 
 OPTIONS
-	-r  AWS region
+    -r  AWS region
 
-	-s  Service (defaults to AMAZON if undefined)`
+    -s  Service (defaults to AMAZON if undefined)`
 }
 
 func (recv *AwsNetworkCmd) SubCommands() []cli.Command {
