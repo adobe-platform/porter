@@ -14,7 +14,7 @@ touch points, most of which are configurable.
   - [SSL with R53](config-reference.md#ssl_cert_arn)
 - Container
   - Runtime
-    - [Container runtime config (including secrets)](detailed_design/container-config.md)
+    - [Container runtime config (including secrets)](container-config.md)
     - [UID](config-reference.md#uid)
     - [Read-only FS](config-reference.md#read_only)
     - [The code that calls `docker run`](../../commands/host/docker.go)
