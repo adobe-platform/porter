@@ -1,5 +1,29 @@
-Container Security
-==================
+Security
+========
+
+Porter is secure by default where possible. The defaults can hinder normal
+development or rapid prototyping. This is a non-exhaustive list of security
+touch points, most of which are configurable.
+
+- Infrastructure
+  - [SSH key](config-reference.md#key_pair_name)
+  - [EC2 SSH ingress](cfn-customization.md#ssh)
+  - [EC2 IAM role permissions](cfn-customization.md#additional-ec2-permissions)
+  - [EC2 egress traffic](config-reference.md#security_group_egress)
+  - [SSL certs](config-reference.md#ssl_cert_arn)
+  - [SSL with R53](config-reference.md#ssl_cert_arn)
+- Container
+  - Runtime
+    - [Container runtime config (including secrets)](detailed_design/container-config.md)
+    - [UID](config-reference.md#uid)
+    - [Read-only FS](config-reference.md#read_only)
+    - [The code that calls `docker run`](../../commands/host/docker.go)
+    - [Daemon config](../../files/porter_bootstrap)
+  - Build time
+    - [Service payload](service-payload.md)
+
+Container Security: CIS Docker Benchmark
+----------------------------------------
 
 Here's how porter measures up to the following recommendations from the
 [CIS Docker 1.11.0 Benchmark](https://benchmarks.cisecurity.org/tools2/docker/CIS_Docker_1.11.0_Benchmark_v1.0.0.pdf)
