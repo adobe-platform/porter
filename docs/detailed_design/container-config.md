@@ -23,6 +23,8 @@ here.
 
 Both sources will use the same secrets file which is a [`--env-file`](https://docs.docker.com/engine/reference/commandline/run/#set-environment-variables-e-env-env-file)
 
+The sources are mutually exclusive.
+
 Sample secrets env-file `secrets.env-file`:
 
 ```
@@ -108,7 +110,8 @@ environments:
         - us-west-2
 ```
 
-Porter calls [`os/exec.Command()`](https://golang.org/pkg/os/exec/#Command) with
+For all containers in the regions of the environment being deployed, porter
+calls [`os/exec.Command()`](https://golang.org/pkg/os/exec/#Command) with
 `exec_name` and `exec_args`, captures the executable's stdout, and cleans
 comments/whitespace.
 

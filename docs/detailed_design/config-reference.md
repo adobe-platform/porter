@@ -253,7 +253,10 @@ hosted_zone_name is DNS zone in Route53 that will be aliased with the
 provisioned ELB's A record if provided
 
 This is typically used with `ssl_cert_arn` to create a developer stack that
-works with SSL.
+works with SSL but can also be used to provide a friendly host name to your ELB.
+
+An example is `foo.com.`. Porter will prepend the stack name so you can visit
+`https://stack-name.foo.com`
 
 ### security_group_egress
 
