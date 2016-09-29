@@ -108,49 +108,11 @@ func (recv *Config) ValidateTopLevelKeys() error {
 
 func (recv *Config) ValidateHooks() (err error) {
 
-	err = validateHook(constants.HookPrePack, recv.Hooks.PrePack)
-	if err != nil {
-		return
-	}
-
-	err = validateHook(constants.HookPostPack, recv.Hooks.PostPack)
-	if err != nil {
-		return
-	}
-
-	err = validateHook(constants.HookPreProvision, recv.Hooks.PreProvision)
-	if err != nil {
-		return
-	}
-
-	err = validateHook(constants.HookPostProvision, recv.Hooks.PostProvision)
-	if err != nil {
-		return
-	}
-
-	err = validateHook(constants.HookPrePromote, recv.Hooks.PrePromote)
-	if err != nil {
-		return
-	}
-
-	err = validateHook(constants.HookPostPromote, recv.Hooks.PostPromote)
-	if err != nil {
-		return
-	}
-
-	err = validateHook(constants.HookPrePrune, recv.Hooks.PrePrune)
-	if err != nil {
-		return
-	}
-
-	err = validateHook(constants.HookPostPrune, recv.Hooks.PostPrune)
-	if err != nil {
-		return
-	}
-
-	err = validateHook(constants.HookEC2Bootstrap, recv.Hooks.EC2Bootstrap)
-	if err != nil {
-		return
+	for hookName, hookVal := range recv.Hooks {
+		err = validateHook(hookName, hookVal)
+		if err != nil {
+			return err
+		}
 	}
 
 	return
@@ -162,7 +124,7 @@ func validateHook(name string, hooks []Hook) error {
 		if hook.Repo == "" {
 
 			if hook.Dockerfile == "" {
-				return errors.New("A " + name + " hook is missing dockerfile")
+				return errors.New("A " + name + " hook has neither a dockerfile nor a repo")
 			}
 		} else {
 

@@ -100,6 +100,12 @@ For each field the following notation is used
     - [dockerfile](#hook-dockerfile) (==1?)
     - [environment](#hook-environment) (==1?)
     - [concurrent](#concurrent) (==1?)
+  - [user_defined](#user-defined-hooks) (==1?)
+    - [repo](#repo) (==1!)
+    - [ref](#ref) (==1!)
+    - [dockerfile](#hook-dockerfile) (==1?)
+    - [environment](#hook-environment) (==1?)
+    - [concurrent](#concurrent) (==1?)
 
 ### service_name
 
@@ -542,4 +548,27 @@ hooks:
   - dockerfile: .porter/hooks/pre-pack-3
     concurrent: true
   - dockerfile: .porter/hooks/pre-pack-4
+```
+
+### user defined hooks
+
+A hook named other than one of the 8 pre/post hooks or ec2-bootstrap is a
+user defined hook.  The internal structure is the same as any other hook.
+A user-defined hook is never automatically called by porter.  It will only
+be invoked by the `porter build hook` command.
+
+**Example**
+
+```yaml
+hooks:
+  alert_the_operator:
+  - dockerfile: path/to/Dockerfile
+    repo: https://github.com/person/repo.git
+    ref: v1.0.0
+```
+
+This hook might be run by a build system as such:
+
+```
+porter build hook -name alert_the_operator -e Stage
 ```

@@ -58,10 +58,10 @@ type (
 	Config struct {
 		ServiceName    string `yaml:"service_name"`
 		ServiceVersion string
-		PorterVersion  string         `yaml:"porter_version"`
-		Environments   []*Environment `yaml:"environments"`
-		Slack          Slack          `yaml:"slack"`
-		Hooks          Hooks          `yaml:"hooks"`
+		PorterVersion  string            `yaml:"porter_version"`
+		Environments   []*Environment    `yaml:"environments"`
+		Slack          Slack             `yaml:"slack"`
+		Hooks          map[string][]Hook `yaml:"hooks"`
 	}
 
 	Container struct {
@@ -137,18 +137,6 @@ type (
 	AvailabilityZone struct {
 		Name     string `yaml:"name"`
 		SubnetID string `yaml:"subnet_id"`
-	}
-
-	Hooks struct {
-		PrePack       []Hook `yaml:"pre_pack"`
-		PostPack      []Hook `yaml:"post_pack"`
-		PreProvision  []Hook `yaml:"pre_provision"`
-		PostProvision []Hook `yaml:"post_provision"`
-		PrePromote    []Hook `yaml:"pre_promote"`
-		PostPromote   []Hook `yaml:"post_promote"`
-		PrePrune      []Hook `yaml:"pre_prune"`
-		PostPrune     []Hook `yaml:"post_prune"`
-		EC2Bootstrap  []Hook `yaml:"ec2_bootstrap"`
 	}
 
 	Hook struct {
@@ -253,15 +241,9 @@ func (recv *Config) Print() {
 	fmt.Println("porter_version", recv.PorterVersion)
 
 	fmt.Println(".Hooks")
-	printHooks(constants.HookPrePack, recv.Hooks.PrePack)
-	printHooks(constants.HookPostPack, recv.Hooks.PostPack)
-	printHooks(constants.HookPreProvision, recv.Hooks.PreProvision)
-	printHooks(constants.HookPostProvision, recv.Hooks.PostProvision)
-	printHooks(constants.HookPrePromote, recv.Hooks.PrePromote)
-	printHooks(constants.HookPostPromote, recv.Hooks.PostPromote)
-	printHooks(constants.HookPrePrune, recv.Hooks.PrePrune)
-	printHooks(constants.HookPostPrune, recv.Hooks.PostPrune)
-	printHooks(constants.HookEC2Bootstrap, recv.Hooks.EC2Bootstrap)
+	for hookName, hookVal := range recv.Hooks {
+		printHooks(hookName, hookVal)
+	}
 
 	fmt.Println(".Environments")
 	for _, environment := range recv.Environments {
@@ -318,18 +300,18 @@ func (recv *Config) Print() {
 }
 
 func printHooks(name string, hooks []Hook) {
-	fmt.Println(name)
+	fmt.Println("  " + name)
 	for _, hook := range hooks {
-		fmt.Println("- .Repo", hook.Repo)
-		fmt.Println("  .Ref", hook.Ref)
-		fmt.Println("  .Dockerfile", hook.Dockerfile)
-		fmt.Println("  .Environment")
+		fmt.Println("  - .Repo", hook.Repo)
+		fmt.Println("    .Ref", hook.Ref)
+		fmt.Println("    .Dockerfile", hook.Dockerfile)
+		fmt.Println("    .Environment")
 		if hook.Environment != nil {
 			for envKey, envValue := range hook.Environment {
 				if envValue == "" {
 					envValue = os.Getenv(envKey)
 				}
-				fmt.Println("    " + envKey + "=" + envValue)
+				fmt.Println("      " + envKey + "=" + envValue)
 			}
 		}
 	}
