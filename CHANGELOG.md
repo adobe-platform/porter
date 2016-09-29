@@ -1,3 +1,7 @@
+**v2.2.1**
+
+- fix support for running abritrary user defined hooks
+
 **v2.2.0**
 
 - run docker with `--security-opt=no-new-privileges`

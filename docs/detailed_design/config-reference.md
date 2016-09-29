@@ -100,6 +100,12 @@ For each field the following notation is used
     - [dockerfile](#hook-dockerfile) (==1?)
     - [environment](#hook-environment) (==1?)
     - [concurrent](#concurrent) (==1?)
+  - user_defined (==1?)
+    - [repo](#repo) (==1!)
+    - [ref](#ref) (==1!)
+    - [dockerfile](#hook-dockerfile) (==1?)
+    - [environment](#hook-environment) (==1?)
+    - [concurrent](#concurrent) (==1?)
 
 ### service_name
 
