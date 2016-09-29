@@ -1,0 +1,11 @@
+FROM ubuntu:16.04
+
+RUN apt-get update
+RUN apt-get install -y tree
+
+ADD user-defined.cmd /
+RUN chmod 544 /user-defined.cmd
+
+WORKDIR /repo_root
+
+CMD /user-defined.cmd
