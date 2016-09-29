@@ -81,27 +81,9 @@ func Execute(log log15.Logger,
 
 	var configHooks []conf.Hook
 
-	switch hookName {
-	case constants.HookPrePack:
-		configHooks = config.Hooks.PrePack
-	case constants.HookPostPack:
-		configHooks = config.Hooks.PostPack
-	case constants.HookPreProvision:
-		configHooks = config.Hooks.PreProvision
-	case constants.HookPostProvision:
-		configHooks = config.Hooks.PostProvision
-	case constants.HookPrePromote:
-		configHooks = config.Hooks.PrePromote
-	case constants.HookPostPromote:
-		configHooks = config.Hooks.PostPromote
-	case constants.HookPrePrune:
-		configHooks = config.Hooks.PrePrune
-	case constants.HookPostPrune:
-		configHooks = config.Hooks.PostPrune
-	case constants.HookEC2Bootstrap:
-		configHooks = config.Hooks.EC2Bootstrap
-	default:
-		log.Error("Invalid hook")
+	configHooks = config.Hooks[hookName]
+	if configHooks == nil {
+		log.Error("Hook is undefined")
 		return
 	}
 

@@ -40,13 +40,10 @@ SYNOPSIS
     hook -name <hook name> [-e <environment>]
 
 DESCRIPTION
-    hook builds and runs Docker files under the .porter/hooks/ directory to
-    enable programmable deployment pipelines. There are no constraints on this
-    idea other than the hook must live under .porter/hooks/
-
-    Use this facility to allow services to opt-in to the various phases of
-    a porter deployment. For example, before running 'porter pack ...'
-    run 'porter hook -name pre-pack' to give services a chance to run unit tests
+    hook builds and runs custom hooks defined in the hooks section of .porter/config
+    to facilitate programmable deployment pipelines.  The six pre and post hooks
+	for the pack, provision, promote, and prune build phases are automatically run
+	and not accessible for manual invocation with this command.
 
 OPTIONS
     -name
