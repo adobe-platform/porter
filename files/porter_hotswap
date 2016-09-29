@@ -1,3 +1,4 @@
+#!/bin/bash -e{{ if .LogDebug }}x{{ end }}
 {{ if .LogDebug -}}
 export LOG_DEBUG=1
 {{- end }}
@@ -15,7 +16,7 @@ tar -xOf payload.tar ./{{ $imageName }}.docker | docker load
 
 echo "starting containers"
 tar -xOf payload.tar ./{{ .ServicePayloadConfigPath }} \
-| porter host docker --start -e {{ .Environment }} -r {{ .Region }} -s {{ .SecretsPayloadKey }} \
+| porter host docker --start -e {{ .Environment }} -r {{ .Region }} \
 | porter host haproxy -sn {{ .ServiceName }}
 
 echo "cleaning containers"

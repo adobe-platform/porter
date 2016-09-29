@@ -13,11 +13,9 @@ package host
 
 import (
 	"bytes"
-	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -25,16 +23,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/adobe-platform/porter/aws_session"
 	"github.com/adobe-platform/porter/conf"
 	"github.com/adobe-platform/porter/constants"
 	dockerutil "github.com/adobe-platform/porter/docker/util"
 	"github.com/adobe-platform/porter/logger"
 	"github.com/adobe-platform/porter/secrets"
-	"github.com/adobe-platform/porter/util"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/cloudformation"
-	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/inconshreveable/log15"
 	"github.com/phylake/go-cli"
 )
@@ -56,7 +49,7 @@ func (recv *DockerCmd) LongHelp() string {
     docker -- Docker container orchestration
 
 SYNOPSIS
-    docker --start -e <environment> -r <region> -s <key>
+    docker --start -e <environment> -r <region>
     docker --clean
     docker --ip
 
@@ -74,8 +67,6 @@ OPTIONS
     -e  Environment from .porter/config
 
     -r  AWS region
-
-    -s  Secrets payload S3 key
 
     --clean
         Cleanup containers not found in the config. This command removes
@@ -103,17 +94,16 @@ func (recv *DockerCmd) Execute(args []string) bool {
 				return false
 			}
 
-			var environment, region, secretsS3Key string
+			var environment, region string
 			flagSet := flag.NewFlagSet("", flag.ExitOnError)
 			flagSet.StringVar(&environment, "e", "", "")
 			flagSet.StringVar(&region, "r", "", "")
-			flagSet.StringVar(&secretsS3Key, "s", "", "")
 			flagSet.Usage = func() {
 				fmt.Println(recv.LongHelp())
 			}
 			flagSet.Parse(args[1:])
 
-			startContainers(environment, region, secretsS3Key)
+			startContainers(environment, region)
 		case "--clean":
 			if len(args) == 1 {
 				return false
@@ -140,7 +130,7 @@ func (recv *DockerCmd) Execute(args []string) bool {
 	return false
 }
 
-func startContainers(environmentStr, regionStr, secretsS3Key string) {
+func startContainers(environmentStr, regionStr string) {
 	var (
 		err          error
 		stdoutBuf    bytes.Buffer
@@ -174,7 +164,10 @@ func startContainers(environmentStr, regionStr, secretsS3Key string) {
 		os.Exit(1)
 	}
 
-	secretsPayload := getSecretsPayload(log, region, secretsS3Key)
+	secretsPayload, downloadSuccess := secrets.Download(log, region)
+	if !downloadSuccess {
+		os.Exit(1)
+	}
 
 	if secretsPayload.DockerPullUsername != "" && secretsPayload.DockerPullPassword != "" {
 		log.Info("docker login")
@@ -622,109 +615,10 @@ func getSecretEnvVars(log log15.Logger, container *conf.Container, secretsPayloa
 
 		for _, kvp := range kvps {
 			runArgs = append(runArgs, "-e", kvp)
+
+			log.Debug("injecting secret", "Key", strings.Split(kvp, "=")[0])
 		}
 	}
 
 	return runArgs
-}
-
-func getSecretsPayload(log log15.Logger, region *conf.Region, secretsS3Key string) secrets.Payload {
-
-	log.Debug("getSecretsPayload() BEGIN")
-	defer log.Debug("getSecretsPayload() END")
-
-	s3Client := s3.New(aws_session.Get(region.Name))
-
-	getObjectInput := &s3.GetObjectInput{
-		Bucket: aws.String(region.S3Bucket),
-		Key:    aws.String(secretsS3Key),
-	}
-
-	getObjectOutput, err := s3Client.GetObject(getObjectInput)
-	if err != nil {
-		log.Crit("GetObject", "Error", err)
-		os.Exit(1)
-	}
-	defer getObjectOutput.Body.Close()
-
-	secretsPayloadBytesEnc, err := ioutil.ReadAll(getObjectOutput.Body)
-	if err != nil {
-		log.Crit("ioutil.ReadAll", "Error", err)
-		os.Exit(1)
-	}
-
-	containerSecretsKey := getSecretsKey(log, region.Name)
-
-	secretsPayloadBytes, err := secrets.Decrypt(secretsPayloadBytesEnc, containerSecretsKey)
-	if err != nil {
-		log.Crit("secrets.Decrypt", "Error", err)
-		os.Exit(1)
-	}
-
-	secretsPayload := secrets.Payload{}
-
-	err = json.Unmarshal(secretsPayloadBytes, &secretsPayload)
-	if err != nil {
-		log.Crit("json.Unmarshal", "Error", err)
-		os.Exit(1)
-	}
-
-	return secretsPayload
-}
-
-func getSecretsKey(log log15.Logger, region string) []byte {
-
-	log.Debug("getSecretsKey() BEGIN")
-	defer log.Debug("getSecretsKey() END")
-
-	var (
-		describeStacksOutput *cloudformation.DescribeStacksOutput
-		err                  error
-	)
-
-	cfnClient := cloudformation.New(aws_session.Get(region))
-
-	describeStacksInput := &cloudformation.DescribeStacksInput{
-		StackName: aws.String(os.Getenv("AWS_STACKID")),
-	}
-
-	retryMsg := func(i int) { log.Warn("DescribeStacks retrying", "Count", i) }
-	if !util.SuccessRetryer(9, retryMsg, func() bool {
-		describeStacksOutput, err = cfnClient.DescribeStacks(describeStacksInput)
-		if err != nil {
-			log.Error("DescribeStacks", "Error", err)
-			return false
-		}
-		if len(describeStacksOutput.Stacks) == 0 {
-			log.Error("len(describeStacksOutput.Stacks == 0)")
-			return false
-		}
-		return true
-	}) {
-		log.Crit("Failed to DescribeStacks")
-		os.Exit(1)
-	}
-
-	if len(describeStacksOutput.Stacks) != 1 {
-		log.Crit("len(describeStacksOutput.Stacks != 1)")
-		os.Exit(1)
-	}
-
-	stack := describeStacksOutput.Stacks[0]
-	for _, param := range stack.Parameters {
-		if *param.ParameterKey == constants.ParameterSecretsKey {
-
-			symmetricKey, err := hex.DecodeString(*param.ParameterValue)
-			if err != nil {
-				log.Crit("hex.DecodeString", "Error", err)
-				os.Exit(1)
-			}
-
-			return symmetricKey
-		}
-	}
-
-	log.Crit("missing parameter key " + constants.ParameterSecretsKey)
-	os.Exit(1)
-	return nil
 }

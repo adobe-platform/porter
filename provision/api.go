@@ -35,6 +35,7 @@ type (
 		Environment string
 		Region      string
 		SecretsKey  string
+		SecretsLoc  string
 		TemplateUrl string
 	}
 
@@ -71,6 +72,10 @@ func CreateStack(log log15.Logger, config *conf.Config, args StackArgs) (CreateS
 			{
 				ParameterKey:   aws.String(constants.ParameterSecretsKey),
 				ParameterValue: aws.String(input.SecretsKey),
+			},
+			{
+				ParameterKey:   aws.String(constants.ParameterSecretsLoc),
+				ParameterValue: aws.String(input.SecretsLoc),
 			},
 		}
 

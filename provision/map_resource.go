@@ -499,8 +499,6 @@ func setAutoScalingLaunchConfigurationMetadata(recv *stackCreator, template *cfn
 		ServicePayloadKey:        recv.servicePayloadKey,
 		ServicePayloadConfigPath: constants.ServicePayloadConfigPath,
 
-		SecretsPayloadKey: recv.secretPayloadKey,
-
 		RegistryDeployment: recv.registryDeployment,
 
 		InetHealthCheckMethod: strconv.Quote(recv.region.HealthCheckMethod()),

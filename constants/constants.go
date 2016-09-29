@@ -110,6 +110,7 @@ const (
 	ParameterEnvironment = "PorterEnvironment"
 	ParameterStackName   = "PorterStackName"
 	ParameterSecretsKey  = "PorterSecretsKey"
+	ParameterSecretsLoc  = "PorterSecretsLoc"
 	MappingRegionToAMI   = "RegionToAMI"
 
 	HC_HealthyThreshold   = 3

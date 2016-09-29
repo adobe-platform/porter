@@ -176,7 +176,7 @@ func (recv *stackCreator) uploadSecrets(checksum string) (success bool) {
 		return
 	}
 
-	recv.secretPayloadKey = fmt.Sprintf("%s/%s.secrets", recv.s3KeyRoot(s3KeyOptDeployment), checksum)
+	recv.secretsLocation = fmt.Sprintf("%s/%s.secrets", recv.s3KeyRoot(s3KeyOptDeployment), checksum)
 
 	secretPayloadBytesEnc, err := secrets.Encrypt([]byte(secretPayloadBytes), symmetricKey)
 	if err != nil {
@@ -186,7 +186,7 @@ func (recv *stackCreator) uploadSecrets(checksum string) (success bool) {
 
 	uploadInput := &s3manager.UploadInput{
 		Bucket: aws.String(recv.region.S3Bucket),
-		Key:    aws.String(recv.secretPayloadKey),
+		Key:    aws.String(recv.secretsLocation),
 		Body:   bytes.NewReader(secretPayloadBytesEnc),
 	}
 
@@ -200,7 +200,7 @@ func (recv *stackCreator) uploadSecrets(checksum string) (success bool) {
 
 	recv.log.Info("Uploading secrets",
 		"S3bucket", recv.region.S3Bucket,
-		"S3key", recv.secretPayloadKey,
+		"S3key", recv.secretsLocation,
 		"Concurrency", s3Manager.Concurrency)
 
 	_, err = s3Manager.Upload(uploadInput)
