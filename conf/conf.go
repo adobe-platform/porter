@@ -124,6 +124,8 @@ type (
 
 	AutoScalingGroup struct {
 		SecurityGroupEgress []SecurityGroupEgress `yaml:"security_group_egress"`
+		SecretsExecName     string                `yaml:"secrets_exec_name"`
+		SecretsExecArgs     []string              `yaml:"secrets_exec_args"`
 	}
 
 	SecurityGroupEgress struct {

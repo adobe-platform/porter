@@ -28,6 +28,8 @@ For each field the following notation is used
     - [hosted_zone_name](#hosted_zone_name) (==1?)
     - auto_scaling_group
       - [security_group_egress](#security_group_egress) (==1?)
+      - [secrets_exec_name](#secrets_exec_name) (==1?)
+      - [secrets_exec_args](#secrets_exec_args) (==1?)
     - [key_pair_name](#key_pair_name) (==1?)
     - [s3_bucket](#s3_bucket) (==1!)
     - [sse_kms_key_id](#sse_kms_key_id) (==1!)
@@ -320,6 +322,23 @@ environments:
         from_port: 0
         to_port: 65535
 ```
+
+### secrets_exec_name
+
+Host-level secrets can travel in the same secrets payload porter uses for [container secrets](container-config.md).
+
+porter calls [`os/exec.Command()`](https://golang.org/pkg/os/exec/#Command) with
+`secrets_exec_name` and `secrets_exec_name` and captures the executable's stdout.
+
+Whatever was sent to stdout can be retrieved with
+`/usr/bin/porter_get_secrets` which is installed on the host.
+
+What you send in is what you get out byte-for-byte meaning you can use any
+serialization format you want.
+
+### secrets_exec_args
+
+See [`secrets_exec_args`](#secrets_exec_name)
 
 ### key_pair_name
 

@@ -31,6 +31,12 @@ Please do not open issues related to this hook.
 Once you begin customizing the EC2 instance with your own scripts you have the
 ability to completely break porter's battle-tested initialization.
 
+Secrets
+-------
+
+Host-level secrets can be provided by having porter call into a command you
+define using [`secrets_exec_name`](config-reference.md#secrets_exec_name)
+
 Use Cases
 ---------
 

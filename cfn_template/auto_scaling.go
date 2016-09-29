@@ -39,6 +39,7 @@ type (
 		ServicePayloadBucket     string
 		ServicePayloadKey        string
 		ServicePayloadConfigPath string
+		ServicePayloadHostPath   string
 
 		RegistryDeployment bool
 		InsecureRegistry   string
@@ -228,18 +229,7 @@ func AWSCloudFormationInit(autoScalingLaunchConfigurationLogicalId string, conte
 		return nil, err
 	}
 
-	bootstrapFile := map[string]interface{}{
-		"content": map[string]interface{}{
-			// Split only to Fn::Join to make the template more human-readable
-			"Fn::Join": []interface{}{
-				"\n",
-				strings.Split(buf.String(), "\n"),
-			},
-		},
-		"mode":  "000755",
-		"owner": "root",
-		"group": "root",
-	}
+	bootstrapFile := cfnExecutable(buf.String())
 
 	buf.Reset()
 
@@ -273,31 +263,36 @@ func AWSCloudFormationInit(autoScalingLaunchConfigurationLogicalId string, conte
 		"group": "root",
 	}
 
-	motd := map[string]interface{}{
+	buf.Reset()
+
+	tmpl, err = template.New("").Parse(files.PorterGetSecrets)
+	if err != nil {
+		return nil, err
+	}
+
+	err = tmpl.Execute(&buf, context)
+	if err != nil {
+		return nil, err
+	}
+
+	getSecretsContents := []interface{}{
+		"#!/bin/bash -e\n",
+		"export AWS_STACKID=", map[string]string{"Ref": "AWS::StackId"}, "\n",
+	}
+	for _, line := range strings.Split(buf.String(), "\n") {
+		getSecretsContents = append(getSecretsContents, line+"\n")
+	}
+
+	getSecretsFile := map[string]interface{}{
 		"content": map[string]interface{}{
-			// Split only to Fn::Join to make the template more human-readable
 			"Fn::Join": []interface{}{
-				"\n",
-				strings.Split(files.Motd, "\n"),
+				"",
+				getSecretsContents,
 			},
 		},
-		"mode":  "000744",
+		"mode":  "000755",
 		"owner": "root",
 		"group": "root",
-	}
-
-	logRotate := map[string]interface{}{
-		"content": files.LogrotatePorter,
-		"mode":    "000644",
-		"owner":   "root",
-		"group":   "root",
-	}
-
-	pamdCrond := map[string]interface{}{
-		"content": files.PamdCrond,
-		"mode":    "000644",
-		"owner":   "root",
-		"group":   "root",
 	}
 
 	awsCloudformationInit := map[string]interface{}{
@@ -324,9 +319,10 @@ func AWSCloudFormationInit(autoScalingLaunchConfigurationLogicalId string, conte
 				"/etc/cfn/hooks.conf":          hooksConf,
 				"/usr/bin/porter_bootstrap":    bootstrapFile,
 				"/usr/bin/porter_hotswap":      hotswapFile,
-				"/etc/update-motd.d/99-porter": motd,
-				"/etc/logrotate.d/porter":      logRotate,
-				"/etc/pam.d/crond":             pamdCrond,
+				"/usr/bin/porter_get_secrets":  getSecretsFile,
+				"/etc/update-motd.d/99-porter": cfnExecutable(files.Motd),
+				"/etc/logrotate.d/porter":      cfnReadOnly(files.LogrotatePorter),
+				"/etc/pam.d/crond":             cfnReadOnly(files.PamdCrond),
 			},
 		},
 		// Why not just call /usr/bin/porter_hotswap again?
@@ -339,7 +335,8 @@ func AWSCloudFormationInit(autoScalingLaunchConfigurationLogicalId string, conte
 				},
 			},
 			"files": map[string]interface{}{
-				"/usr/bin/porter_hotswap": hotswapFile,
+				"/usr/bin/porter_hotswap":     hotswapFile,
+				"/usr/bin/porter_get_secrets": getSecretsFile,
 			},
 		},
 	}

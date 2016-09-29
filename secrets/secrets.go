@@ -10,6 +10,7 @@ import (
 const AesBytes = 32
 
 type Payload struct {
+	HostSecrets        []byte
 	ContainerSecrets   map[string]string
 	DockerRegistry     string
 	DockerPullUsername string
