@@ -1,6 +1,6 @@
 **v2.2.1**
 
-- fix support for running abritrary user defined hooks
+- fix support for running arbitrary user defined hooks
 
 **v2.2.0**
 
