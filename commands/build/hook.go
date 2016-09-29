@@ -47,7 +47,7 @@ DESCRIPTION
 
 OPTIONS
     -name
-        The name of a Dockerfile under .porter/hooks/
+        The name of the hook in .porter/config
 
     -e  Environment from .porter/config`
 }

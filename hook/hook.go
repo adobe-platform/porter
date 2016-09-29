@@ -81,8 +81,8 @@ func Execute(log log15.Logger,
 
 	var configHooks []conf.Hook
 
-	configHooks = config.Hooks[hookName]
-	if configHooks == nil {
+	configHooks, exists := config.Hooks[hookName]
+	if !exists {
 		log.Error("Hook is undefined")
 		return
 	}
