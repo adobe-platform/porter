@@ -42,8 +42,8 @@ SYNOPSIS
 DESCRIPTION
     hook builds and runs custom hooks defined in the hooks section of .porter/config
     to facilitate programmable deployment pipelines.  The six pre and post hooks
-	for the pack, provision, promote, and prune build phases are automatically run
-	and not accessible for manual invocation with this command.
+    for the pack, provision, promote, and prune build phases are automatically run
+    and not accessible for manual invocation with this command.
 
 OPTIONS
     -name
