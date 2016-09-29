@@ -92,6 +92,11 @@ environments:
     s3_bucket: porter-sandbox-us-west-2
     key_pair_name: $SSH_KEY
 
+    auto_scaling_group:
+      secrets_exec_name: echo
+      secrets_exec_args:
+      - hi
+
     containers:
     - <<: *CONTAINER_BASE_INET
       src_env_file:
