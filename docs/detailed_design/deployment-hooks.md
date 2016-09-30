@@ -37,6 +37,30 @@ The hooks
 - [post-prune](hooks/post-prune.md)
 - [ec2-bootstrap](hooks/ec2-bootstrap.md)
 
+User-defined hooks
+------------------
+
+A hook named other than one of above is a user defined hook.  The internal
+structure is the same as any other hook. A user-defined hook is never
+automatically called by porter. It can only be called by the
+`porter build hook` command.
+
+**Example**
+
+```yaml
+hooks:
+  alert_the_operator:
+  - dockerfile: path/to/Dockerfile
+    repo: https://github.com/person/repo.git
+    ref: v1.0.0
+```
+
+This hook might be run by a build system as such:
+
+```
+porter build hook -name alert_the_operator -e Stage
+```
+
 Execution order
 ---------------
 
