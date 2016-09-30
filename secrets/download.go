@@ -93,7 +93,7 @@ func getSecretsKey(log log15.Logger, region string) (symmetricKey []byte, secret
 	}
 
 	retryMsg := func(i int) { log.Warn("DescribeStacks retrying", "Count", i) }
-	if !util.SuccessRetryer(9, retryMsg, func() bool {
+	if !util.SuccessRetryer(7, retryMsg, func() bool {
 		describeStacksOutput, err = cfnClient.DescribeStacks(describeStacksInput)
 		if err != nil {
 			log.Error("DescribeStacks", "Error", err)
