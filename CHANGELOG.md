@@ -1,5 +1,6 @@
-**v2.2.1**
+**v2.3.0**
 
+- extend container secret management to the host with `porter_get_secrets`
 - fix support for running arbitrary user defined hooks
 
 **v2.2.0**
