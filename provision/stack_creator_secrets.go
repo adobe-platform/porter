@@ -13,8 +13,8 @@ package provision
 
 import (
 	"bytes"
+	"encoding/gob"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -31,26 +31,29 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
-func (recv *stackCreator) getSecrets() (containerSecrets map[string]string, success bool) {
-	recv.log.Debug("getSecrets() BEGIN")
-	defer recv.log.Debug("getSecrets() END")
+func (recv *stackCreator) getContainerSecrets() (containerSecrets map[string]string, success bool) {
+	recv.log.Debug("getContainerSecrets() BEGIN")
+	defer recv.log.Debug("getContainerSecrets() END")
 
 	containerSecrets = make(map[string]string)
 
 	for _, container := range recv.region.Containers {
 
 		if container.SrcEnvFile == nil {
+			recv.log.Debug("No src_env_file for " + container.OriginalName)
 			continue
 		}
 
 		var envFile string
 		if container.SrcEnvFile.ExecName != "" {
 
-			envFile, success = recv.getExecSecrets(container)
+			envFile, success = recv.getExecContainerSecrets(container)
 		} else if container.SrcEnvFile.S3Bucket != "" && container.SrcEnvFile.S3Key != "" {
 
-			envFile, success = recv.getS3Secrets(container)
+			envFile, success = recv.getS3ContainerSecrets(container)
 		} else {
+
+			recv.log.Warn("src_env_file defined but missing both exec_* and s3_*")
 			continue
 		}
 
@@ -71,7 +74,7 @@ func (recv *stackCreator) getSecrets() (containerSecrets map[string]string, succ
 	return
 }
 
-func (recv *stackCreator) getExecSecrets(container *conf.Container) (containerSecrets string, success bool) {
+func (recv *stackCreator) getExecContainerSecrets(container *conf.Container) (containerSecrets string, success bool) {
 
 	var stdoutBuf bytes.Buffer
 	var stderrBuf bytes.Buffer
@@ -93,9 +96,12 @@ func (recv *stackCreator) getExecSecrets(container *conf.Container) (containerSe
 	return
 }
 
-func (recv *stackCreator) getS3Secrets(container *conf.Container) (containerSecrets string, success bool) {
+func (recv *stackCreator) getS3ContainerSecrets(container *conf.Container) (containerSecrets string, success bool) {
 	s3DstClient := s3.New(recv.roleSession)
 	log := recv.log.New("ContainerName", container.OriginalName)
+
+	recv.log.Debug("getS3ContainerSecrets() BEGIN")
+	defer recv.log.Debug("getS3ContainerSecrets() END")
 
 	roleArn, err := recv.environment.GetRoleARN(recv.region.Name)
 	if err != nil {
@@ -103,7 +109,9 @@ func (recv *stackCreator) getS3Secrets(container *conf.Container) (containerSecr
 		return
 	}
 
-	log.Info("Getting secrets from S3")
+	s3Location := fmt.Sprintf("s3://%s/%s",
+		container.SrcEnvFile.S3Bucket, container.SrcEnvFile.S3Key)
+	log.Info("Getting secrets from S3", "Location", s3Location)
 
 	var s3SrcClient *s3.S3
 
@@ -147,12 +155,48 @@ func (recv *stackCreator) getS3Secrets(container *conf.Container) (containerSecr
 	return
 }
 
+func (recv *stackCreator) getHostSecrets() (hostSecrets []byte, success bool) {
+	recv.log.Debug("getHostSecrets() BEGIN")
+	defer recv.log.Debug("getHostSecrets() END")
+
+	if recv.region.AutoScalingGroup == nil {
+		success = true
+		return
+	}
+
+	if recv.region.AutoScalingGroup.SecretsExecName == "" {
+		success = true
+		return
+	}
+
+	var stdoutBuf bytes.Buffer
+	var stderrBuf bytes.Buffer
+
+	cmd := exec.Command(recv.region.AutoScalingGroup.SecretsExecName, recv.region.AutoScalingGroup.SecretsExecArgs...)
+	cmd.Stdout = &stdoutBuf
+	cmd.Stderr = &stderrBuf
+	err := cmd.Run()
+	if err != nil {
+		recv.log.Error("exec.Command", "Error", err, "Stderr", stderrBuf.String())
+		return
+	}
+
+	hostSecrets = stdoutBuf.Bytes()
+	success = true
+	return
+}
+
 func (recv *stackCreator) uploadSecrets(checksum string) (success bool) {
 	recv.log.Debug("uploadSecrets() BEGIN")
 	defer recv.log.Debug("uploadSecrets() END")
 
-	containerToSecrets, getSecretsSuccess := recv.getSecrets()
-	if !getSecretsSuccess {
+	containerToSecrets, getContainerSecretsSuccess := recv.getContainerSecrets()
+	if !getContainerSecretsSuccess {
+		return
+	}
+
+	hostSecrets, getHostSecretsSuccess := recv.getHostSecrets()
+	if !getHostSecretsSuccess {
 		return
 	}
 
@@ -164,21 +208,24 @@ func (recv *stackCreator) uploadSecrets(checksum string) (success bool) {
 	recv.secretsKey = hex.EncodeToString(symmetricKey)
 
 	secretPayload := secrets.Payload{
+		HostSecrets:        hostSecrets,
 		ContainerSecrets:   containerToSecrets,
 		DockerRegistry:     os.Getenv(constants.EnvDockerRegistry),
 		DockerPullUsername: os.Getenv(constants.EnvDockerPullUsername),
 		DockerPullPassword: os.Getenv(constants.EnvDockerPullPassword),
 	}
 
-	secretPayloadBytes, err := json.Marshal(secretPayload)
+	var secretPayloadBuf bytes.Buffer
+
+	err = gob.NewEncoder(&secretPayloadBuf).Encode(secretPayload)
 	if err != nil {
-		recv.log.Crit("json.Marshal", "Error", err)
+		recv.log.Crit("gob.Marshal", "Error", err)
 		return
 	}
 
-	recv.secretPayloadKey = fmt.Sprintf("%s/%s.secrets", recv.s3KeyRoot(s3KeyOptDeployment), checksum)
+	recv.secretsLocation = fmt.Sprintf("%s/%s.secrets", recv.s3KeyRoot(s3KeyOptDeployment), checksum)
 
-	secretPayloadBytesEnc, err := secrets.Encrypt([]byte(secretPayloadBytes), symmetricKey)
+	secretPayloadBytesEnc, err := secrets.Encrypt(secretPayloadBuf.Bytes(), symmetricKey)
 	if err != nil {
 		recv.log.Crit("Secrets encryption failed", "Error", err)
 		return
@@ -186,7 +233,7 @@ func (recv *stackCreator) uploadSecrets(checksum string) (success bool) {
 
 	uploadInput := &s3manager.UploadInput{
 		Bucket: aws.String(recv.region.S3Bucket),
-		Key:    aws.String(recv.secretPayloadKey),
+		Key:    aws.String(recv.secretsLocation),
 		Body:   bytes.NewReader(secretPayloadBytesEnc),
 	}
 
@@ -200,7 +247,7 @@ func (recv *stackCreator) uploadSecrets(checksum string) (success bool) {
 
 	recv.log.Info("Uploading secrets",
 		"S3bucket", recv.region.S3Bucket,
-		"S3key", recv.secretPayloadKey,
+		"S3key", recv.secretsLocation,
 		"Concurrency", s3Manager.Concurrency)
 
 	_, err = s3Manager.Upload(uploadInput)

@@ -8,7 +8,7 @@
             \"Ref\": \"SSHSecurityGroup\"
           }
         ],
-        \"ImageId\": \"ami-34866607\"
+        \"ImageId\": \"ami-6442af04\"
       }
     },
     \"SSHSecurityGroup\": {

@@ -47,9 +47,9 @@ type (
 		environment       conf.Environment
 		region            conf.Region
 		servicePayloadKey string
-		secretPayloadKey  string
 
-		secretsKey string
+		secretsKey      string
+		secretsLocation string
 
 		registryDeployment bool
 
@@ -264,6 +264,7 @@ func (recv *stackCreator) createStack() (stackId string, success bool) {
 		Environment: recv.environment.Name,
 		Region:      recv.region.Name,
 		SecretsKey:  recv.secretsKey,
+		SecretsLoc:  recv.secretsLocation,
 		TemplateUrl: templateUrl,
 	}
 

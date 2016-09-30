@@ -47,11 +47,9 @@ hooks:
     environment:
       DEV_MODE:
       FOO: bar
-    concurrent: true
   - repo: $TEST_REPO_URL
     ref: $TEST_REPO_BRANCH
     dockerfile: testintegration/plugins/ec2-bootstrap
-    concurrent: true
   - repo: $TEST_REPO_URL
     ref: $TEST_REPO_BRANCH
     dockerfile: testintegration/plugins/ec2-bootstrap
@@ -96,6 +94,11 @@ environments:
     role_arn: arn:aws:iam::$AWS_ACCOUNT_ID:role/porter-deployment
     s3_bucket: porter-sandbox-us-west-2
     key_pair_name: $SSH_KEY
+
+    auto_scaling_group:
+      secrets_exec_name: echo
+      secrets_exec_args:
+      - hi
 
     containers:
     - <<: *CONTAINER_BASE_INET

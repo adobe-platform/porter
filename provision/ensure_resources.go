@@ -119,7 +119,12 @@ func (recv *stackCreator) ensureParameters(template *cfn.Template) bool {
 	}
 
 	template.Parameters[constants.ParameterSecretsKey] = cfn.ParameterInput{
-		Description: "Porter symmetric key for secrets",
+		Description: "Symmetric key for secrets",
+		Type:        "String",
+	}
+
+	template.Parameters[constants.ParameterSecretsLoc] = cfn.ParameterInput{
+		Description: "Secrets payload location",
 		Type:        "String",
 	}
 

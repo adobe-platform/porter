@@ -64,6 +64,7 @@ These commands log to STDOUT and primarily run from files/cloud-init.yaml`,
 					&host.RsyslogCmd{},
 					&host.DockerCmd{},
 					&host.DaemonCmd{},
+					&host.SecretsCmd{},
 				},
 			},
 			&cmd.Default{

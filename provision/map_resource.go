@@ -17,6 +17,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/adobe-platform/porter/cfn"
 	"github.com/adobe-platform/porter/cfn_template"
@@ -498,8 +499,7 @@ func setAutoScalingLaunchConfigurationMetadata(recv *stackCreator, template *cfn
 		ServicePayloadBucket:     recv.region.S3Bucket,
 		ServicePayloadKey:        recv.servicePayloadKey,
 		ServicePayloadConfigPath: constants.ServicePayloadConfigPath,
-
-		SecretsPayloadKey: recv.secretPayloadKey,
+		ServicePayloadHostPath:   fmt.Sprintf("/porter/%d.tar", time.Now().UnixNano()),
 
 		RegistryDeployment: recv.registryDeployment,
 
