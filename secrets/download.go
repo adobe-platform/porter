@@ -12,8 +12,9 @@
 package secrets
 
 import (
+	"bytes"
+	"encoding/gob"
 	"encoding/hex"
-	"encoding/json"
 	"io/ioutil"
 	"os"
 
@@ -65,9 +66,9 @@ func Download(log log15.Logger, region *conf.Region) (secretsPayload Payload, su
 
 	secretsPayload = Payload{}
 
-	err = json.Unmarshal(secretsPayloadBytes, &secretsPayload)
+	err = gob.NewDecoder(bytes.NewReader(secretsPayloadBytes)).Decode(&secretsPayload)
 	if err != nil {
-		log.Crit("json.Unmarshal", "Error", err)
+		log.Crit("gob.Decode", "Error", err)
 		return
 	}
 
