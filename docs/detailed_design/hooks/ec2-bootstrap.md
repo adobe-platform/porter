@@ -35,7 +35,7 @@ Secrets
 -------
 
 Host-level secrets can be provided by having porter call into a command you
-define using [`secrets_exec_name`](config-reference.md#secrets_exec_name)
+define using [`secrets_exec_name`](../config-reference.md#secrets_exec_name)
 
 Use Cases
 ---------
