@@ -53,6 +53,12 @@ hooks:
   - repo: $TEST_REPO_URL
     ref: $TEST_REPO_BRANCH
     dockerfile: testintegration/plugins/ec2-bootstrap
+    concurrent: true
+  user_defined:
+  - dockerfile: hooks/user-defined
+  - repo: $TEST_REPO_URL
+    ref: $TEST_REPO_BRANCH
+    dockerfile: testintegration/plugins/user-defined
 
 _container_base_inet: &CONTAINER_BASE_INET
   name: inet
