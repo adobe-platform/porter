@@ -130,10 +130,12 @@ func getSecretsKey(log log15.Logger, region string) (symmetricKey []byte, secret
 
 	if len(symmetricKey) == 0 {
 		log.Crit("missing parameter key " + constants.ParameterSecretsKey)
+		return
 	}
 
 	if len(secretsPayloadLoc) == 0 {
 		log.Crit("missing parameter key " + constants.ParameterSecretsLoc)
+		return
 	}
 
 	success = true
