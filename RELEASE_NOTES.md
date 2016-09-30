@@ -8,7 +8,7 @@ can piggyback on the same secrets payload as container secrets which is
 especially helpful for ec2-bootstrap hooks to pass sensitive info such as API
 keys
 
-[User-defined hooks](docs/detailed_design/deployment-hooks.md#user-defined-hook)
+[User-defined hooks](docs/detailed_design/deployment-hooks.md#user-defined-hooks)
 
 v2.2
 ====
