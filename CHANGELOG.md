@@ -1,5 +1,7 @@
 **v2.3.0**
 
+- more resiliency for service payload downloads
+- switch to sha-256 and validate service payload integrity
 - extend container secret management to the host with `porter_get_secrets`
 - fix support for running arbitrary user defined hooks
 

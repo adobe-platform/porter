@@ -7,7 +7,7 @@ The service payload by default is a compressed tarball containing a modified
 This is multipart uploaded to S3 with the following key
 
 ```
-porter-deployment/{service name}/{environment}/{git rev-parse --short HEAD}/{md5 of tarball}.tar
+porter-deployment/{service name}/{environment}/{git rev-parse --short HEAD}/{sha256 of tarball}.tar
 ```
 
 Docker registry

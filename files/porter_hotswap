@@ -2,26 +2,29 @@
 export LOG_DEBUG=1
 {{- end }}
 
-PAYLOAD_PATH={{ .ServicePayloadHostPath }}
-rm -fr $(dirname $PAYLOAD_PATH)
-mkdir -p $(dirname $PAYLOAD_PATH)
-
 echo "downloading service payload"
-aws s3 cp s3://{{ .ServicePayloadBucket }}/{{ .ServicePayloadKey }} $PAYLOAD_PATH
+porter host svc-payload --get \
+-b {{ .ServicePayloadBucket }} \
+-k {{ .ServicePayloadKey }} \
+-s {{ .ServicePayloadChecksum }} \
+-l {{ .ServicePayloadHostPath }} \
+-r {{ .Region }}
+
+PAYLOAD_PATH={{ .ServicePayloadHostPath }}
 
 {{ if not .RegistryDeployment -}}
 # load all the containers in this tar
 echo "loading containers"
 {{ range $imageName := .ImageNames -}}
-tar -xOf $PAYLOAD_PATH ./{{ $imageName }}.docker | docker load
+tar -xzOf $PAYLOAD_PATH ./{{ $imageName }}.docker | docker load
 {{ end -}}
 {{ end -}}
 
 echo "starting containers"
-tar -xOf $PAYLOAD_PATH ./{{ .ServicePayloadConfigPath }} \
+tar -xzOf $PAYLOAD_PATH ./{{ .ServicePayloadConfigPath }} \
 | porter host docker --start -e {{ .Environment }} -r {{ .Region }} \
 | porter host haproxy -sn {{ .ServiceName }}
 
 echo "cleaning containers"
-tar -xOf $PAYLOAD_PATH ./{{ .ServicePayloadConfigPath }} \
+tar -xzOf $PAYLOAD_PATH ./{{ .ServicePayloadConfigPath }} \
 | porter host docker --clean -e {{ .Environment }} -r {{ .Region }}
