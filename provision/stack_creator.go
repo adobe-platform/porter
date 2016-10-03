@@ -174,6 +174,7 @@ func (recv *stackCreator) uploadServicePayload() (checksum string, success bool)
 				"-u", dockerPushUsername,
 				"-p", dockerPushPassword,
 				dockerRegistry)
+			loginCmd.Stdout = os.Stdout
 			loginCmd.Stderr = os.Stderr
 			err := loginCmd.Run()
 			if err != nil {
@@ -192,6 +193,7 @@ func (recv *stackCreator) uploadServicePayload() (checksum string, success bool)
 
 				log.Info("docker push")
 				pushCmd := exec.Command("docker", "push", container.Name)
+				pushCmd.Stdout = os.Stdout
 				pushCmd.Stderr = os.Stderr
 				err := pushCmd.Run()
 				if err != nil {
