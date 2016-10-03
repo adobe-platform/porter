@@ -13,7 +13,7 @@ package provision
 
 import (
 	"bytes"
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -43,10 +43,12 @@ type (
 
 		stackName string
 
-		config            conf.Config
-		environment       conf.Environment
-		region            conf.Region
-		servicePayloadKey string
+		config      conf.Config
+		environment conf.Environment
+		region      conf.Region
+
+		servicePayloadKey      string
+		servicePayloadChecksum string
 
 		secretsKey      string
 		secretsLocation string
@@ -111,8 +113,9 @@ func (recv *stackCreator) uploadServicePayload() (checksum string, success bool)
 	s3Client := s3.New(recv.roleSession)
 
 	// TODO don't use a digest that requires everything to be in memory
-	checksumArray := md5.Sum(payloadBytes)
+	checksumArray := sha256.Sum256(payloadBytes)
 	checksum = hex.EncodeToString(checksumArray[:])
+	recv.servicePayloadChecksum = checksum
 	recv.servicePayloadKey = fmt.Sprintf("%s/%s.tar", recv.s3KeyRoot(s3KeyOptDeployment), checksum)
 
 	headObjectInput := &s3.HeadObjectInput{
@@ -139,6 +142,7 @@ func (recv *stackCreator) uploadServicePayload() (checksum string, success bool)
 		Bucket:          aws.String(recv.region.S3Bucket),
 		Key:             aws.String(recv.servicePayloadKey),
 		Body:            bytes.NewReader(payloadBytes),
+		ContentType:     aws.String("application/x-tar"),
 		ContentEncoding: aws.String("gzip"),
 	}
 
@@ -228,14 +232,15 @@ func (recv *stackCreator) createStack() (stackId string, success bool) {
 		return
 	}
 
-	checksumArray := md5.Sum(templateBytes)
+	checksumArray := sha256.Sum256(templateBytes)
 	checksum := hex.EncodeToString(checksumArray[:])
 	templateS3Key := fmt.Sprintf("%s/%s", recv.s3KeyRoot(s3KeyOptTemplate), checksum)
 
 	uploadInput := &s3manager.UploadInput{
-		Bucket: aws.String(recv.region.S3Bucket),
-		Key:    aws.String(templateS3Key),
-		Body:   bytes.NewReader(templateBytes),
+		Bucket:      aws.String(recv.region.S3Bucket),
+		Key:         aws.String(templateS3Key),
+		Body:        bytes.NewReader(templateBytes),
+		ContentType: aws.String("application/json"),
 	}
 
 	if recv.region.SSEKMSKeyId != nil {

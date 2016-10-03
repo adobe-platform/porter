@@ -59,15 +59,8 @@ EXAMPLES
 
         porter bootstrap s3 -prefix some-org-builds
 
-    Once I deployed my services 'foo' and 'bar' to us-west-2 and us-east-1 then
-    I would have the following bucket contents after a successful deployment of
-    each of those services:
-
-        <bucket>/<service name>/<service payload md5>.tar
-        some-org-builds-us-west-2/foo/60cd1b9bbb72da323454ea890fa183fc.tar
-        some-org-builds-us-west-2/bar/bd4ed4de7d0c7f1c16b64686db63a00a.tar
-        some-org-builds-us-east-1/foo/60cd1b9bbb72da323454ea890fa183fc.tar
-        some-org-builds-us-east-1/bar/bd4ed4de7d0c7f1c16b64686db63a00a.tar
+    See the service payload docs for info on the s3 key structure
+    https://github.com/adobe-platform/porter/blob/master/docs/detailed_design/service-payload.md
 
     Go to https://console.aws.amazon.com/iam/home?#users and create a user with
     the following inline policy:

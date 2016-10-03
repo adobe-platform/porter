@@ -40,6 +40,7 @@ type (
 		ServicePayloadKey        string
 		ServicePayloadConfigPath string
 		ServicePayloadHostPath   string
+		ServicePayloadChecksum   string
 
 		RegistryDeployment bool
 		InsecureRegistry   string

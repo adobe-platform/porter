@@ -499,7 +499,8 @@ func setAutoScalingLaunchConfigurationMetadata(recv *stackCreator, template *cfn
 		ServicePayloadBucket:     recv.region.S3Bucket,
 		ServicePayloadKey:        recv.servicePayloadKey,
 		ServicePayloadConfigPath: constants.ServicePayloadConfigPath,
-		ServicePayloadHostPath:   fmt.Sprintf("/porter/%d.tar", time.Now().UnixNano()),
+		ServicePayloadHostPath:   fmt.Sprintf("/porter/%d.tar.gz", time.Now().UnixNano()),
+		ServicePayloadChecksum:   recv.servicePayloadChecksum,
 
 		RegistryDeployment: recv.registryDeployment,
 
