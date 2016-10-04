@@ -118,7 +118,7 @@ func ProvisionStack(env string) {
 		Environment: env,
 	}
 
-	if !hook.Execute(log, constants.HookPreProvision, env, nil) {
+	if !hook.Execute(log, constants.HookPreProvision, env, nil, true) {
 		os.Exit(1)
 	}
 
@@ -135,17 +135,32 @@ func ProvisionStack(env string) {
 		go provisionStackPoll(environment, regionOutput, outputChan, failureChan)
 	}
 
-	commandFailed := false
+	commandSuccess := true
 	for i := 0; i < regionCount; i++ {
 		select {
 		case regionOutput := <-outputChan:
 			provisionOutput.Regions = append(provisionOutput.Regions, regionOutput)
 		case _ = <-failureChan:
-			commandFailed = true
+			commandSuccess = false
 		}
 	}
 
-	if commandFailed {
+	if commandSuccess {
+
+		provisionBytes, err := json.Marshal(provisionOutput)
+		if err != nil {
+			log.Error("json.Marshal", "Error", err)
+			os.Exit(1)
+		}
+
+		// write the stackoutput into porter tmp directory
+		err = ioutil.WriteFile(constants.ProvisionOutputPath, provisionBytes, 0644)
+		if err != nil {
+			log.Error("Unable to write provision output", "Error", err)
+			os.Exit(1)
+		}
+
+	} else {
 
 		if len(provisionOutput.Regions) > 0 {
 			log.Warn("Some regions failed to create. Deleting the successful ones")
@@ -164,23 +179,12 @@ func ProvisionStack(env string) {
 				cloudformation.DeleteStack(cfnClient, pr.StackId)
 			}
 		}
-
-		os.Exit(1)
 	}
 
-	provisionBytes, err := json.Marshal(provisionOutput)
-	if err != nil {
-		log.Error("json.Marshal", "Error", err)
-	}
+	hookSuccess := hook.Execute(log, constants.HookPostProvision,
+		env, provisionOutput.Regions, commandSuccess)
 
-	// write the stackoutput into porter tmp directory
-	err = ioutil.WriteFile(constants.ProvisionOutputPath, provisionBytes, 0644)
-	if err != nil {
-		log.Error("Unable to write provision output", "Error", err)
-		os.Exit(1)
-	}
-
-	if !hook.Execute(log, constants.HookPostProvision, env, provisionOutput.Regions) {
+	if !commandSuccess || !hookSuccess {
 		os.Exit(1)
 	}
 }

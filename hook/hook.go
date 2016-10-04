@@ -55,6 +55,7 @@ func newOpts() *Opts {
 func Execute(log log15.Logger,
 	hookName, environment string,
 	provisionedRegions []provision_output.Region,
+	commandSuccess bool,
 	fs ...func(*Opts)) (success bool) {
 
 	var err error
@@ -79,7 +80,7 @@ func Execute(log log15.Logger,
 	}
 	log.Debug("os.Getwd()", "Path", workingDir)
 
-	var configHooks []conf.Hook
+	var configHooks []*conf.Hook
 
 	configHooks, exists := config.Hooks[hookName]
 	if !exists {
@@ -91,7 +92,7 @@ func Execute(log log15.Logger,
 
 		runArgs := runArgsFactory(log, config, workingDir)
 
-		if !runConfigHooks(log, config, hookName, configHooks, runArgs, opts) {
+		if !runConfigHooks(log, config, hookName, configHooks, runArgs, opts, commandSuccess) {
 			return
 		}
 
@@ -179,7 +180,7 @@ func Execute(log log15.Logger,
 					"-e", "AWS_CLOUDFORMATION_STACKID="+pr.StackId)
 			}
 
-			if !runConfigHooks(log, config, hookName, configHooks, runArgs, opts) {
+			if !runConfigHooks(log, config, hookName, configHooks, runArgs, opts, commandSuccess) {
 				return
 			}
 		}
@@ -233,7 +234,7 @@ type hookLinkedList struct {
 }
 
 func runConfigHooks(log log15.Logger, config *conf.Config, hookName string,
-	hooks []conf.Hook, runArgs []string, opts *Opts) (success bool) {
+	hooks []*conf.Hook, runArgs []string, opts *Opts, commandSuccess bool) (success bool) {
 
 	successChan := make(chan bool)
 	var (
@@ -252,8 +253,18 @@ func runConfigHooks(log log15.Logger, config *conf.Config, hookName string,
 	}
 
 	for hookIndex, hook := range hooks {
+		if commandSuccess {
+			if hook.RunCondition == constants.HRC_Fail {
+				continue
+			}
+		} else {
+			if hook.RunCondition == constants.HRC_Pass {
+				continue
+			}
+		}
+
 		next := &hookLinkedList{
-			hook:      hook,
+			hook:      *hook,
 			hookIndex: hookIndex,
 		}
 
@@ -310,6 +321,7 @@ func runConfigHooks(log log15.Logger, config *conf.Config, hookName string,
 
 func runConfigHook(log log15.Logger, config conf.Config, hookName string,
 	hookIndex int, hook conf.Hook, runArgs []string, opts *Opts) (success bool) {
+
 	log.Debug("runConfigHook() BEGIN")
 	defer log.Debug("runConfigHook() END")
 

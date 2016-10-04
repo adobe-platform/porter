@@ -27,6 +27,8 @@ hooks:
       AWS_ACCOUNT_ID:
       SSH_KEY:
   post_pack:
+  - dockerfile: hooks/post-pack-fail
+    run_condition: always
   - repo: $TEST_REPO_URL
     ref: $TEST_REPO_BRANCH
     dockerfile: testintegration/plugins/post-pack

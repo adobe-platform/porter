@@ -82,7 +82,7 @@ func (recv *HookCmd) Execute(args []string) bool {
 			return true
 		}
 
-		if !hook.Execute(log, hookName, environment, nil) {
+		if !hook.Execute(log, hookName, environment, nil, true) {
 			os.Exit(1)
 		}
 

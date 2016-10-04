@@ -473,6 +473,7 @@ func setAutoScalingLaunchConfigurationMetadata(recv *stackCreator, template *cfn
 				AWSRegion: recv.region.Name,
 			},
 		},
+		true,
 		func(opts *hook.Opts) {
 			// opts.BuildStdout = nil
 			// opts.BuildStderr = nil

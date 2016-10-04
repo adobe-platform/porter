@@ -58,6 +58,10 @@ const (
 	HookPostPrune     = "post_prune"
 	HookEC2Bootstrap  = "ec2_bootstrap"
 
+	HRC_Pass   = "pass"
+	HRC_Fail   = "fail"
+	HRC_Always = "always"
+
 	// The relative path from the service payload to the serialized *conf.Config
 	ServicePayloadConfigPath = "config.yaml"
 

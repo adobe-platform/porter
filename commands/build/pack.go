@@ -45,7 +45,7 @@ func (recv *PackCmd) Execute(args []string) bool {
 
 	log := logger.CLI("cmd", "build-pack")
 
-	if !hook.Execute(log, constants.HookPrePack, "", nil) {
+	if !hook.Execute(log, constants.HookPrePack, "", nil, true) {
 		os.Exit(1)
 	}
 
@@ -58,11 +58,11 @@ func (recv *PackCmd) Execute(args []string) bool {
 		config.Print()
 	}
 
-	if success := provision.Package(log, config); !success {
-		os.Exit(1)
-	}
+	commandSuccess := provision.Package(log, config)
 
-	if !hook.Execute(log, constants.HookPostPack, "", nil) {
+	hookSuccess := hook.Execute(log, constants.HookPostPack, "", nil, commandSuccess)
+
+	if !commandSuccess || !hookSuccess {
 		os.Exit(1)
 	}
 

@@ -1,0 +1,8 @@
+FROM ubuntu:16.04
+
+ADD post-pack-fail.cmd /
+RUN chmod 544 /post-pack-fail.cmd
+
+WORKDIR /repo_root
+
+CMD /post-pack-fail.cmd
