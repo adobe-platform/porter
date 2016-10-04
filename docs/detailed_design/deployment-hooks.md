@@ -16,10 +16,10 @@ Hooks can be referenced in 2 ways:
 All hooks are optional and will only be called if they exist. If they exist they
 must exit with a code of 0 to continue the deployment. Any non-zero exit code is
 considered a failure and will halt whatever command was called that caused the
-hook to be called.
+hook to be called. Exceptions to the rule can be configured via [run conditions](#run-conditions).
 
-There are currently 9 hooks available. 8 of them are used during the 4 build
-phases (pre and post), the other is used to customize EC2 initialization.
+There are currently 9 hooks porter defines. 8 of them are used during the 4
+build phases (pre and post), the other is used to customize EC2 initialization.
 
 The `pre` and `post` hooks are tied to the `porter build ...` command names, not
 the underlying mechanisms of provisioning, promoting, etc.
@@ -163,3 +163,23 @@ logically separate from the caller's perspective.
 
 The recommendation is to use pre hooks and then add or change to post hooks as
 hooks are better understood or requirements dictate.
+
+Run conditions
+--------------
+
+For post-pack, post-provision, and post-promote, and post-prune you can set run
+conditions so that these hooks may run regardless of failure in the command they
+run after. The implicit run condition is `run_condition: pass` which means the
+hook will only be run only if the build step passed.
+
+Additional options are `run_condition: fail` and `run_condition: always` which
+be run only on failure, and always, respectively.
+
+Failure is defined as the underlying command failing meaning if a `pre-pack`
+hooks fails, the packaging never takes place and `post-pack` is not called even
+with a `run_condition: fail` or `run_condition: always`. If `pre-pack` succeeds
+or is undefined and packaging fails, then all `post-pack` hooks with
+`run_condition: fail` or `run_condition: always` are run.
+
+The intent of `run_condition` is to allow scripts that may have altered some
+state in a `pre-*` hook to be able to clean up if something goes wrong.

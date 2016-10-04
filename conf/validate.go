@@ -108,31 +108,31 @@ func (recv *Config) ValidateTopLevelKeys() error {
 
 func (recv *Config) ValidateHooks() (err error) {
 
-	for hookName, hookVal := range recv.Hooks {
-		err = validateHook(hookName, hookVal)
-		if err != nil {
-			return err
-		}
-	}
+	for name, hookList := range recv.Hooks {
 
-	return
-}
+		for _, hook := range hookList {
 
-func validateHook(name string, hooks []Hook) error {
-	for _, hook := range hooks {
-
-		if hook.Repo == "" {
-
-			if hook.Dockerfile == "" {
-				return errors.New("A " + name + " hook has neither a dockerfile nor a repo")
+			switch hook.RunCondition {
+			case constants.HRC_Pass:
+			case constants.HRC_Fail:
+			case constants.HRC_Always:
+			default:
+				return fmt.Errorf("Invalid run_condition [%s] on a %s hook",
+					hook.RunCondition, name)
 			}
-		} else {
 
-			if hook.Ref == "" {
-				return errors.New("A " + name + " hook has a configured repo but no ref")
+			if hook.Repo == "" {
+
+				if hook.Dockerfile == "" {
+					return fmt.Errorf("A %s hook has neither a dockerfile nor a repo", name)
+				}
+			} else {
+
+				if hook.Ref == "" {
+					return fmt.Errorf("A %s hook has a configured repo but no ref", name)
+				}
 			}
 		}
-
 	}
 
 	return nil

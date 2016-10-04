@@ -116,6 +116,10 @@ func UpdateStack(log log15.Logger, config *conf.Config, args StackArgs, createSt
 				ParameterKey:   aws.String(constants.ParameterSecretsKey),
 				ParameterValue: aws.String(input.SecretsKey),
 			},
+			{
+				ParameterKey:   aws.String(constants.ParameterSecretsLoc),
+				ParameterValue: aws.String(input.SecretsLoc),
+			},
 		}
 
 		err := cloudformation.UpdateStack(client, regionOutput.StackId, input.TemplateUrl, parameters)

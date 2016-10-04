@@ -74,13 +74,6 @@ func (recv *PromoteCmd) Execute(args []string) bool {
 		provisionOutputPath = constants.ProvisionOutputPath
 	}
 
-	PromoteStack(provisionOutputPath, elbType)
-
-	return true
-}
-
-func PromoteStack(provisionOutputPath string, elbType string) {
-
 	log := logger.CLI("cmd", "build-promote")
 
 	config, success := conf.GetAlteredConfig(log)
@@ -101,17 +94,20 @@ func PromoteStack(provisionOutputPath string, elbType string) {
 		os.Exit(1)
 	}
 
-	if !hook.Execute(log, constants.HookPrePromote, provisionedEnv.Environment, provisionedEnv.Regions) {
+	if !hook.Execute(log, constants.HookPrePromote,
+		provisionedEnv.Environment, provisionedEnv.Regions, true) {
 		os.Exit(1)
 	}
 
-	if !promote.Promote(log, config, provisionedEnv, elbType) {
+	commandSuccess := promote.Promote(log, config, provisionedEnv, elbType)
+
+	hookSuccess := hook.Execute(log, constants.HookPostPromote,
+		provisionedEnv.Environment, provisionedEnv.Regions, commandSuccess)
+
+	if !commandSuccess || !hookSuccess {
 		os.Exit(1)
 	}
 
-	if !hook.Execute(log, constants.HookPostPromote, provisionedEnv.Environment, provisionedEnv.Regions) {
-		os.Exit(1)
-	}
-
-	log.Info("Promoted service")
+	log.Info("Promote complete")
+	return true
 }

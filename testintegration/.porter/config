@@ -27,6 +27,8 @@ hooks:
       AWS_ACCOUNT_ID:
       SSH_KEY:
   post_pack:
+  - dockerfile: hooks/post-pack-fail
+    run_condition: always
   - repo: $TEST_REPO_URL
     ref: $TEST_REPO_BRANCH
     dockerfile: testintegration/plugins/post-pack
@@ -44,6 +46,12 @@ hooks:
     dockerfile: testintegration/plugins/post-pack
   ec2_bootstrap:
   - dockerfile: hooks/ec2-bootstrap
+    concurrent: true
+    environment:
+      DEV_MODE:
+      FOO: bar
+  - dockerfile: hooks/ec2-bootstrap
+    concurrent: true
     environment:
       DEV_MODE:
       FOO: bar
