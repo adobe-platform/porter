@@ -12,7 +12,6 @@
 package provision
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"strconv"
@@ -463,7 +462,7 @@ func setAutoScalingLaunchConfigurationMetadata(recv *stackCreator, template *cfn
 	}
 	elbCSV := strings.Join(elbNames, ",")
 
-	var eC2BootstrapScript bytes.Buffer
+	var eC2BootstrapScript safeWriter
 
 	hookSuccess := hook.Execute(recv.log,
 		constants.HookEC2Bootstrap,

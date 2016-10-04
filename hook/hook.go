@@ -38,7 +38,7 @@ type (
 	}
 )
 
-// Multi-region deployment means we need an additional unique id for git clones
+// Multi-region deployment means we need a globally unique id for git clones
 // and image names
 var globalCounter *uint32 = new(uint32)
 
@@ -92,9 +92,7 @@ func Execute(log log15.Logger,
 
 		runArgs := runArgsFactory(log, config, workingDir)
 
-		if !runConfigHooks(log, config, hookName, configHooks, runArgs, opts, commandSuccess) {
-			return
-		}
+		success = runConfigHooks(log, config.ServiceName, hookName, configHooks, runArgs, *opts, commandSuccess)
 
 	} else {
 
@@ -117,6 +115,8 @@ func Execute(log log15.Logger,
 				provisionedRegions = append(provisionedRegions, pr)
 			}
 		}
+
+		successChan := make(chan bool)
 
 		for _, pr := range provisionedRegions {
 
@@ -180,15 +180,26 @@ func Execute(log log15.Logger,
 					"-e", "AWS_CLOUDFORMATION_STACKID="+pr.StackId)
 			}
 
-			if !runConfigHooks(log, config, hookName, configHooks, runArgs, opts, commandSuccess) {
-				return
-			}
+			go func(log log15.Logger, serviceName, hookName string,
+				hooks []*conf.Hook, runArgs []string, opts Opts, commandSuccess bool) {
+
+				successChan <- runConfigHooks(log, config.ServiceName, hookName, configHooks, runArgs, opts, commandSuccess)
+
+			}(log, config.ServiceName, hookName, configHooks, runArgs, *opts, commandSuccess)
+		}
+
+		success = true
+
+		for i := 0; i < len(provisionedRegions); i++ {
+
+			runConfigHooksSuccess := <-successChan
+
+			success = success && runConfigHooksSuccess
 		}
 	}
 
 	log.Info("Hook END")
 
-	success = true
 	return
 }
 
@@ -233,23 +244,22 @@ type hookLinkedList struct {
 	next *hookLinkedList
 }
 
-func runConfigHooks(log log15.Logger, config *conf.Config, hookName string,
-	hooks []*conf.Hook, runArgs []string, opts *Opts, commandSuccess bool) (success bool) {
+func runConfigHooks(log log15.Logger, serviceName, hookName string,
+	hooks []*conf.Hook, runArgs []string, opts Opts, commandSuccess bool) (success bool) {
 
 	successChan := make(chan bool)
 	var (
 		concurrentCount int
-		configSuccess   bool
 
 		head *hookLinkedList
 		tail *hookLinkedList
 	)
 
 	// Only retained lexical scope is successChan, everything else is copied
-	goGadgetHook := func(log log15.Logger, config conf.Config, hookName string,
-		hookIndex int, hook conf.Hook, runArgs []string, opts *Opts) {
+	goGadgetHook := func(log log15.Logger, serviceName, hookName string,
+		hookIndex int, hook conf.Hook, runArgs []string, opts Opts) {
 
-		successChan <- runConfigHook(log, config, hookName, hookIndex, hook, runArgs, opts)
+		successChan <- runConfigHook(log, serviceName, hookName, hookIndex, hook, runArgs, opts)
 	}
 
 	for hookIndex, hook := range hooks {
@@ -292,7 +302,7 @@ func runConfigHooks(log log15.Logger, config *conf.Config, hookName string,
 
 		log := log.New("HookIndex", node.hookIndex, "Concurrent", node.hook.Concurrent)
 		log.Debug("go go gadget hook")
-		go goGadgetHook(log, *config, hookName, node.hookIndex, node.hook, runArgs, opts)
+		go goGadgetHook(log, serviceName, hookName, node.hookIndex, node.hook, runArgs, opts)
 
 		// block anytime we're not running consecutive concurrent hooks
 		if node.next == nil || !node.next.hook.Concurrent {
@@ -306,11 +316,6 @@ func runConfigHooks(log log15.Logger, config *conf.Config, hookName string,
 			}
 			log.Debug("Hook(s) finished", "concurrentCount", concurrentCount)
 
-			config, configSuccess = conf.GetConfig(log, false)
-			if !configSuccess {
-				return
-			}
-
 			concurrentCount = 0
 		}
 	}
@@ -319,8 +324,8 @@ func runConfigHooks(log log15.Logger, config *conf.Config, hookName string,
 	return
 }
 
-func runConfigHook(log log15.Logger, config conf.Config, hookName string,
-	hookIndex int, hook conf.Hook, runArgs []string, opts *Opts) (success bool) {
+func runConfigHook(log log15.Logger, serviceName, hookName string,
+	hookIndex int, hook conf.Hook, runArgs []string, opts Opts) (success bool) {
 
 	log.Debug("runConfigHook() BEGIN")
 	defer log.Debug("runConfigHook() END")
@@ -371,7 +376,7 @@ func runConfigHook(log log15.Logger, config conf.Config, hookName string,
 		dockerFilePath = path.Join(repoDir, dockerFilePath)
 	}
 
-	imageName := fmt.Sprintf("%s-%s-%d-%d", config.ServiceName, hookName, hookIndex, hookCounter)
+	imageName := fmt.Sprintf("%s-%s-%d-%d", serviceName, hookName, hookIndex, hookCounter)
 
 	if !buildAndRun(log, imageName, dockerFilePath, runArgs, opts) {
 		return
@@ -382,7 +387,7 @@ func runConfigHook(log log15.Logger, config conf.Config, hookName string,
 }
 
 func buildAndRun(log log15.Logger, imageName, dockerFilePath string,
-	runArgs []string, opts *Opts) (success bool) {
+	runArgs []string, opts Opts) (success bool) {
 
 	log = log.New("Dockerfile", dockerFilePath, "ImageName", imageName)
 
