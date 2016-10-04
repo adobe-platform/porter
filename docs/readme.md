@@ -37,6 +37,7 @@ Features
 
 - Interactive command line interface (CLI) packaged as a statically linked binary
 - Multi-region, multi-AZ, blue-green deployments
+- Secrets management
 - Works in EC2-Classic, Default VPC, and Custom VPCs
 - Highly customizable
   - Programmable deployment pipeline and EC2 host-level customizations to help
