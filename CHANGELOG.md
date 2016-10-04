@@ -1,3 +1,8 @@
+**v2.4.0**
+
+- run hooks concurrently across regions
+- hook `run_condition`
+
 **v2.3.0**
 
 - more resiliency for service payload downloads
