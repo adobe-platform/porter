@@ -1410,7 +1410,7 @@
           "Ref": "AgentDesiredCapacity"
         },
         "MinSize": "1",
-        "Recurrence": "0 16 * * 1-5"
+        "Recurrence": "0 15 * * 1-5"
       }
     },
     "ScheduledActionDown": {
@@ -1421,7 +1421,7 @@
         },
         "MaxSize": "1",
         "MinSize": "1",
-        "Recurrence": "0 2 * * *"
+        "Recurrence": "0 1 * * *"
       }
     },
     "IAMRole": {
