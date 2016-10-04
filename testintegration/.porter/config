@@ -46,6 +46,12 @@ hooks:
     dockerfile: testintegration/plugins/post-pack
   ec2_bootstrap:
   - dockerfile: hooks/ec2-bootstrap
+    concurrent: true
+    environment:
+      DEV_MODE:
+      FOO: bar
+  - dockerfile: hooks/ec2-bootstrap
+    concurrent: true
     environment:
       DEV_MODE:
       FOO: bar
