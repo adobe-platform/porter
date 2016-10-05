@@ -585,9 +585,7 @@
         "LaunchConfigurationName": {
           "Ref": "GoCDAgentAutoScalingLaunchConfiguration"
         },
-        "MaxSize": {
-          "Ref": "AgentDesiredCapacity"
-        },
+        "MaxSize": "10",
         "DesiredCapacity": {
           "Ref": "AgentDesiredCapacity"
         },
