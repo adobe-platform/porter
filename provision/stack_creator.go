@@ -53,8 +53,6 @@ type (
 		secretsKey      string
 		secretsLocation string
 
-		registryDeployment bool
-
 		roleSession *session.Session
 
 		// Stack creation is mostly the same between CreateStack and UpdateStack
@@ -157,61 +155,6 @@ func (recv *stackCreator) uploadServicePayload() (checksum string, success bool)
 	if err != nil {
 		recv.log.Error("Upload failure", "Error", err)
 		return
-	}
-
-	dockerRegistry := os.Getenv(constants.EnvDockerRegistry)
-	dockerRepository := os.Getenv(constants.EnvDockerRepository)
-	dockerPushUsername := os.Getenv(constants.EnvDockerPushUsername)
-	dockerPushPassword := os.Getenv(constants.EnvDockerPushPassword)
-
-	if dockerRegistry != "" && dockerRepository != "" {
-		recv.registryDeployment = true
-
-		if dockerPushUsername != "" && dockerPushPassword != "" {
-
-			recv.log.Info("docker login")
-			loginCmd := exec.Command("docker", "login",
-				"-u", dockerPushUsername,
-				"-p", dockerPushPassword,
-				dockerRegistry)
-			loginCmd.Stdout = os.Stdout
-			loginCmd.Stderr = os.Stderr
-			err := loginCmd.Run()
-			if err != nil {
-				recv.log.Error("docker login", "Error", err)
-				return
-			}
-		}
-
-		containerCount := len(recv.region.Containers)
-		pushSuccessChan := make(chan bool, containerCount)
-
-		for _, container := range recv.region.Containers {
-
-			go func(log log15.Logger, container conf.Container) {
-				log = log.New("ImageTag", container.Name)
-
-				log.Info("docker push")
-				pushCmd := exec.Command("docker", "push", container.Name)
-				pushCmd.Stdout = os.Stdout
-				pushCmd.Stderr = os.Stderr
-				err := pushCmd.Run()
-				if err != nil {
-					log.Error("docker push", "Error", err)
-					pushSuccessChan <- false
-					return
-				}
-				pushSuccessChan <- true
-
-			}(recv.log, *container)
-		}
-
-		for i := 0; i < containerCount; i++ {
-			pushSuccess := <-pushSuccessChan
-			if !pushSuccess {
-				return
-			}
-		}
 	}
 
 	success = true

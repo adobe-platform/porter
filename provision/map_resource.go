@@ -502,7 +502,7 @@ func setAutoScalingLaunchConfigurationMetadata(recv *stackCreator, template *cfn
 		ServicePayloadHostPath:   fmt.Sprintf("/porter/%d.tar.gz", time.Now().UnixNano()),
 		ServicePayloadChecksum:   recv.servicePayloadChecksum,
 
-		RegistryDeployment: recv.registryDeployment,
+		RegistryDeployment: os.Getenv(constants.EnvDockerRegistry) != "",
 
 		InetHealthCheckMethod: strconv.Quote(recv.region.HealthCheckMethod()),
 		InetHealthCheckPath:   strconv.Quote(recv.region.HealthCheckPath()),
