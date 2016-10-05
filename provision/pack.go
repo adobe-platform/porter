@@ -21,12 +21,15 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/adobe-platform/porter/conf"
 	"github.com/adobe-platform/porter/constants"
 	"github.com/inconshreveable/log15"
 )
+
+var dockerSaveLock sync.Mutex
 
 // Package creates the service payload to deliver to S3
 func Package(log log15.Logger, config *conf.Config) (success bool) {
@@ -244,6 +247,11 @@ func buildContainer(log log15.Logger, containerName, dockerfile, dockerfileBuild
 		log.Info("saving docker image to " + imagePath)
 
 		exec.Command("mkdir", "-p", path.Dir(imagePath)).Run()
+
+		// concurrent docker saves give this
+		// Error response from daemon: open /var/lib/docker/devicemapper/mnt/0faf0a543943f7c709a018aacb339edbd85e307fd59d2a0f873af93ef25bf243/rootfs/etc/ssl/certs/ca-certificates.crt: no such file or directory
+		dockerSaveLock.Lock()
+		defer dockerSaveLock.Unlock()
 
 		saveCmd := exec.Command("docker", "save", "-o", imagePath, containerName)
 		saveCmd.Stdout = os.Stdout
