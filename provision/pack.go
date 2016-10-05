@@ -48,10 +48,28 @@ func Package(log log15.Logger, config *conf.Config) (success bool) {
 	now := time.Now().Unix()
 	config.ServiceVersion = strings.TrimSpace(string(revParseOutput))
 
-	builtContainers := make(map[string]interface{})
-
 	dockerRegistry := os.Getenv(constants.EnvDockerRegistry)
 	dockerRepository := os.Getenv(constants.EnvDockerRepository)
+	dockerPushUsername := os.Getenv(constants.EnvDockerPushUsername)
+	dockerPushPassword := os.Getenv(constants.EnvDockerPushPassword)
+
+	if dockerRegistry != "" && dockerPushUsername != "" && dockerPushPassword != "" {
+
+		log.Info("docker login")
+		loginCmd := exec.Command("docker", "login",
+			"-u", dockerPushUsername,
+			"-p", dockerPushPassword,
+			dockerRegistry)
+		loginCmd.Stdout = os.Stdout
+		loginCmd.Stderr = os.Stderr
+		err := loginCmd.Run()
+		if err != nil {
+			log.Error("docker login", "Error", err)
+			return
+		}
+	}
+
+	uniqueContainers := make(map[string]*conf.Container)
 
 	// This is in a loop but assumes we're building a single container
 	// TODO support multiple containers
@@ -77,96 +95,34 @@ func Package(log log15.Logger, config *conf.Config) (success bool) {
 						config.ServiceVersion, now, container.Name)
 				}
 
-				if _, exists := builtContainers[container.OriginalName]; !exists {
+				// a unique container is the combination of its name and
+				// Dockerfiles used to build it
+				uid := container.Name + container.Dockerfile + container.DockerfileBuild
 
-					imagePath := fmt.Sprintf("%s/%s.docker", constants.PayloadWorkingDir, container.Name)
+				if _, exists := uniqueContainers[uid]; !exists {
 
-					_, err := os.Stat(container.Dockerfile)
-					if err != nil {
-						log.Error("Dockerfile stat", "Error", err)
-						return
-					}
-
-					haveBuilder := true
-					_, err = os.Stat(container.DockerfileBuild)
-					if err != nil {
-						haveBuilder = false
-					}
-
-					if haveBuilder {
-						var err error
-
-						buildBuilderCmd := exec.Command("docker", "build", "-t", container.Name+"-builder", "-f", container.DockerfileBuild, ".")
-						buildBuilderCmd.Stdout = os.Stdout
-						buildBuilderCmd.Stderr = os.Stderr
-						err = buildBuilderCmd.Run()
-						if err != nil {
-							log.Error("build Dockerfile.build", "Error", err)
-							return
-						}
-
-						runCmd := exec.Command("docker", "run", "--rm", container.Name+"-builder")
-
-						runCmdStdoutPipe, err := runCmd.StdoutPipe()
-						if err != nil {
-							log.Error("couldn't create StdoutPipe", "Error", err)
-							return
-						}
-
-						buildCmd := exec.Command("docker", "build",
-							"-t", container.Name,
-							"-f", container.Dockerfile,
-							"-")
-						buildCmd.Stdin = runCmdStdoutPipe
-						buildCmd.Stdout = os.Stdout
-						buildCmd.Stderr = os.Stderr
-
-						err = runCmd.Start()
-						if err != nil {
-							log.Error("docker run", "Error", err)
-							return
-						}
-
-						err = buildCmd.Start()
-						if err != nil {
-							log.Error("build Dockerfile", "Error", err)
-							return
-						}
-
-						runCmd.Wait()
-						buildCmd.Wait()
-					} else {
-						buildCmd := exec.Command("docker", "build",
-							"-t", container.Name,
-							"-f", container.Dockerfile,
-							".")
-						buildCmd.Stdout = os.Stdout
-						buildCmd.Stderr = os.Stderr
-						err := buildCmd.Run()
-						if err != nil {
-							log.Error("build Dockerfile", "Error", err)
-							return
-						}
-					}
-
-					if dockerRegistry == "" {
-						log.Info(fmt.Sprintf("saving docker image to %s", imagePath))
-
-						exec.Command("mkdir", "-p", path.Dir(imagePath)).Run()
-
-						saveCmd := exec.Command("docker", "save", "-o", imagePath, container.Name)
-						saveCmd.Stdout = os.Stdout
-						saveCmd.Stderr = os.Stderr
-						err = saveCmd.Run()
-						if err != nil {
-							log.Error("docker save", "Error", err)
-							return
-						}
-					}
-
-					builtContainers[container.OriginalName] = nil
+					uniqueContainers[uid] = container
 				}
 			}
+		}
+	}
+
+	successChan := make(chan bool)
+
+	for _, container := range uniqueContainers {
+
+		go func(container *conf.Container) {
+
+			successChan <- buildContainer(log, container.Name,
+				container.Dockerfile, container.DockerfileBuild)
+
+		}(container)
+	}
+
+	for i := 0; i < len(uniqueContainers); i++ {
+		success = <-successChan
+		if !success {
+			return
 		}
 	}
 
@@ -202,6 +158,114 @@ func Package(log log15.Logger, config *conf.Config) (success bool) {
 	if err != nil {
 		log.Error("tar", "Error", err)
 		return
+	}
+
+	success = true
+	return
+}
+
+func buildContainer(log log15.Logger, containerName, dockerfile, dockerfileBuild string) (success bool) {
+
+	log = log.New("ImageTag", containerName)
+
+	imagePath := fmt.Sprintf("%s/%s.docker", constants.PayloadWorkingDir, containerName)
+
+	_, err := os.Stat(dockerfile)
+	if err != nil {
+		log.Error("Dockerfile stat", "Error", err)
+		return
+	}
+
+	haveBuilder := true
+	_, err = os.Stat(dockerfileBuild)
+	if err != nil {
+		haveBuilder = false
+	}
+
+	if haveBuilder {
+		var err error
+
+		buildBuilderCmd := exec.Command("docker", "build", "-t", containerName+"-builder", "-f", dockerfileBuild, ".")
+		buildBuilderCmd.Stdout = os.Stdout
+		buildBuilderCmd.Stderr = os.Stderr
+		err = buildBuilderCmd.Run()
+		if err != nil {
+			log.Error("build Dockerfile.build", "Error", err)
+			return
+		}
+
+		runCmd := exec.Command("docker", "run", "--rm", containerName+"-builder")
+
+		runCmdStdoutPipe, err := runCmd.StdoutPipe()
+		if err != nil {
+			log.Error("couldn't create StdoutPipe", "Error", err)
+			return
+		}
+
+		buildCmd := exec.Command("docker", "build",
+			"-t", containerName,
+			"-f", dockerfile,
+			"-")
+		buildCmd.Stdin = runCmdStdoutPipe
+		buildCmd.Stdout = os.Stdout
+		buildCmd.Stderr = os.Stderr
+
+		err = runCmd.Start()
+		if err != nil {
+			log.Error("docker run", "Error", err)
+			return
+		}
+
+		err = buildCmd.Start()
+		if err != nil {
+			log.Error("build Dockerfile", "Error", err)
+			return
+		}
+
+		runCmd.Wait()
+		buildCmd.Wait()
+	} else {
+		buildCmd := exec.Command("docker", "build",
+			"-t", containerName,
+			"-f", dockerfile,
+			".")
+		buildCmd.Stdout = os.Stdout
+		buildCmd.Stderr = os.Stderr
+		err := buildCmd.Run()
+		if err != nil {
+			log.Error("build Dockerfile", "Error", err)
+			return
+		}
+	}
+
+	dockerRegistry := os.Getenv(constants.EnvDockerRegistry)
+
+	if dockerRegistry == "" {
+		log.Info("saving docker image to " + imagePath)
+
+		exec.Command("mkdir", "-p", path.Dir(imagePath)).Run()
+
+		saveCmd := exec.Command("docker", "save", "-o", imagePath, containerName)
+		saveCmd.Stdout = os.Stdout
+		saveCmd.Stderr = os.Stderr
+		err = saveCmd.Run()
+		if err != nil {
+			log.Error("docker save", "Error", err)
+			return
+		}
+
+	} else {
+
+		log.Info("docker push")
+
+		pushCmd := exec.Command("docker", "push", containerName)
+		pushCmd.Stdout = os.Stdout
+		pushCmd.Stderr = os.Stderr
+		err := pushCmd.Run()
+		if err != nil {
+			log.Error("docker push", "Error", err)
+			return
+		}
 	}
 
 	success = true
