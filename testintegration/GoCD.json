@@ -570,6 +570,7 @@
     },
     "GoCDAgentsAutoScalingGroup": {
       "Type": "AWS::AutoScaling::AutoScalingGroup",
+      "DependsOn": "GoCDAgentWaitCondition",
       "Properties": {
         "VPCZoneIdentifier": [
           {
@@ -657,6 +658,9 @@
               },
               "2_startServer": {
                 "command": "service go-server start"
+              },
+              "3_waitForStartup": {
+                "command": "signal_wait_condition"
               }
             },
             "files": {
@@ -1051,6 +1055,37 @@
                 "group": "root",
                 "mode": "000755",
                 "owner": "root"
+              },
+              "/usr/bin/signal_wait_condition": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "#!/bin/bash\n",
+                      "bash -c 'exit 1'\n",
+                      "while [[ $? != 0 ]]; do\n",
+                      "    sleep 5\n",
+                      "    curl localhost:8153\n",
+                      "done\n",
+                      "HANDLE=\"",
+                      {
+                        "Ref": "GoCDMasterWaitConditionHandle"
+                      },
+                      "\"\n",
+                      "curl -X PUT -H 'Content-Type:' \\\n",
+                      "--data-binary '{\n",
+                      "  \"Status\": \"SUCCESS\",\n",
+                      "  \"Reason\": \"some reason\",\n",
+                      "  \"UniqueId\": \"some id\",\n",
+                      "  \"Data\": \"some data\"\n",
+                      "}' \\\n",
+                      "\"$HANDLE\"\n"
+                    ]
+                  ]
+                },
+                "group": "root",
+                "mode": "000755",
+                "owner": "root"
               }
             }
           }
@@ -1132,10 +1167,7 @@
     },
     "GoCDAgentAutoScalingLaunchConfiguration": {
       "Type": "AWS::AutoScaling::LaunchConfiguration",
-      "DependsOn": [
-        "GoCDMasterAutoScalingGroup",
-        "NatGateway"
-      ],
+      "DependsOn": "NatGateway",
       "Metadata": {
         "AWS::CloudFormation::Init": {
           "configSets": {
@@ -1471,6 +1503,20 @@
           }
         ]
       }
+    },
+    "GoCDAgentWaitCondition": {
+      "DependsOn": "GoCDMasterAutoScalingGroup",
+      "Properties": {
+        "Count": 1,
+        "Handle": {
+          "Ref": "GoCDMasterWaitConditionHandle"
+        },
+        "Timeout": 1200
+      },
+      "Type": "AWS::CloudFormation::WaitCondition"
+    },
+    "GoCDMasterWaitConditionHandle": {
+      "Type": "AWS::CloudFormation::WaitConditionHandle"
     }
   },
   "Outputs": {
