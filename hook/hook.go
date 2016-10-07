@@ -14,6 +14,7 @@ package hook
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -32,8 +33,6 @@ import (
 
 type (
 	regionHookRunner struct {
-		logOutput bytes.Buffer
-
 		runOutput *chan bytes.Buffer
 
 		serviceName string
@@ -54,8 +53,6 @@ var (
 	// Multi-region deployment means we need a globally unique id for git clones
 	// and image names
 	globalCounter *uint32 = new(uint32)
-
-	logMutex sync.Mutex
 )
 
 func Execute(log log15.Logger,
@@ -112,7 +109,7 @@ func ExecuteWithRunCapture(log log15.Logger,
 			commandSuccess: commandSuccess,
 		}
 
-		success = hookRunner.runConfigHooks(log, configHooks, runArgs)
+		success = hookRunner.runConfigHooks(log, os.Stdout, configHooks, runArgs)
 
 	} else {
 
@@ -137,6 +134,7 @@ func ExecuteWithRunCapture(log log15.Logger,
 		}
 
 		successChan := make(chan bool)
+		var regionLogMutex sync.Mutex
 
 		for _, pr := range provisionedRegions {
 
@@ -213,13 +211,15 @@ func ExecuteWithRunCapture(log log15.Logger,
 				hooks []conf.Hook, runArgs []string) {
 
 				log = log.New()
-				logger.SetHandler(log, &runner.logOutput)
 
-				successChan <- runner.runConfigHooks(log, hooks, runArgs)
+				var regionLogOutput bytes.Buffer
+				logger.SetHandler(log, &regionLogOutput)
 
-				logMutex.Lock()
-				runner.logOutput.WriteTo(os.Stdout)
-				logMutex.Unlock()
+				successChan <- runner.runConfigHooks(log, &regionLogOutput, hooks, runArgs)
+
+				regionLogMutex.Lock()
+				regionLogOutput.WriteTo(os.Stdout)
+				regionLogMutex.Unlock()
 
 			}(hookRunner, log, configHooks, runArgs)
 		}
@@ -271,7 +271,9 @@ func runArgsFactory(log log15.Logger, config *conf.Config, workingDir string) []
 	return runArgs
 }
 
-func (recv *regionHookRunner) runConfigHooks(log log15.Logger, hooks []conf.Hook, runArgs []string) (success bool) {
+func (recv *regionHookRunner) runConfigHooks(log log15.Logger,
+	regionLogOutput io.Writer, hooks []conf.Hook,
+	runArgs []string) (success bool) {
 
 	successChan := make(chan bool)
 	var (
@@ -280,12 +282,21 @@ func (recv *regionHookRunner) runConfigHooks(log log15.Logger, hooks []conf.Hook
 
 		head *hookLinkedList
 		tail *hookLinkedList
+
+		hookLogMutex sync.Mutex
 	)
 
 	// Only retained lexical scope is successChan, everything else is copied
 	goGadgetHook := func(log log15.Logger, hookIndex int, hook conf.Hook, runArgs []string) {
 
-		successChan <- recv.runConfigHook(log, hookIndex, hook, runArgs)
+		var hookLogOutput bytes.Buffer
+		logger.SetHandler(log, &hookLogOutput)
+
+		successChan <- recv.runConfigHook(log, &hookLogOutput, hookIndex, hook, runArgs)
+
+		hookLogMutex.Lock()
+		hookLogOutput.WriteTo(regionLogOutput)
+		hookLogMutex.Unlock()
 	}
 
 	for hookIndex, hook := range hooks {
@@ -362,8 +373,9 @@ func (recv *regionHookRunner) runConfigHooks(log log15.Logger, hooks []conf.Hook
 	return
 }
 
-func (recv *regionHookRunner) runConfigHook(log log15.Logger, hookIndex int,
-	hook conf.Hook, runArgs []string) (success bool) {
+func (recv *regionHookRunner) runConfigHook(log log15.Logger,
+	hookLogOutput io.Writer, hookIndex int, hook conf.Hook,
+	runArgs []string) (success bool) {
 
 	log.Debug("runConfigHook() BEGIN")
 	defer log.Debug("runConfigHook() END")
@@ -398,8 +410,8 @@ func (recv *regionHookRunner) runConfigHook(log log15.Logger, hookIndex int,
 			"--depth", "1",
 			hook.Repo, repoDir,
 		)
-		cloneCmd.Stdout = &recv.logOutput
-		cloneCmd.Stderr = &recv.logOutput
+		cloneCmd.Stdout = hookLogOutput
+		cloneCmd.Stderr = hookLogOutput
 		err := cloneCmd.Run()
 		if err != nil {
 			log.Error("git clone", "Error", err)
@@ -418,7 +430,7 @@ func (recv *regionHookRunner) runConfigHook(log log15.Logger, hookIndex int,
 	imageName := fmt.Sprintf("%s-%s-%d-%d",
 		recv.serviceName, recv.hookName, hookIndex, hookCounter)
 
-	if !recv.buildAndRun(log, imageName, dockerFilePath, runArgs) {
+	if !recv.buildAndRun(log, hookLogOutput, imageName, dockerFilePath, runArgs) {
 		return
 	}
 
@@ -426,15 +438,15 @@ func (recv *regionHookRunner) runConfigHook(log log15.Logger, hookIndex int,
 	return
 }
 
-func (recv *regionHookRunner) buildAndRun(log log15.Logger, imageName,
-	dockerFilePath string, runArgs []string) (success bool) {
+func (recv *regionHookRunner) buildAndRun(log log15.Logger,
+	hookLogOutput io.Writer, imageName, dockerFilePath string,
+	runArgs []string) (success bool) {
 
 	log = log.New("Dockerfile", dockerFilePath, "ImageName", imageName)
 
 	log.Debug("buildAndRun() BEGIN")
 	defer log.Debug("buildAndRun() END")
 
-	var logOutput bytes.Buffer
 	var runOutput bytes.Buffer
 
 	defer func() {
@@ -443,8 +455,7 @@ func (recv *regionHookRunner) buildAndRun(log log15.Logger, imageName,
 			*recv.runOutput <- runOutput
 		}
 
-		logOutput.WriteTo(&recv.logOutput)
-		runOutput.WriteTo(&recv.logOutput)
+		runOutput.WriteTo(hookLogOutput)
 	}()
 
 	log.Info("You are now exiting porter and entering a porter deployment hook")
@@ -458,13 +469,13 @@ func (recv *regionHookRunner) buildAndRun(log log15.Logger, imageName,
 		"-f", dockerFilePath,
 		path.Dir(dockerFilePath),
 	)
-	dockerBuildCmd.Stdout = &logOutput
-	dockerBuildCmd.Stderr = &logOutput
+	dockerBuildCmd.Stdout = hookLogOutput
+	dockerBuildCmd.Stderr = hookLogOutput
 
 	log.Info("Building deployment hook START")
 	log.Info("==============================")
 	err := dockerBuildCmd.Run()
-	log.Info("==============================")
+	log.Info("============================")
 	log.Info("Building deployment hook END")
 
 	if err != nil {
@@ -482,7 +493,7 @@ func (recv *regionHookRunner) buildAndRun(log log15.Logger, imageName,
 
 	runCmd := exec.Command("docker", runArgs...)
 	runCmd.Stdout = &runOutput
-	runCmd.Stderr = &logOutput
+	runCmd.Stderr = hookLogOutput
 
 	log.Info("Running deployment hook START")
 	log.Info("=============================")
