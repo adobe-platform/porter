@@ -447,7 +447,12 @@ func (recv *regionHookRunner) buildAndRun(log log15.Logger, imageName,
 		runOutput.WriteTo(&recv.logOutput)
 	}()
 
-	log.Info("docker build")
+	log.Info("You are now exiting porter and entering a porter deployment hook")
+	log.Info("Deployment hooks are used to hook into porter's build lifecycle")
+	log.Info("None of the code about to be run is porter code")
+	log.Info("If you experience problems talk to the author of this Dockerfile")
+	log.Info("You can read more about deployment hooks here http://bit.ly/2dKBwd0")
+
 	dockerBuildCmd := exec.Command("docker", "build",
 		"-t", imageName,
 		"-f", dockerFilePath,
@@ -456,27 +461,35 @@ func (recv *regionHookRunner) buildAndRun(log log15.Logger, imageName,
 	dockerBuildCmd.Stdout = &logOutput
 	dockerBuildCmd.Stderr = &logOutput
 
+	log.Info("Building deployment hook START")
+	log.Info("==============================")
 	err := dockerBuildCmd.Run()
+	log.Info("==============================")
+	log.Info("Building deployment hook END")
+
 	if err != nil {
 		log.Error("docker build", "Error", err)
 		log.Info("This is not a problem with porter but with the Dockerfile porter tried to build")
 		log.Info("DO NOT contact Brandon Cook to help debug this issue")
 		log.Info("DO NOT file an issue against porter")
 		log.Info("DO contact the author of the Dockerfile or try to reproduce the problem by running docker build on this machine")
-		log.Info("Deployment hook documentation: http://bit.ly/2dKBwd0")
 		return
 	}
 
 	runArgs = append(runArgs, imageName)
 
-	log.Info("docker run")
 	log.Debug("docker run", "Args", runArgs)
 
 	runCmd := exec.Command("docker", runArgs...)
 	runCmd.Stdout = &runOutput
 	runCmd.Stderr = &logOutput
 
+	log.Info("Running deployment hook START")
+	log.Info("=============================")
 	err = runCmd.Run()
+	log.Info("===========================")
+	log.Info("Running deployment hook END")
+
 	if err != nil {
 		log.Error("docker run", "Error", err)
 		log.Info("This is not a problem with porter but with the Dockerfile porter tried to run")
@@ -485,7 +498,6 @@ func (recv *regionHookRunner) buildAndRun(log log15.Logger, imageName,
 		log.Info("DO contact the author of the Dockerfile")
 		log.Info("Run `porter help debug` to see how to enable debug logging which will show you the arguments used in docker run")
 		log.Info("Be aware that enabling debug logging will print sensitive data including, but not limited to, AWS credentials")
-		log.Info("Deployment hook documentation: http://bit.ly/2dKBwd0")
 		return
 	}
 

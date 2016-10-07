@@ -68,7 +68,7 @@ outer:
 			continue
 		}
 
-		for _, tagDescription := range tagDescriptions{
+		for _, tagDescription := range tagDescriptions {
 			for _, tag := range tagDescription.Tags {
 				if tag.Key == nil || *tag.Key != constants.PorterStackIdTag {
 					continue
