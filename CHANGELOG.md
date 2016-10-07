@@ -1,5 +1,6 @@
 **v2.4.0**
 
+- added retries to instance autoregistration
 - gather hook log output by region since they run concurrently
 - log colorization is off by default
 - run hooks concurrently across regions
