@@ -1,5 +1,7 @@
 **v2.4.0**
 
+- gather hook log output by region since they run concurrently
+- log colorization is off by default
 - run hooks concurrently across regions
 - hook `run_condition`
 
