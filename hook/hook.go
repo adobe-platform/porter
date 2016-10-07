@@ -460,8 +460,8 @@ func (recv *regionHookRunner) buildAndRun(log log15.Logger, imageName,
 	if err != nil {
 		log.Error("docker build", "Error", err)
 		log.Info("This is not a problem with porter but with the Dockerfile porter tried to build")
-		log.Warn("DO NOT contact Brandon Cook to help debug this issue")
-		log.Warn("DO NOT file an issue against porter")
+		log.Info("DO NOT contact Brandon Cook to help debug this issue")
+		log.Info("DO NOT file an issue against porter")
 		log.Info("DO contact the author of the Dockerfile or try to reproduce the problem by running docker build on this machine")
 		log.Info("Deployment hook documentation: http://bit.ly/2dKBwd0")
 		return
@@ -480,8 +480,8 @@ func (recv *regionHookRunner) buildAndRun(log log15.Logger, imageName,
 	if err != nil {
 		log.Error("docker run", "Error", err)
 		log.Info("This is not a problem with porter but with the Dockerfile porter tried to run")
-		log.Warn("DO NOT contact Brandon Cook to help debug this issue")
-		log.Warn("DO NOT file an issue against porter")
+		log.Info("DO NOT contact Brandon Cook to help debug this issue")
+		log.Info("DO NOT file an issue against porter")
 		log.Info("DO contact the author of the Dockerfile")
 		log.Info("Run `porter help debug` to see how to enable debug logging which will show you the arguments used in docker run")
 		log.Info("Be aware that enabling debug logging will print sensitive data including, but not limited to, AWS credentials")
