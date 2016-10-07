@@ -1,5 +1,14 @@
 See the [CHANGELOG](CHANGELOG.md) for a complete list of changes.
 
+v2.4
+====
+
+Hooks are now run concurrently across regions.
+
+Hook have an optional `run_condition` enabling `post-*` hooks to run even if the
+underlying command fails. Think of it as a `try...catch...finally` for
+programming deployments.
+
 v2.3
 ====
 
