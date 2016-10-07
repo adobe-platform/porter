@@ -58,10 +58,10 @@ type (
 	Config struct {
 		ServiceName    string `yaml:"service_name"`
 		ServiceVersion string
-		PorterVersion  string             `yaml:"porter_version"`
-		Environments   []*Environment     `yaml:"environments"`
-		Slack          Slack              `yaml:"slack"`
-		Hooks          map[string][]*Hook `yaml:"hooks"`
+		PorterVersion  string            `yaml:"porter_version"`
+		Environments   []*Environment    `yaml:"environments"`
+		Slack          Slack             `yaml:"slack"`
+		Hooks          map[string][]Hook `yaml:"hooks"`
 	}
 
 	Container struct {
@@ -177,12 +177,12 @@ func (recv *Config) GetEnvironment(envName string) (*Environment, error) {
 // Convention over configuration
 func (recv *Config) SetDefaults() {
 
-	for _, hookList := range recv.Hooks {
+	for _, hooks := range recv.Hooks {
 
-		for _, hook := range hookList {
+		for i := 0; i < len(hooks); i++ {
 
-			if hook.RunCondition == "" {
-				hook.RunCondition = constants.HRC_Pass
+			if hooks[i].RunCondition == "" {
+				hooks[i].RunCondition = constants.HRC_Pass
 			}
 		}
 	}
@@ -312,7 +312,7 @@ func (recv *Config) Print() {
 	}
 }
 
-func printHooks(name string, hooks []*Hook) {
+func printHooks(name string, hooks []Hook) {
 	fmt.Println("  " + name)
 	for _, hook := range hooks {
 		fmt.Println("  - .Repo", hook.Repo)

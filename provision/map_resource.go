@@ -12,6 +12,7 @@
 package provision
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strconv"
@@ -462,9 +463,9 @@ func setAutoScalingLaunchConfigurationMetadata(recv *stackCreator, template *cfn
 	}
 	elbCSV := strings.Join(elbNames, ",")
 
-	var eC2BootstrapScript safeWriter
+	var runOutputChan chan bytes.Buffer
 
-	hookSuccess := hook.Execute(recv.log,
+	hookSuccess := hook.ExecuteWithRunCapture(recv.log,
 		constants.HookEC2Bootstrap,
 		recv.environment.Name,
 		[]provision_output.Region{
@@ -472,15 +473,27 @@ func setAutoScalingLaunchConfigurationMetadata(recv *stackCreator, template *cfn
 				AWSRegion: recv.region.Name,
 			},
 		},
-		true,
-		func(opts *hook.Opts) {
-			// opts.BuildStdout = nil
-			// opts.BuildStderr = nil
-			opts.RunStdout = &eC2BootstrapScript
-			// opts.RunStderr = nil
-		})
+		true, &runOutputChan,
+	)
 	if !hookSuccess {
 		return
+	}
+
+	ec2BootstrapBufs := make([]bytes.Buffer, 0)
+
+loop:
+	for {
+		select {
+		case buf := <-runOutputChan:
+			ec2BootstrapBufs = append(ec2BootstrapBufs, buf)
+		default:
+			break loop
+		}
+	}
+
+	ec2BootstrapScript := ""
+	for _, buf := range ec2BootstrapBufs {
+		ec2BootstrapScript += "\n" + buf.String()
 	}
 
 	cfnInitContext := cfn_template.AWSCloudFormationInitCtx{
@@ -492,7 +505,7 @@ func setAutoScalingLaunchConfigurationMetadata(recv *stackCreator, template *cfn
 		ServiceName:    recv.config.ServiceName,
 		ServiceVersion: recv.config.ServiceVersion,
 
-		EC2BootstrapScript: eC2BootstrapScript.String(),
+		EC2BootstrapScript: ec2BootstrapScript,
 
 		Elbs: strconv.Quote(elbCSV),
 

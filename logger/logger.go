@@ -32,12 +32,7 @@ func init() {
 		initHostLog()
 	}
 
-	var logFmt log15.Format
-	if os.Getenv(constants.EnvNoLogColor) == "" {
-		logFmt = log15.TerminalFormat()
-	} else {
-		logFmt = log15.LogfmtFormat()
-	}
+	logFmt := getLogFmt()
 
 	if os.Getenv("TEST") == "true" {
 
@@ -48,7 +43,7 @@ func init() {
 		log15.Root().SetHandler(handler)
 	} else {
 		// the default logging format is best for logging to stdout
-		addStackTraceLogging(cliLog, os.Stdout, logFmt)
+		SetHandlerWithFormat(cliLog, os.Stdout, logFmt)
 	}
 }
 
@@ -59,7 +54,16 @@ func initHostLog() {
 		panic(err)
 	}
 
-	addStackTraceLogging(hostLog, writer, log15.LogfmtFormat())
+	SetHandlerWithFormat(hostLog, writer, log15.LogfmtFormat())
+}
+
+func getLogFmt() (logFmt log15.Format) {
+	if os.Getenv(constants.EnvLogColor) == "" {
+		logFmt = log15.LogfmtFormat()
+	} else {
+		logFmt = log15.TerminalFormat()
+	}
+	return
 }
 
 func CLI(kvps ...interface{}) log15.Logger {
@@ -75,7 +79,11 @@ func Daemon(kvps ...interface{}) log15.Logger {
 	return Host(kvps...)
 }
 
-func addStackTraceLogging(log log15.Logger, writer io.Writer, logFmt log15.Format) {
+func SetHandler(log log15.Logger, writer io.Writer) {
+	SetHandlerWithFormat(log, writer, getLogFmt())
+}
+
+func SetHandlerWithFormat(log log15.Logger, writer io.Writer, logFmt log15.Format) {
 	/*
 		Log stack traces for LvlCrit, LvlError, and LvlWarn
 		to help us debug issues in the wild
