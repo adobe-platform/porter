@@ -464,7 +464,7 @@ func (recv *regionHookRunner) buildAndRun(log log15.Logger, imageName,
 	log.Info("Building deployment hook START")
 	log.Info("==============================")
 	err := dockerBuildCmd.Run()
-	log.Info("============================")
+	log.Info("==============================")
 	log.Info("Building deployment hook END")
 
 	if err != nil {
@@ -485,7 +485,7 @@ func (recv *regionHookRunner) buildAndRun(log log15.Logger, imageName,
 	runCmd.Stderr = &logOutput
 
 	log.Info("Running deployment hook START")
-	log.Info("==============================")
+	log.Info("=============================")
 	err = runCmd.Run()
 	log.Info("===========================")
 	log.Info("Running deployment hook END")
