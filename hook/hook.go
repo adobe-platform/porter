@@ -12,65 +12,75 @@
 package hook
 
 import (
+	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/adobe-platform/porter/aws/elb"
 	"github.com/adobe-platform/porter/aws_session"
 	"github.com/adobe-platform/porter/conf"
 	"github.com/adobe-platform/porter/constants"
+	"github.com/adobe-platform/porter/logger"
 	"github.com/adobe-platform/porter/provision_output"
 	"github.com/inconshreveable/log15"
 )
 
 type (
-	Opts struct {
-		BuildStdout io.Writer
-		BuildStderr io.Writer
+	regionHookRunner struct {
+		logOutput bytes.Buffer
 
-		RunStdout io.Writer
-		RunStderr io.Writer
+		runOutput *chan bytes.Buffer
+
+		serviceName string
+		hookName    string
+
+		commandSuccess bool
+	}
+
+	hookLinkedList struct {
+		hook      conf.Hook
+		hookIndex int
+
+		next *hookLinkedList
 	}
 )
 
-// Multi-region deployment means we need a globally unique id for git clones
-// and image names
-var globalCounter *uint32 = new(uint32)
+var (
+	// Multi-region deployment means we need a globally unique id for git clones
+	// and image names
+	globalCounter *uint32 = new(uint32)
 
-func newOpts() *Opts {
-	return &Opts{
-		BuildStdout: os.Stdout,
-		BuildStderr: os.Stderr,
-
-		RunStdout: os.Stdout,
-		RunStderr: os.Stderr,
-	}
-}
+	logMutex sync.Mutex
+)
 
 func Execute(log log15.Logger,
 	hookName, environment string,
 	provisionedRegions []provision_output.Region,
-	commandSuccess bool,
-	fs ...func(*Opts)) (success bool) {
+	commandSuccess bool) bool {
+
+	return ExecuteWithRunCapture(log, hookName, environment, provisionedRegions,
+		commandSuccess, nil)
+}
+
+func ExecuteWithRunCapture(log log15.Logger,
+	hookName, environment string,
+	provisionedRegions []provision_output.Region,
+	commandSuccess bool, runOutput *chan bytes.Buffer) (success bool) {
 
 	var err error
 
 	log = log.New("HookName", hookName)
 	log.Info("Hook BEGIN")
+	defer log.Info("Hook END")
 
 	config, configSuccess := conf.GetConfig(log, false)
 	if !configSuccess {
 		return
-	}
-
-	opts := newOpts()
-	for _, f := range fs {
-		f(opts)
 	}
 
 	workingDir, err := os.Getwd()
@@ -80,7 +90,7 @@ func Execute(log log15.Logger,
 	}
 	log.Debug("os.Getwd()", "Path", workingDir)
 
-	var configHooks []*conf.Hook
+	var configHooks []conf.Hook
 
 	configHooks, exists := config.Hooks[hookName]
 	if !exists {
@@ -92,7 +102,17 @@ func Execute(log log15.Logger,
 
 		runArgs := runArgsFactory(log, config, workingDir)
 
-		success = runConfigHooks(log, config.ServiceName, hookName, configHooks, runArgs, *opts, commandSuccess)
+		hookRunner := &regionHookRunner{
+
+			runOutput: runOutput,
+
+			serviceName: config.ServiceName,
+			hookName:    hookName,
+
+			commandSuccess: commandSuccess,
+		}
+
+		success = hookRunner.runConfigHooks(log, configHooks, runArgs)
 
 	} else {
 
@@ -180,12 +200,28 @@ func Execute(log log15.Logger,
 					"-e", "AWS_CLOUDFORMATION_STACKID="+pr.StackId)
 			}
 
-			go func(log log15.Logger, serviceName, hookName string,
-				hooks []*conf.Hook, runArgs []string, opts Opts, commandSuccess bool) {
+			hookRunner := &regionHookRunner{
+				runOutput: runOutput,
 
-				successChan <- runConfigHooks(log, config.ServiceName, hookName, configHooks, runArgs, opts, commandSuccess)
+				serviceName: config.ServiceName,
+				hookName:    hookName,
 
-			}(log, config.ServiceName, hookName, configHooks, runArgs, *opts, commandSuccess)
+				commandSuccess: commandSuccess,
+			}
+
+			go func(runner *regionHookRunner, log log15.Logger,
+				hooks []conf.Hook, runArgs []string) {
+
+				log = log.New()
+				logger.SetHandler(log, &runner.logOutput)
+
+				successChan <- runner.runConfigHooks(log, hooks, runArgs)
+
+				logMutex.Lock()
+				runner.logOutput.WriteTo(os.Stdout)
+				logMutex.Unlock()
+
+			}(hookRunner, log, configHooks, runArgs)
 		}
 
 		success = true
@@ -197,8 +233,6 @@ func Execute(log log15.Logger,
 			success = success && runConfigHooksSuccess
 		}
 	}
-
-	log.Info("Hook END")
 
 	return
 }
@@ -237,33 +271,25 @@ func runArgsFactory(log log15.Logger, config *conf.Config, workingDir string) []
 	return runArgs
 }
 
-type hookLinkedList struct {
-	hook      conf.Hook
-	hookIndex int
-
-	next *hookLinkedList
-}
-
-func runConfigHooks(log log15.Logger, serviceName, hookName string,
-	hooks []*conf.Hook, runArgs []string, opts Opts, commandSuccess bool) (success bool) {
+func (recv *regionHookRunner) runConfigHooks(log log15.Logger, hooks []conf.Hook, runArgs []string) (success bool) {
 
 	successChan := make(chan bool)
 	var (
-		concurrentCount int
+		concurrentCount   int
+		eligibleHookCount int
 
 		head *hookLinkedList
 		tail *hookLinkedList
 	)
 
 	// Only retained lexical scope is successChan, everything else is copied
-	goGadgetHook := func(log log15.Logger, serviceName, hookName string,
-		hookIndex int, hook conf.Hook, runArgs []string, opts Opts) {
+	goGadgetHook := func(log log15.Logger, hookIndex int, hook conf.Hook, runArgs []string) {
 
-		successChan <- runConfigHook(log, serviceName, hookName, hookIndex, hook, runArgs, opts)
+		successChan <- recv.runConfigHook(log, hookIndex, hook, runArgs)
 	}
 
 	for hookIndex, hook := range hooks {
-		if commandSuccess {
+		if recv.commandSuccess {
 			if hook.RunCondition == constants.HRC_Fail {
 				continue
 			}
@@ -272,9 +298,10 @@ func runConfigHooks(log log15.Logger, serviceName, hookName string,
 				continue
 			}
 		}
+		eligibleHookCount++
 
 		next := &hookLinkedList{
-			hook:      *hook,
+			hook:      hook,
 			hookIndex: hookIndex,
 		}
 
@@ -290,6 +317,10 @@ func runConfigHooks(log log15.Logger, serviceName, hookName string,
 		}
 	}
 
+	if recv.runOutput != nil {
+		*recv.runOutput = make(chan bytes.Buffer, eligibleHookCount)
+	}
+
 	for node := head; node != nil; node = node.next {
 
 		if node.hook.Concurrent {
@@ -300,9 +331,16 @@ func runConfigHooks(log log15.Logger, serviceName, hookName string,
 			concurrentCount = 1
 		}
 
-		log := log.New("HookIndex", node.hookIndex, "Concurrent", node.hook.Concurrent)
+		log := log.New(
+			"HookIndex", node.hookIndex,
+			"Concurrent", node.hook.Concurrent,
+			"Repo", node.hook.Repo,
+			"Ref", node.hook.Ref,
+			"RunCondition", node.hook.RunCondition,
+		)
+
 		log.Debug("go go gadget hook")
-		go goGadgetHook(log, serviceName, hookName, node.hookIndex, node.hook, runArgs, opts)
+		go goGadgetHook(log, node.hookIndex, node.hook, runArgs)
 
 		// block anytime we're not running consecutive concurrent hooks
 		if node.next == nil || !node.next.hook.Concurrent {
@@ -324,8 +362,8 @@ func runConfigHooks(log log15.Logger, serviceName, hookName string,
 	return
 }
 
-func runConfigHook(log log15.Logger, serviceName, hookName string,
-	hookIndex int, hook conf.Hook, runArgs []string, opts Opts) (success bool) {
+func (recv *regionHookRunner) runConfigHook(log log15.Logger, hookIndex int,
+	hook conf.Hook, runArgs []string) (success bool) {
 
 	log.Debug("runConfigHook() BEGIN")
 	defer log.Debug("runConfigHook() END")
@@ -343,7 +381,7 @@ func runConfigHook(log log15.Logger, serviceName, hookName string,
 
 	if hook.Repo != "" {
 
-		repoDir := fmt.Sprintf("%s_clone_%d_%d", hookName, hookIndex, hookCounter)
+		repoDir := fmt.Sprintf("%s_clone_%d_%d", recv.hookName, hookIndex, hookCounter)
 		repoDir = path.Join(constants.TempDir, repoDir)
 
 		defer exec.Command("rm", "-fr", repoDir).Run()
@@ -360,7 +398,8 @@ func runConfigHook(log log15.Logger, serviceName, hookName string,
 			"--depth", "1",
 			hook.Repo, repoDir,
 		)
-		cloneCmd.Stderr = os.Stderr
+		cloneCmd.Stdout = &recv.logOutput
+		cloneCmd.Stderr = &recv.logOutput
 		err := cloneCmd.Run()
 		if err != nil {
 			log.Error("git clone", "Error", err)
@@ -376,9 +415,10 @@ func runConfigHook(log log15.Logger, serviceName, hookName string,
 		dockerFilePath = path.Join(repoDir, dockerFilePath)
 	}
 
-	imageName := fmt.Sprintf("%s-%s-%d-%d", serviceName, hookName, hookIndex, hookCounter)
+	imageName := fmt.Sprintf("%s-%s-%d-%d",
+		recv.serviceName, recv.hookName, hookIndex, hookCounter)
 
-	if !buildAndRun(log, imageName, dockerFilePath, runArgs, opts) {
+	if !recv.buildAndRun(log, imageName, dockerFilePath, runArgs) {
 		return
 	}
 
@@ -386,40 +426,66 @@ func runConfigHook(log log15.Logger, serviceName, hookName string,
 	return
 }
 
-func buildAndRun(log log15.Logger, imageName, dockerFilePath string,
-	runArgs []string, opts Opts) (success bool) {
+func (recv *regionHookRunner) buildAndRun(log log15.Logger, imageName,
+	dockerFilePath string, runArgs []string) (success bool) {
 
 	log = log.New("Dockerfile", dockerFilePath, "ImageName", imageName)
 
 	log.Debug("buildAndRun() BEGIN")
 	defer log.Debug("buildAndRun() END")
-	log.Info("docker build")
 
+	var logOutput bytes.Buffer
+	var runOutput bytes.Buffer
+
+	defer func() {
+
+		if recv.runOutput != nil {
+			*recv.runOutput <- runOutput
+		}
+
+		logOutput.WriteTo(&recv.logOutput)
+		runOutput.WriteTo(&recv.logOutput)
+	}()
+
+	log.Info("docker build")
 	dockerBuildCmd := exec.Command("docker", "build",
 		"-t", imageName,
 		"-f", dockerFilePath,
 		path.Dir(dockerFilePath),
 	)
-	dockerBuildCmd.Stdout = opts.BuildStdout
-	dockerBuildCmd.Stderr = opts.BuildStderr
+	dockerBuildCmd.Stdout = &logOutput
+	dockerBuildCmd.Stderr = &logOutput
 
 	err := dockerBuildCmd.Run()
 	if err != nil {
-		log.Error("docker build", "Dockerfile", dockerFilePath, "Error", err)
+		log.Error("docker build", "Error", err)
+		log.Info("This is not a problem with porter but with the Dockerfile porter tried to build")
+		log.Info("DO NOT contact Brandon Cook to help debug this issue")
+		log.Info("DO NOT file an issue against porter")
+		log.Info("DO contact the author of the Dockerfile or try to reproduce the problem by running docker build on this machine")
+		log.Info("Deployment hook documentation: http://bit.ly/2dKBwd0")
 		return
 	}
 
 	runArgs = append(runArgs, imageName)
 
-	runCmd := exec.Command("docker", runArgs...)
-	runCmd.Stdout = opts.RunStdout
-	runCmd.Stderr = opts.RunStderr
-
+	log.Info("docker run")
 	log.Debug("docker run", "Args", runArgs)
+
+	runCmd := exec.Command("docker", runArgs...)
+	runCmd.Stdout = &runOutput
+	runCmd.Stderr = &logOutput
 
 	err = runCmd.Run()
 	if err != nil {
 		log.Error("docker run", "Error", err)
+		log.Info("This is not a problem with porter but with the Dockerfile porter tried to run")
+		log.Info("DO NOT contact Brandon Cook to help debug this issue")
+		log.Info("DO NOT file an issue against porter")
+		log.Info("DO contact the author of the Dockerfile")
+		log.Info("Run `porter help debug` to see how to enable debug logging which will show you the arguments used in docker run")
+		log.Info("Be aware that enabling debug logging will print sensitive data including, but not limited to, AWS credentials")
+		log.Info("Deployment hook documentation: http://bit.ly/2dKBwd0")
 		return
 	}
 

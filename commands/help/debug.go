@@ -35,6 +35,9 @@ DEBUG_AWS
 LOG_DEBUG
     Turn on porter's debug logging
 
+LOG_COLOR
+    Turn on log colors
+
 STACK_CREATION_TIMEOUT
     Override rollback time with a string parsed by
     https://golang.org/pkg/time/#ParseDuration
@@ -49,9 +52,6 @@ STACK_CREATION_POLL_INTERVAL
     Override the default polling for creation status interval during
     stack provisioning. The value is a string parsed by
     https://golang.org/pkg/time/#ParseDuration. The default value is 10 seconds.
-
-NO_LOG_COLOR
-    The default logger has color. This option turns it off.
 
 DEV_MODE
     Grease the wheels on development`
