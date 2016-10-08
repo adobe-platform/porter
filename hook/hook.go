@@ -454,8 +454,6 @@ func (recv *regionHookRunner) buildAndRun(log log15.Logger,
 		if recv.runOutput != nil {
 			*recv.runOutput <- runOutput
 		}
-
-		runOutput.WriteTo(hookLogOutput)
 	}()
 
 	log.Info("You are now exiting porter and entering a porter deployment hook")
@@ -472,18 +470,18 @@ func (recv *regionHookRunner) buildAndRun(log log15.Logger,
 	dockerBuildCmd.Stdout = hookLogOutput
 	dockerBuildCmd.Stderr = hookLogOutput
 
-	log.Info("Building deployment hook START")
-	log.Info("==============================")
+	fmt.Fprintln(hookLogOutput, "Building deployment hook START")
+	fmt.Fprintln(hookLogOutput, "==============================")
 	err := dockerBuildCmd.Run()
-	log.Info("============================")
-	log.Info("Building deployment hook END")
+	fmt.Fprintln(hookLogOutput, "============================")
+	fmt.Fprintln(hookLogOutput, "Building deployment hook END")
 
 	if err != nil {
 		log.Error("docker build", "Error", err)
-		log.Info("This is not a problem with porter but with the Dockerfile porter tried to build")
-		log.Info("DO NOT contact Brandon Cook to help debug this issue")
-		log.Info("DO NOT file an issue against porter")
-		log.Info("DO contact the author of the Dockerfile or try to reproduce the problem by running docker build on this machine")
+		fmt.Fprintln(hookLogOutput, "This is not a problem with porter but with the Dockerfile porter tried to build")
+		fmt.Fprintln(hookLogOutput, "DO NOT contact Brandon Cook to help debug this issue")
+		fmt.Fprintln(hookLogOutput, "DO NOT file an issue against porter")
+		fmt.Fprintln(hookLogOutput, "DO contact the author of the Dockerfile or try to reproduce the problem by running docker build on this machine")
 		return
 	}
 
@@ -492,23 +490,23 @@ func (recv *regionHookRunner) buildAndRun(log log15.Logger,
 	log.Debug("docker run", "Args", runArgs)
 
 	runCmd := exec.Command("docker", runArgs...)
-	runCmd.Stdout = &runOutput
+	runCmd.Stdout = io.MultiWriter(hookLogOutput, &runOutput)
 	runCmd.Stderr = hookLogOutput
 
-	log.Info("Running deployment hook START")
-	log.Info("=============================")
+	fmt.Fprintln(hookLogOutput, "Running deployment hook START")
+	fmt.Fprintln(hookLogOutput, "=============================")
 	err = runCmd.Run()
-	log.Info("===========================")
-	log.Info("Running deployment hook END")
+	fmt.Fprintln(hookLogOutput, "===========================")
+	fmt.Fprintln(hookLogOutput, "Running deployment hook END")
 
 	if err != nil {
 		log.Error("docker run", "Error", err)
-		log.Info("This is not a problem with porter but with the Dockerfile porter tried to run")
-		log.Info("DO NOT contact Brandon Cook to help debug this issue")
-		log.Info("DO NOT file an issue against porter")
-		log.Info("DO contact the author of the Dockerfile")
-		log.Info("Run `porter help debug` to see how to enable debug logging which will show you the arguments used in docker run")
-		log.Info("Be aware that enabling debug logging will print sensitive data including, but not limited to, AWS credentials")
+		fmt.Fprintln(hookLogOutput, "This is not a problem with porter but with the Dockerfile porter tried to run")
+		fmt.Fprintln(hookLogOutput, "DO NOT contact Brandon Cook to help debug this issue")
+		fmt.Fprintln(hookLogOutput, "DO NOT file an issue against porter")
+		fmt.Fprintln(hookLogOutput, "DO contact the author of the Dockerfile")
+		fmt.Fprintln(hookLogOutput, "Run `porter help debug` to see how to enable debug logging which will show you the arguments used in docker run")
+		fmt.Fprintln(hookLogOutput, "Be aware that enabling debug logging will print sensitive data including, but not limited to, AWS credentials")
 		return
 	}
 

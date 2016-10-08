@@ -1,3 +1,7 @@
+**v2.4.1**
+
+- gather hook log output by hook since they run concurrently
+
 **v2.4.0**
 
 - added retries to instance autoregistration
