@@ -222,7 +222,6 @@ func ExecuteWithRunCapture(log log15.Logger,
 				regionLogMutex.Unlock()
 
 				successChan <- hooksResult
-
 			}(hookRunner, log, configHooks, runArgs)
 		}
 
@@ -294,11 +293,13 @@ func (recv *regionHookRunner) runConfigHooks(log log15.Logger,
 		var hookLogOutput bytes.Buffer
 		logger.SetHandler(log, &hookLogOutput)
 
-		successChan <- recv.runConfigHook(log, &hookLogOutput, hookIndex, hook, runArgs)
+		hookResult := recv.runConfigHook(log, &hookLogOutput, hookIndex, hook, runArgs)
 
 		hookLogMutex.Lock()
 		hookLogOutput.WriteTo(regionLogOutput)
 		hookLogMutex.Unlock()
+
+		successChan <- hookResult
 	}
 
 	for hookIndex, hook := range hooks {
