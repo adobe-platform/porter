@@ -215,11 +215,13 @@ func ExecuteWithRunCapture(log log15.Logger,
 				var regionLogOutput bytes.Buffer
 				logger.SetHandler(log, &regionLogOutput)
 
-				successChan <- runner.runConfigHooks(log, &regionLogOutput, hooks, runArgs)
+				hooksResult := runner.runConfigHooks(log, &regionLogOutput, hooks, runArgs)
 
 				regionLogMutex.Lock()
 				regionLogOutput.WriteTo(os.Stdout)
 				regionLogMutex.Unlock()
+
+				successChan <- hooksResult
 
 			}(hookRunner, log, configHooks, runArgs)
 		}
