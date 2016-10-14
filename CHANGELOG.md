@@ -1,3 +1,7 @@
+**v2.4.2**
+
+- fix missing or incomplete hook logs
+
 **v2.4.1**
 
 - gather hook log output by hook since they run concurrently
