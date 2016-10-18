@@ -45,24 +45,24 @@ func (recv *PackCmd) Execute(args []string) bool {
 
 	log := logger.CLI("cmd", "build-pack")
 
-	if !hook.Execute(log, constants.HookPrePack, "", nil, true) {
-		os.Exit(1)
+	commandSuccess := hook.Execute(log, constants.HookPrePack, "", nil, true)
+
+	if commandSuccess {
+		config, success := conf.GetConfig(log, true)
+		if !success {
+			os.Exit(1)
+		}
+
+		if os.Getenv(constants.EnvConfig) != "" {
+			config.Print()
+		}
+
+		commandSuccess = provision.Package(log, config)
 	}
 
-	config, success := conf.GetConfig(log, true)
-	if !success {
-		os.Exit(1)
-	}
+	commandSuccess = hook.Execute(log, constants.HookPostPack, "", nil, commandSuccess)
 
-	if os.Getenv(constants.EnvConfig) != "" {
-		config.Print()
-	}
-
-	commandSuccess := provision.Package(log, config)
-
-	hookSuccess := hook.Execute(log, constants.HookPostPack, "", nil, commandSuccess)
-
-	if !commandSuccess || !hookSuccess {
+	if !commandSuccess {
 		os.Exit(1)
 	}
 

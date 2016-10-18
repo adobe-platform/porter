@@ -118,73 +118,72 @@ func ProvisionStack(env string) {
 		Environment: env,
 	}
 
-	if !hook.Execute(log, constants.HookPreProvision, env, nil, true) {
-		os.Exit(1)
-	}
-
-	stackOutput, success := provision.CreateStack(log, config, stackArgs)
-	if !success {
-		os.Exit(1)
-	}
-
-	regionCount := len(environment.Regions)
-	outputChan := make(chan provision_output.Region, regionCount)
-	failureChan := make(chan struct{}, regionCount)
-
-	for _, regionOutput := range stackOutput.Regions {
-		go provisionStackPoll(environment, regionOutput, outputChan, failureChan)
-	}
-
-	commandSuccess := true
-	for i := 0; i < regionCount; i++ {
-		select {
-		case regionOutput := <-outputChan:
-			provisionOutput.Regions = append(provisionOutput.Regions, regionOutput)
-		case _ = <-failureChan:
-			commandSuccess = false
-		}
-	}
+	commandSuccess := hook.Execute(log, constants.HookPreProvision, env, nil, true)
 
 	if commandSuccess {
-
-		provisionBytes, err := json.Marshal(provisionOutput)
-		if err != nil {
-			log.Error("json.Marshal", "Error", err)
+		stackOutput, success := provision.CreateStack(log, config, stackArgs)
+		if !success {
 			os.Exit(1)
 		}
 
-		// write the stackoutput into porter tmp directory
-		err = ioutil.WriteFile(constants.ProvisionOutputPath, provisionBytes, 0644)
-		if err != nil {
-			log.Error("Unable to write provision output", "Error", err)
-			os.Exit(1)
+		regionCount := len(environment.Regions)
+		outputChan := make(chan provision_output.Region, regionCount)
+		failureChan := make(chan struct{}, regionCount)
+
+		for _, regionOutput := range stackOutput.Regions {
+			go provisionStackPoll(environment, regionOutput, outputChan, failureChan)
 		}
 
-	} else {
+		for i := 0; i < regionCount; i++ {
+			select {
+			case regionOutput := <-outputChan:
+				provisionOutput.Regions = append(provisionOutput.Regions, regionOutput)
+			case _ = <-failureChan:
+				commandSuccess = false
+			}
+		}
 
-		if len(provisionOutput.Regions) > 0 {
-			log.Warn("Some regions failed to create. Deleting the successful ones")
+		if commandSuccess {
 
-			for _, pr := range provisionOutput.Regions {
-				roleARN, err := environment.GetRoleARN(pr.AWSRegion)
-				if err != nil {
-					log.Error("GetRoleARN", "Error", err)
-					continue
+			provisionBytes, err := json.Marshal(provisionOutput)
+			if err != nil {
+				log.Error("json.Marshal", "Error", err)
+				os.Exit(1)
+			}
+
+			// write the stackoutput into porter tmp directory
+			err = ioutil.WriteFile(constants.ProvisionOutputPath, provisionBytes, 0644)
+			if err != nil {
+				log.Error("Unable to write provision output", "Error", err)
+				os.Exit(1)
+			}
+
+		} else {
+
+			if len(provisionOutput.Regions) > 0 {
+				log.Warn("Some regions failed to create. Deleting the successful ones")
+
+				for _, pr := range provisionOutput.Regions {
+					roleARN, err := environment.GetRoleARN(pr.AWSRegion)
+					if err != nil {
+						log.Error("GetRoleARN", "Error", err)
+						continue
+					}
+
+					roleSession := aws_session.STS(pr.AWSRegion, roleARN, 0)
+					cfnClient := cloudformation.New(roleSession)
+
+					log.Info("DeleteStack", "StackId", pr.StackId)
+					cloudformation.DeleteStack(cfnClient, pr.StackId)
 				}
-
-				roleSession := aws_session.STS(pr.AWSRegion, roleARN, 0)
-				cfnClient := cloudformation.New(roleSession)
-
-				log.Info("DeleteStack", "StackId", pr.StackId)
-				cloudformation.DeleteStack(cfnClient, pr.StackId)
 			}
 		}
 	}
 
-	hookSuccess := hook.Execute(log, constants.HookPostProvision,
+	commandSuccess = hook.Execute(log, constants.HookPostProvision,
 		env, provisionOutput.Regions, commandSuccess)
 
-	if !commandSuccess || !hookSuccess {
+	if !commandSuccess {
 		os.Exit(1)
 	}
 }

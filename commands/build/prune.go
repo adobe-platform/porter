@@ -112,17 +112,17 @@ func (recv *PruneCmd) Execute(args []string) bool {
 		os.Exit(1)
 	}
 
-	if !hook.Execute(log, constants.HookPrePrune,
-		provisionedEnv.Environment, provisionedEnv.Regions, true) {
-		os.Exit(1)
+	commandSuccess := hook.Execute(log, constants.HookPrePrune,
+		provisionedEnv.Environment, provisionedEnv.Regions, true)
+
+	if commandSuccess {
+		commandSuccess = prune.Do(log, config, env, keepCount, true, elbTag)
 	}
 
-	commandSuccess := prune.Do(log, config, env, keepCount, true, elbTag)
-
-	hookSuccess := hook.Execute(log, constants.HookPostPrune,
+	commandSuccess = hook.Execute(log, constants.HookPostPrune,
 		provisionedEnv.Environment, provisionedEnv.Regions, commandSuccess)
 
-	if !commandSuccess || !hookSuccess {
+	if !commandSuccess {
 		os.Exit(1)
 	}
 
