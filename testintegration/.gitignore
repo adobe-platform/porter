@@ -1,3 +1,4 @@
 .porter-tmp
 create_stack
 update_stack
+create_locust

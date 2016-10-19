@@ -1,0 +1,811 @@
+{
+  "Description": "porter load testing",
+  "Parameters": {
+    "VPCCIDR": {
+      "Type": "String",
+      "Default": "10.0.0.0/16"
+    },
+    "PublicSubnetCIDR": {
+      "Type": "String",
+      "Default": "10.0.0.0/20"
+    },
+    "PrivateSubnetCIDR1": {
+      "Type": "String",
+      "Default": "10.0.16.0/20"
+    },
+    "PrivateSubnetCIDR2": {
+      "Type": "String",
+      "Default": "10.0.32.0/20"
+    },
+    "PrivateSubnetCIDR3": {
+      "Type": "String",
+      "Default": "10.0.48.0/20"
+    },
+    "MasterInstanceType": {
+      "Description": "Locust master instance type",
+      "Type": "String",
+      "AllowedValues": [
+        "t2.micro",
+        "t2.small",
+        "t2.medium",
+        "t2.large",
+        "m4.large",
+        "m4.xlarge"
+      ],
+      "Default": "t2.medium",
+      "ConstraintDescription": "must be a valid EC2 instance type."
+    },
+    "AgentInstanceType": {
+      "Description": "Locust agent instance type",
+      "Type": "String",
+      "AllowedValues": [
+        "t2.micro",
+        "t2.small",
+        "t2.medium",
+        "t2.large",
+        "m4.large",
+        "m4.xlarge"
+      ],
+      "Default": "m4.large",
+      "ConstraintDescription": "must be a valid EC2 instance type."
+    },
+    "AgentDesiredCapacity": {
+      "Description": "The number of Agent instances to have during normal working hours",
+      "Type": "Number",
+      "MinValue": "1",
+      "MaxValue": "30",
+      "Default": "1"
+    },
+    "SSHKeyName": {
+      "Description": "Name of an EC2 Key Pair",
+      "Type": "AWS::EC2::KeyPair::KeyName"
+    },
+    "ExternalAccessCIDR": {
+      "Description": "ELB and SSH access",
+      "Default": "0.0.0.0/0",
+      "Type": "String"
+    },
+    "TargetUrl": {
+      "Description": "The full URL to be load tested",
+      "Type": "String"
+    }
+  },
+  "Mappings": {
+    "RegionToAmazonLinuxAMI": {
+      "us-west-2": {
+        "Key": "ami-746aba14"
+      }
+    }
+  },
+  "Resources": {
+    "VPC": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": {
+          "Ref": "VPCCIDR"
+        },
+        "EnableDnsSupport": true,
+        "EnableDnsHostnames": true,
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Locust"
+          }
+        ]
+      }
+    },
+    "PublicRouteTable": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Locust public"
+          }
+        ]
+      }
+    },
+    "PrivateRouteTable": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Locust private"
+          }
+        ]
+      }
+    },
+    "InternetGateway": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Locust ig"
+          }
+        ]
+      }
+    },
+    "EIP": {
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "Domain": "vpc"
+      }
+    },
+    "NatGateway": {
+      "Type": "AWS::EC2::NatGateway",
+      "Properties": {
+        "AllocationId": {
+          "Fn::GetAtt": [
+            "EIP",
+            "AllocationId"
+          ]
+        },
+        "SubnetId": {
+          "Ref": "PublicSubnet"
+        }
+      }
+    },
+    "InternetGatewayAttachment": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "InternetGatewayId": {
+          "Ref": "InternetGateway"
+        }
+      }
+    },
+    "DefaultPublicRoute": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "InternetGateway"
+        },
+        "RouteTableId": {
+          "Ref": "PublicRouteTable"
+        }
+      }
+    },
+    "DefaultPrivateRoute": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "NatGatewayId": {
+          "Ref": "NatGateway"
+        },
+        "RouteTableId": {
+          "Ref": "PrivateRouteTable"
+        }
+      }
+    },
+    "PublicSubnet": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "CidrBlock": {
+          "Ref": "PublicSubnetCIDR"
+        },
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Locust public"
+          }
+        ],
+        "MapPublicIpOnLaunch": true
+      }
+    },
+    "PrivateSubnet1": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            0,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "CidrBlock": {
+          "Ref": "PrivateSubnetCIDR1"
+        },
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Locust private"
+          }
+        ]
+      }
+    },
+    "PrivateSubnet2": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            1,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "CidrBlock": {
+          "Ref": "PrivateSubnetCIDR2"
+        },
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Locust private"
+          }
+        ]
+      }
+    },
+    "PrivateSubnet3": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::Select": [
+            2,
+            {
+              "Fn::GetAZs": ""
+            }
+          ]
+        },
+        "CidrBlock": {
+          "Ref": "PrivateSubnetCIDR3"
+        },
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Locust private"
+          }
+        ]
+      }
+    },
+    "PublicSubnetRoute": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PublicRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "PublicSubnet"
+        }
+      }
+    },
+    "PrivateSubnet1Route": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PrivateRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "PrivateSubnet1"
+        }
+      }
+    },
+    "PrivateSubnet2Route": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PrivateRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "PrivateSubnet2"
+        }
+      }
+    },
+    "PrivateSubnet3Route": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PrivateRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "PrivateSubnet3"
+        }
+      }
+    },
+    "LocustMasterSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "ZeroMQ and HTTP",
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 5557,
+            "ToPort": 5558,
+            "SourceSecurityGroupId": {
+              "Ref": "LocustSlaveSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 80,
+            "ToPort": 80,
+            "CidrIp": {
+              "Ref": "ExternalAccessCIDR"
+            }
+          }
+        ]
+      }
+    },
+    "LocustSlaveSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "ZeroMQ and HTTP",
+        "VpcId": {
+          "Ref": "VPC"
+        }
+      }
+    },
+    "ExternalSSHSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "SSH",
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "SecurityGroupIngress": [
+          {
+            "CidrIp": {
+              "Ref": "ExternalAccessCIDR"
+            },
+            "FromPort": 22,
+            "IpProtocol": "tcp",
+            "ToPort": 22
+          }
+        ]
+      }
+    },
+    "InternalSSHSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "SSH",
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "SecurityGroupIngress": [
+          {
+            "SourceSecurityGroupId": {
+              "Ref": "LocustMasterSecurityGroup"
+            },
+            "FromPort": 22,
+            "IpProtocol": "tcp",
+            "ToPort": 22
+          }
+        ]
+      }
+    },
+    "LocustMasterInstance": {
+      "Type": "AWS::EC2::Instance",
+      "DependsOn": [
+        "InternetGatewayAttachment"
+      ],
+      "Metadata": {
+        "AWS::CloudFormation::Init": {
+          "configSets": {
+            "cfnMaster": [
+              "startMaster"
+            ]
+          },
+          "startMaster": {
+            "commands": {
+              "1": {
+                "command": "pip install locustio pyzmq"
+              },
+              "2": {
+                "command": "systemctl enable locust-master.service"
+              },
+              "3": {
+                "command": "systemctl start locust-master.service"
+              },
+              "4": {
+                "command": "signal_wait_condition"
+              }
+            },
+            "files": {
+              "/etc/systemd/system/locust-master.service": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "[Unit]\n",
+                      "Description=Locust Master\n",
+                      "\n",
+                      "[Service]\n",
+                      "TimeoutStartSec=2\n",
+                      "TimeoutStopSec=2\n",
+                      "RestartSec=60\n",
+                      "User=root\n",
+                      "Restart=on-failure\n",
+                      "\n",
+                      "ExecStart=/usr/local/bin/locust \\\n",
+                      "    -f /home/ubuntu/load.py \\\n",
+                      "    --host='",
+                      {
+                        "Ref": "TargetUrl"
+                      },
+                      "' \\\n",
+                      "    --master \\\n",
+                      "    --port=80\n",
+                      "\n",
+                      "[Install]\n",
+                      "WantedBy=multi-user.target\n"
+                    ]
+                  ]
+                },
+                "group": "root",
+                "mode": "000644",
+                "owner": "root"
+              },
+              "/home/ubuntu/load.py": {
+                "content": {
+                  "Fn::Join": [
+                    "\n",
+                    [
+                      "from locust import HttpLocust, TaskSet",
+                      "",
+                      "",
+                      "def index(l):",
+                      "    l.client.get(\"/hello\")",
+                      "",
+                      "",
+                      "class UserBehavior(TaskSet):",
+                      "    tasks = {index: 100}",
+                      "",
+                      "",
+                      "class WebsiteUser(HttpLocust):",
+                      "    task_set = UserBehavior",
+                      "    min_wait = 5000",
+                      "    max_wait = 9000",
+                      ""
+                    ]
+                  ]
+                },
+                "group": "ubuntu",
+                "mode": "000644",
+                "owner": "ubuntu"
+              },
+              "/usr/bin/signal_wait_condition": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "#!/bin/bash\n",
+                      "HANDLE=\"",
+                      {
+                        "Ref": "LocustMasterWaitConditionHandle"
+                      },
+                      "\"\n",
+                      "curl -X PUT -H 'Content-Type:' \\\n",
+                      "--data-binary '{\n",
+                      "  \"Status\": \"SUCCESS\",\n",
+                      "  \"Reason\": \"some reason\",\n",
+                      "  \"UniqueId\": \"some id\",\n",
+                      "  \"Data\": \"some data\"\n",
+                      "}' \\\n",
+                      "\"$HANDLE\"\n"
+                    ]
+                  ]
+                },
+                "group": "root",
+                "mode": "000755",
+                "owner": "root"
+              }
+            }
+          }
+        }
+      },
+      "Properties": {
+        "ImageId": {
+          "Fn::FindInMap": [
+            "RegionToAmazonLinuxAMI",
+            {
+              "Ref": "AWS::Region"
+            },
+            "Key"
+          ]
+        },
+        "InstanceType": {
+          "Ref": "MasterInstanceType"
+        },
+        "KeyName": {
+          "Ref": "SSHKeyName"
+        },
+        "SecurityGroupIds": [
+          {
+            "Ref": "ExternalSSHSecurityGroup"
+          },
+          {
+            "Ref": "LocustMasterSecurityGroup"
+          }
+        ],
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              [
+                "#cloud-config\n",
+                "repo_upgrade: security\n",
+                "repo_releasever: 2016.03\n",
+                "\n",
+                "packages:\n",
+                "  - python-pip\n",
+                "\n",
+                "runcmd:\n",
+                "  - pip install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz\n",
+                "  - /usr/local/bin/cfn-init -c cfnMaster",
+                " --region ",
+                {
+                  "Ref": "AWS::Region"
+                },
+                " --stack ",
+                {
+                  "Ref": "AWS::StackId"
+                },
+                " -r LocustMasterInstance\n",
+                "\n"
+              ]
+            ]
+          }
+        },
+        "SubnetId": {
+          "Ref": "PublicSubnet"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Locust Master"
+          }
+        ]
+      }
+    },
+    "LocustSlaveAutoScalingGroup": {
+      "Type": "AWS::AutoScaling::AutoScalingGroup",
+      "DependsOn": "LocustSlaveWaitCondition",
+      "Properties": {
+        "VPCZoneIdentifier": [
+          {
+            "Ref": "PrivateSubnet1"
+          },
+          {
+            "Ref": "PrivateSubnet2"
+          },
+          {
+            "Ref": "PrivateSubnet3"
+          }
+        ],
+        "LaunchConfigurationName": {
+          "Ref": "LocustAgentAutoScalingLaunchConfiguration"
+        },
+        "MaxSize": "10",
+        "DesiredCapacity": {
+          "Ref": "AgentDesiredCapacity"
+        },
+        "TerminationPolicies": [
+          "OldestInstance"
+        ],
+        "MinSize": "1",
+        "Tags": [
+          {
+            "Key": "Name",
+            "PropagateAtLaunch": true,
+            "Value": "Locust Agent"
+          }
+        ]
+      }
+    },
+    "LocustAgentAutoScalingLaunchConfiguration": {
+      "Type": "AWS::AutoScaling::LaunchConfiguration",
+      "DependsOn": "NatGateway",
+      "Metadata": {
+        "AWS::CloudFormation::Init": {
+          "configSets": {
+            "cfnSlave": [
+              "startSlave"
+            ]
+          },
+          "startSlave": {
+            "commands": {
+              "1": {
+                "command": "pip install locustio pyzmq"
+              },
+              "2": {
+                "command": "systemctl enable locust-slave.service"
+              },
+              "3": {
+                "command": "systemctl start locust-slave.service"
+              },
+              "4": {
+                "command": "sysctl -w net.ipv4.ip_local_port_range='1024 65535'"
+              }
+            },
+            "files": {
+              "/home/ubuntu/load.py": {
+                "content": {
+                  "Fn::Join": [
+                    "\n",
+                    [
+                      "from locust import HttpLocust, TaskSet",
+                      "",
+                      "",
+                      "def index(l):",
+                      "    l.client.get(\"/hello\")",
+                      "",
+                      "",
+                      "class UserBehavior(TaskSet):",
+                      "    tasks = {index: 100}",
+                      "",
+                      "",
+                      "class WebsiteUser(HttpLocust):",
+                      "    task_set = UserBehavior",
+                      "    min_wait = 5000",
+                      "    max_wait = 9000",
+                      ""
+                    ]
+                  ]
+                },
+                "group": "ubuntu",
+                "mode": "000644",
+                "owner": "ubuntu"
+              },
+              "/etc/systemd/system/locust-slave.service": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "[Unit]\n",
+                      "Description=Locust Slave\n",
+                      "\n",
+                      "[Service]\n",
+                      "LimitNOFILE=200000\n",
+                      "TimeoutStartSec=2\n",
+                      "TimeoutStopSec=2\n",
+                      "RestartSec=60\n",
+                      "User=ubuntu\n",
+                      "Restart=on-failure\n",
+                      "\n",
+                      "ExecStart=/usr/local/bin/locust \\\n",
+                      "    -f /home/ubuntu/load.py \\\n",
+                      "    --host='",
+                      {
+                        "Ref": "TargetUrl"
+                      },
+                      "' \\\n",
+                      "    --slave \\\n",
+                      "    --master-host=",
+                      {
+                        "Fn::GetAtt": [
+                          "LocustMasterInstance",
+                          "PublicDnsName"
+                        ]
+                      },
+                      " \\\n",
+                      "\n",
+                      "[Install]\n",
+                      "WantedBy=multi-user.target\n"
+                    ]
+                  ]
+                },
+                "group": "root",
+                "mode": "000644",
+                "owner": "root"
+              }
+            }
+          }
+        }
+      },
+      "Properties": {
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              [
+                "#cloud-config\n",
+                "repo_upgrade: security\n",
+                "repo_releasever: 2016.03\n",
+                "\n",
+                "packages:\n",
+                "  - python-pip\n",
+                "\n",
+                "runcmd:\n",
+                "  - pip install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz\n",
+                "  - /usr/local/bin/cfn-init -c cfnSlave",
+                " --region ",
+                {
+                  "Ref": "AWS::Region"
+                },
+                " --stack ",
+                {
+                  "Ref": "AWS::StackId"
+                },
+                " -r LocustAgentAutoScalingLaunchConfiguration",
+                "\n"
+              ]
+            ]
+          }
+        },
+        "InstanceMonitoring": false,
+        "ImageId": {
+          "Fn::FindInMap": [
+            "RegionToAmazonLinuxAMI",
+            {
+              "Ref": "AWS::Region"
+            },
+            "Key"
+          ]
+        },
+        "InstanceType": {
+          "Ref": "AgentInstanceType"
+        },
+        "KeyName": {
+          "Ref": "SSHKeyName"
+        },
+        "SecurityGroups": [
+          {
+            "Ref": "InternalSSHSecurityGroup"
+          },
+          {
+            "Ref": "LocustSlaveSecurityGroup"
+          }
+        ]
+      }
+    },
+    "LocustSlaveWaitCondition": {
+      "DependsOn": "LocustMasterInstance",
+      "Properties": {
+        "Count": 1,
+        "Handle": {
+          "Ref": "LocustMasterWaitConditionHandle"
+        },
+        "Timeout": 1200
+      },
+      "Type": "AWS::CloudFormation::WaitCondition"
+    },
+    "LocustMasterWaitConditionHandle": {
+      "Type": "AWS::CloudFormation::WaitConditionHandle"
+    }
+  },
+  "Outputs": {
+    "LocustMasterDNS": {
+      "Description": "Locust master DNS",
+      "Value": {
+        "Fn::GetAtt": [
+          "LocustMasterInstance",
+          "PublicDnsName"
+        ]
+      }
+    }
+  }
+}
