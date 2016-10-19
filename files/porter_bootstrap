@@ -64,7 +64,10 @@ echo "installing service payload"
 sysctl -w net.ipv4.tcp_tw_reuse=1
 
 # open up ephemeral port range for more possible connections to the backend
-# https://github.com/torvalds/linux/blob/v3.14/Documentation/networking/ip-sysctl.txt#L699
+# https://github.com/torvalds/linux/blob/v4.1/Documentation/networking/ip-sysctl.txt#L742
 sysctl -w net.ipv4.ip_local_port_range='1024 65535'
+
+# https://github.com/torvalds/linux/blob/v4.1/Documentation/networking/ip-sysctl.txt#L1021
+sysctl -w net.ipv4.conf.all.rp_filter=1
 
 echo "porter bootstrap END"
