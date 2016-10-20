@@ -1,3 +1,8 @@
+**v2.4.3**
+
+- reject config files with `run_condition` set in a pre- hook
+- run post- hooks with `run_condition` set to `fail` when a pre- hook fails
+
 **v2.4.2**
 
 - fix missing or incomplete hook logs
