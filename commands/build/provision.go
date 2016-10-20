@@ -120,7 +120,10 @@ func ProvisionStack(env string) {
 
 	commandSuccess := hook.Execute(log, constants.HookPreProvision, env, nil, true)
 
-	if commandSuccess {
+	if !commandSuccess {
+		commandSuccess = hook.Execute(log, constants.HookPostProvision, env, nil, commandSuccess)
+
+	} else {
 		stackOutput, success := provision.CreateStack(log, config, stackArgs)
 		if !success {
 			os.Exit(1)
@@ -178,10 +181,11 @@ func ProvisionStack(env string) {
 				}
 			}
 		}
-	}
 
-	commandSuccess = hook.Execute(log, constants.HookPostProvision,
-		env, provisionOutput.Regions, commandSuccess)
+		commandSuccess = hook.Execute(log, constants.HookPostProvision,
+			env, provisionOutput.Regions, commandSuccess)
+
+	}
 
 	if !commandSuccess {
 		os.Exit(1)
