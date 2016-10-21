@@ -94,17 +94,17 @@ func (recv *PromoteCmd) Execute(args []string) bool {
 		os.Exit(1)
 	}
 
-	if !hook.Execute(log, constants.HookPrePromote,
-		provisionedEnv.Environment, provisionedEnv.Regions, true) {
-		os.Exit(1)
+	commandSuccess := hook.Execute(log, constants.HookPrePromote,
+		provisionedEnv.Environment, provisionedEnv.Regions, true)
+
+	if commandSuccess {
+		commandSuccess = promote.Promote(log, config, provisionedEnv, elbType)
 	}
 
-	commandSuccess := promote.Promote(log, config, provisionedEnv, elbType)
-
-	hookSuccess := hook.Execute(log, constants.HookPostPromote,
+	commandSuccess = hook.Execute(log, constants.HookPostPromote,
 		provisionedEnv.Environment, provisionedEnv.Regions, commandSuccess)
 
-	if !commandSuccess || !hookSuccess {
+	if !commandSuccess {
 		os.Exit(1)
 	}
 
