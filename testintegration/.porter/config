@@ -83,7 +83,7 @@ environments:
   stack_definition_path: vpc.json
   hot_swap: true
 
-  instance_type: t2.medium
+  instance_type: m3.large
 
   regions:
   - name: us-west-2
