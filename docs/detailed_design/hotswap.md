@@ -40,7 +40,7 @@ following occurs:
 
 1. Check the creation time of the stack that was most recently promoted to the
    configured ELB and determine if it's within the 24 hour timeframe
-1. If so perform the normal steps of uploading the service payload, building
+1. If so, perform the normal steps of uploading the service payload, building
    out a CloudFormation template, and uploading it to S3
 1. Call `pre_hotswap` hook
 1. Instead of `cloudformation:CreateStack`, call `cloudformation:UpdateStack`
