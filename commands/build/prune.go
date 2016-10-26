@@ -102,11 +102,6 @@ func (recv *PruneCmd) Execute(args []string) bool {
 		os.Exit(1)
 	}
 
-	if stack.Hotswap {
-		log.Info("No prune occurs during a hot swap")
-		return true
-	}
-
 	if !doPrune(log, stack, keepCount, elbTag) {
 		os.Exit(1)
 	}
