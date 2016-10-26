@@ -446,7 +446,6 @@ func cleanContainers(environmentStr, regionStr string) {
 	}
 
 	anyError := false
-	imageNames := make(map[string]interface{})
 
 	containerIds := strings.Split(strings.TrimSpace(string(psOutput)), "\n")
 	for _, containerId := range containerIds {
@@ -498,15 +497,12 @@ func cleanContainers(environmentStr, regionStr string) {
 			continue
 		}
 
-		imageNames[imageName] = nil
-	}
-
-	for imageName := range imageNames {
 		log.Info("docker rmi " + imageName)
 		err = exec.Command("docker", "rmi", imageName).Run()
 		if err != nil {
 			anyError = true
 			log.Error("docker rmi", "ImageName", imageName, "Error", err)
+			continue
 		}
 	}
 
