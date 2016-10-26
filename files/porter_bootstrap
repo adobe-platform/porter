@@ -53,21 +53,22 @@ porter host daemon --init \
 -hp {{ .InetHealthCheckPath }} \
 -elbs {{ .Elbs }}
 
-# A hotswap operation is identical to what happens during initial configuration
-echo "installing service payload"
-/usr/bin/porter_hotswap
-
-# Tune system performance
-
 # keep-alive on haproxy backends is disabled meaning lots of sockets in
 # TIME_WAIT hanging around. reuse them
+sysctl -w net.ipv4.netfilter.ip_conntrack_tcp_timeout_time_wait=1
 sysctl -w net.ipv4.tcp_tw_reuse=1
 
 # open up ephemeral port range for more possible connections to the backend
 # https://github.com/torvalds/linux/blob/v4.1/Documentation/networking/ip-sysctl.txt#L742
 sysctl -w net.ipv4.ip_local_port_range='1024 65535'
+# the only port above 1024 that porter manages is haproxy
+sysctl -w net.ipv4.ip_local_reserved_ports='8080'
 
 # https://github.com/torvalds/linux/blob/v4.1/Documentation/networking/ip-sysctl.txt#L1021
 sysctl -w net.ipv4.conf.all.rp_filter=1
+
+# A hotswap operation is identical to what happens during initial configuration
+echo "installing service payload"
+/usr/bin/porter_hotswap
 
 echo "porter bootstrap END"

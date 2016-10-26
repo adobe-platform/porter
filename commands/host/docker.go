@@ -460,6 +460,7 @@ func cleanContainers(environmentStr, regionStr string) {
 		imageName := strings.TrimSpace(string(inspectOutput))
 
 		imageNameParts := strings.Split(imageName, ":")
+		log.Debug("cleanContainers", "imageNameParts", imageNameParts)
 		if len(imageNameParts) <= 1 {
 			continue
 		}
@@ -467,11 +468,14 @@ func cleanContainers(environmentStr, regionStr string) {
 		// a registry can specify port so : can divide host:port as well as
 		// repo:tag
 		imageNameParts = strings.Split(imageNameParts[len(imageNameParts)-1], "-")
+		log.Debug("cleanContainers", "imageNameParts", imageNameParts)
 		if len(imageNameParts) != 4 && imageNameParts[0] != "porter" {
+			log.Debug("len(imageNameParts) != 4 && imageNameParts[0] != \"porter\"")
 			continue
 		}
 
 		if _, exists := activeContainers[imageName]; exists {
+			log.Debug("activeContainers", "imageName", imageName)
 			continue
 		}
 
@@ -510,10 +514,8 @@ func cleanContainers(environmentStr, regionStr string) {
 }
 
 func drainConnections(log log15.Logger, containerId string) (success bool) {
-	var (
-		err       error
-		stdoutBuf bytes.Buffer
-	)
+	var err error
+
 	log = log.New("ContainerId", containerId)
 
 	inspectFilter := "{{ range $containerPort, $host := .NetworkSettings.Ports }}{{ println $containerPort (index $host 0).HostPort }}{{ end }}"
@@ -525,9 +527,10 @@ func drainConnections(log log15.Logger, containerId string) (success bool) {
 
 	// portMappings should look like this []string{"1234/tcp 56789"}
 	portMappings := strings.Split(strings.TrimSpace(string(inspectOut)), "\n")
-	stdoutBuf.Reset()
+	log.Debug("drainConnections", "portMappings", portMappings)
 
 	if len(portMappings) == 0 {
+		log.Debug("len(portMappings) == 0")
 		success = true
 		return
 	}

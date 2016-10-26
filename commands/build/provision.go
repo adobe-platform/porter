@@ -45,6 +45,7 @@ type (
 
 	hotswapStruct struct {
 		shouldHotswap bool
+		stackStatus   string
 		stackId       string
 		stackName     string
 		region        string
@@ -150,6 +151,48 @@ func ProvisionOrHotswapStack(env string) (success bool) {
 		for i := 0; i < len(environment.Regions); i++ {
 			select {
 			case hotswapData := <-hotswapChan:
+
+				switch hotswapData.stackStatus {
+				case "CREATE_COMPLETE", "UPDATE_COMPLETE":
+					// only states eligible for hot swap
+
+				case "CREATE_FAILED",
+					"DELETE_COMPLETE",
+					"DELETE_FAILED",
+					"DELETE_IN_PROGRESS",
+					"ROLLBACK_COMPLETE",
+					"ROLLBACK_FAILED",
+					"ROLLBACK_IN_PROGRESS":
+
+					hotswapData.shouldHotswap = false
+
+				case "CREATE_IN_PROGRESS":
+
+					log.Error("Can't hot swap a stack being created")
+					return
+
+				case "UPDATE_COMPLETE_CLEANUP_IN_PROGRESS",
+					"UPDATE_IN_PROGRESS":
+
+					log.Error("A previous hot swap is still in progress",
+						"StackStatus", hotswapData.stackStatus)
+					return
+
+				case "UPDATE_ROLLBACK_COMPLETE",
+					"UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS",
+					"UPDATE_ROLLBACK_FAILED",
+					"UPDATE_ROLLBACK_IN_PROGRESS":
+
+					log.Error("A previous hot swap appears to have failed",
+						"StackStatus", hotswapData.stackStatus)
+					return
+
+				default:
+
+					log.Error("Undocumented stack status",
+						"StackStatus", hotswapData.stackStatus)
+					return
+				}
 
 				shouldHotswap = shouldHotswap && hotswapData.shouldHotswap
 				hotswapStructs = append(hotswapStructs, hotswapData)
@@ -261,6 +304,7 @@ elbLoop:
 
 				stack := describeStacksOutput.Stacks[0]
 
+				hotswapData.stackStatus = *stack.StackStatus
 				hotswapData.stackName = *stack.StackName
 				log.Info("DescribeStacks output",
 					"StackName", hotswapData.stackName,

@@ -25,8 +25,8 @@ tar -xzOf $PAYLOAD_PATH ./{{ .ServicePayloadConfigPath }} \
 | porter host docker --start -e {{ .Environment }} -r {{ .Region }} \
 | porter host haproxy -sn {{ .ServiceName }}
 
-porter host signal --hotswap-complete -r {{ .Region }}
-
 echo "cleaning containers"
 tar -xzOf $PAYLOAD_PATH ./{{ .ServicePayloadConfigPath }} \
 | porter host docker --clean -e {{ .Environment }} -r {{ .Region }}
+
+porter host signal --hotswap-complete -r {{ .Region }}
