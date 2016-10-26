@@ -73,6 +73,10 @@
       "Description": "Prefix to /{version}/porter_linux386 for build box to download porter binary",
       "Type": "String"
     },
+    "UserArn": {
+      "Description": "ARN of user that may run build commands locally",
+      "Type": "String"
+    },
     "TestRepoDeployKey": {
       "Description": "Private portion of Github deploy key. `tr '\n' ' '`",
       "Default": "",
@@ -712,8 +716,11 @@
                   "ssh_key_name": {
                     "Ref": "SSHKeyName"
                   },
-                  "aws_account_id": {
-                    "Ref": "AWS::AccountId"
+                  "deployment_role_arn": {
+                    "Fn::GetAtt": [
+                      "DeploymentRole",
+                      "Arn"
+                    ]
                   },
                   "vpc_id": {
                     "Ref": "VPC"
@@ -808,8 +815,8 @@
                       "          <variable name=\"SSH_KEY\">",
                       "            <value>{{ssh_key_name}}</value>",
                       "          </variable>",
-                      "          <variable name=\"AWS_ACCOUNT_ID\">",
-                      "            <value>{{aws_account_id}}</value>",
+                      "          <variable name=\"DEPLOYMENT_ROLE_ARN\">",
+                      "            <value>{{deployment_role_arn}}</value>",
                       "          </variable>",
                       "          <variable name=\"VPC_ID\">",
                       "            <value>{{vpc_id}}</value>",
@@ -1114,7 +1121,7 @@
       "Properties": {
         "InstanceMonitoring": false,
         "IamInstanceProfile": {
-          "Ref": "IAMInstanceProfile"
+          "Ref": "BuildBoxInstanceProfile"
         },
         "ImageId": {
           "Fn::FindInMap": [
@@ -1408,7 +1415,7 @@
         },
         "InstanceMonitoring": false,
         "IamInstanceProfile": {
-          "Ref": "IAMInstanceProfile"
+          "Ref": "BuildBoxInstanceProfile"
         },
         "ImageId": {
           "Fn::FindInMap": [
@@ -1474,7 +1481,7 @@
         "Recurrence": "0 1 * * *"
       }
     },
-    "IAMRole": {
+    "BuildBoxRole": {
       "Properties": {
         "AssumeRolePolicyDocument": {
           "Statement": [
@@ -1513,13 +1520,119 @@
       },
       "Type": "AWS::IAM::Role"
     },
-    "IAMInstanceProfile": {
+    "BuildBoxInstanceProfile": {
       "Type": "AWS::IAM::InstanceProfile",
       "Properties": {
         "Path": "/",
         "Roles": [
           {
-            "Ref": "IAMRole"
+            "Ref": "BuildBoxRole"
+          }
+        ]
+      }
+    },
+    "DeploymentRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": [
+                  {
+                    "Ref": "UserArn"
+                  },
+                  {
+                    "Fn::GetAtt": [
+                      "BuildBoxRole",
+                      "Arn"
+                    ]
+                  }
+                ]
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Path": "/",
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "autoscaling:CreateAutoScalingGroup",
+                    "autoscaling:CreateLaunchConfiguration",
+                    "autoscaling:DeleteAutoScalingGroup",
+                    "autoscaling:DeleteLaunchConfiguration",
+                    "autoscaling:DescribeAutoScalingGroups",
+                    "autoscaling:DescribeLaunchConfigurations",
+                    "autoscaling:DescribeScalingActivities",
+                    "autoscaling:UpdateAutoScalingGroup",
+                    "cloudformation:CreateStack",
+                    "cloudformation:DeleteStack",
+                    "cloudformation:DescribeStackEvents",
+                    "cloudformation:DescribeStackResource",
+                    "cloudformation:DescribeStackResources",
+                    "cloudformation:DescribeStacks",
+                    "cloudformation:UpdateStack",
+                    "ec2:AuthorizeSecurityGroupEgress",
+                    "ec2:AuthorizeSecurityGroupIngress",
+                    "ec2:CreateSecurityGroup",
+                    "ec2:DeleteSecurityGroup",
+                    "ec2:DescribeAccountAttributes",
+                    "ec2:DescribeAvailabilityZones",
+                    "ec2:DescribeInstances",
+                    "ec2:DescribeSecurityGroups",
+                    "ec2:DescribeSubnets",
+                    "ec2:RevokeSecurityGroupEgress",
+                    "elasticloadbalancing:AddTags",
+                    "elasticloadbalancing:ConfigureHealthCheck",
+                    "elasticloadbalancing:CreateLoadBalancer",
+                    "elasticloadbalancing:DeleteLoadBalancer",
+                    "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
+                    "elasticloadbalancing:DescribeInstanceHealth",
+                    "elasticloadbalancing:DescribeLoadBalancers",
+                    "elasticloadbalancing:DescribeTags",
+                    "elasticloadbalancing:ModifyLoadBalancerAttributes",
+                    "elasticloadbalancing:RegisterInstancesWithLoadBalancer",
+                    "elasticloadbalancing:SetLoadBalancerPoliciesOfListener",
+                    "iam:AddRoleToInstanceProfile",
+                    "iam:CreateInstanceProfile",
+                    "iam:CreateRole",
+                    "iam:DeleteInstanceProfile",
+                    "iam:DeleteRole",
+                    "iam:DeleteRolePolicy",
+                    "iam:PassRole",
+                    "iam:PutRolePolicy",
+                    "iam:RemoveRoleFromInstanceProfile",
+                    "kms:Decrypt",
+                    "kms:Encrypt",
+                    "kms:GenerateDataKey",
+                    "route53:ChangeResourceRecordSets",
+                    "route53:GetChange",
+                    "route53:ListHostedZones",
+                    "route53:ListResourceRecordSets",
+                    "s3:GetObject",
+                    "s3:ListBucket",
+                    "s3:PutObject",
+                    "sqs:CreateQueue",
+                    "sqs:DeleteQueue",
+                    "sqs:GetQueueAttributes",
+                    "sqs:GetQueueUrl",
+                    "sqs:ReceiveMessage"
+                  ],
+                  "Resource": [
+                    "*"
+                  ]
+                }
+              ]
+            },
+            "PolicyName": "deployment"
           }
         ]
       }

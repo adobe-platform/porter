@@ -24,7 +24,7 @@ hooks:
       TEST_REPO_BRANCH:
       ELB_1_NAME:
       ELB_2_NAME:
-      AWS_ACCOUNT_ID:
+      DEPLOYMENT_ROLE_ARN:
       SSH_KEY:
   post_pack:
   - dockerfile: hooks/post-pack-fail
@@ -81,6 +81,7 @@ environments:
 - name: CustomVPC
 
   stack_definition_path: vpc.json
+  hot_swap: true
 
   instance_type: t2.medium
 
@@ -92,7 +93,7 @@ environments:
       subnet_id: $SUBNET_ID
 
     vpc_id: $VPC_ID
-    role_arn: arn:aws:iam::$AWS_ACCOUNT_ID:role/porter-deployment
+    role_arn: $DEPLOYMENT_ROLE_ARN
     s3_bucket: porter-sandbox-us-west-2
     key_pair_name: $SSH_KEY
 
@@ -137,7 +138,7 @@ environments:
       subnet_id: $SUBNET_ID
 
     vpc_id: $VPC_ID
-    role_arn: arn:aws:iam::$AWS_ACCOUNT_ID:role/porter-deployment
+    role_arn: $DEPLOYMENT_ROLE_ARN
     s3_bucket: porter-sandbox-us-west-2
     key_pair_name: $SSH_KEY
 
@@ -160,7 +161,7 @@ environments:
       subnet_id: $SUBNET_ID
 
     vpc_id: $VPC_ID
-    role_arn: arn:aws:iam::$AWS_ACCOUNT_ID:role/porter-deployment
+    role_arn: $DEPLOYMENT_ROLE_ARN
     s3_bucket: porter-sandbox-us-west-2
     key_pair_name: $SSH_KEY
 
