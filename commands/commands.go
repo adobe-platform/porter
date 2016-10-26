@@ -66,6 +66,7 @@ These commands log to STDOUT and primarily run from files/cloud-init.yaml`,
 					&host.DaemonCmd{},
 					&host.SecretsCmd{},
 					&host.SvcPayloadCmd{},
+					&host.SignalCmd{},
 				},
 			},
 			&cmd.Default{

@@ -27,7 +27,7 @@ import (
 	"github.com/adobe-platform/porter/conf"
 	"github.com/adobe-platform/porter/constants"
 	"github.com/adobe-platform/porter/logger"
-	"github.com/adobe-platform/porter/provision_output"
+	"github.com/adobe-platform/porter/provision_state"
 	"github.com/inconshreveable/log15"
 )
 
@@ -57,7 +57,7 @@ var (
 
 func Execute(log log15.Logger,
 	hookName, environment string,
-	provisionedRegions []provision_output.Region,
+	provisionedRegions map[string]*provision_state.Region,
 	commandSuccess bool) bool {
 
 	return ExecuteWithRunCapture(log, hookName, environment, provisionedRegions,
@@ -66,7 +66,7 @@ func Execute(log log15.Logger,
 
 func ExecuteWithRunCapture(log log15.Logger,
 	hookName, environment string,
-	provisionedRegions []provision_output.Region,
+	provisionedRegions map[string]*provision_state.Region,
 	commandSuccess bool, runOutput *chan bytes.Buffer) (success bool) {
 
 	var err error
@@ -123,42 +123,33 @@ func ExecuteWithRunCapture(log log15.Logger,
 		// since the provision command hasn't run but should work multi-region
 		// in the same way that post-provision and others behave
 		if provisionedRegions == nil {
-			provisionedRegions = make([]provision_output.Region, 0)
+			provisionedRegions = make(map[string]*provision_state.Region)
 
 			for _, region := range env.Regions {
-				pr := provision_output.Region{
-					AWSRegion: region.Name,
-				}
-				provisionedRegions = append(provisionedRegions, pr)
+				provisionedRegions[region.Name] = &provision_state.Region{}
 			}
 		}
 
 		successChan := make(chan bool)
 		var regionLogMutex sync.Mutex
 
-		for _, pr := range provisionedRegions {
+		for regionName, regionState := range provisionedRegions {
 
 			elbDNS := ""
 
-			region, err := env.GetRegion(pr.AWSRegion)
-			if err != nil {
-				log.Error("GetRegion", "Error", err)
-				return
-			}
-
-			roleARN, err := env.GetRoleARN(region.Name)
+			roleARN, err := env.GetRoleARN(regionName)
 			if err != nil {
 				log.Error("GetRoleARN", "Error", err)
 				return
 			}
 
-			roleSession := aws_session.STS(region.Name, roleARN, 3600)
+			roleSession := aws_session.STS(regionName, roleARN, 3600)
 
-			if pr.ProvisionedELBName != "" {
+			if regionState.ProvisionedELBName != "" {
 				elbClient := elb.New(roleSession)
 
 				log.Info("DescribeLoadBalancers")
-				output, err := elb.DescribeLoadBalancers(elbClient, pr.ProvisionedELBName)
+				output, err := elb.DescribeLoadBalancers(elbClient, regionState.ProvisionedELBName)
 				if err != nil {
 					log.Error("DescribeLoadBalancers", "Error", err)
 					return
@@ -179,9 +170,9 @@ func ExecuteWithRunCapture(log log15.Logger,
 
 			runArgs = append(runArgs,
 				"-e", "PORTER_ENVIRONMENT="+environment,
-				"-e", "AWS_REGION="+region.Name,
+				"-e", "AWS_REGION="+regionName,
 				// AWS_DEFAULT_REGION is also needed for AWS SDKs
-				"-e", "AWS_DEFAULT_REGION="+region.Name,
+				"-e", "AWS_DEFAULT_REGION="+regionName,
 				"-e", "AWS_ACCESS_KEY_ID="+credValue.AccessKeyID,
 				"-e", "AWS_SECRET_ACCESS_KEY="+credValue.SecretAccessKey,
 				"-e", "AWS_SESSION_TOKEN="+credValue.SessionToken,
@@ -193,9 +184,9 @@ func ExecuteWithRunCapture(log log15.Logger,
 					"-e", "AWS_ELASTICLOADBALANCING_LOADBALANCER_DNS="+elbDNS)
 			}
 
-			if pr.StackId != "" {
+			if regionState.StackId != "" {
 				runArgs = append(runArgs,
-					"-e", "AWS_CLOUDFORMATION_STACKID="+pr.StackId)
+					"-e", "AWS_CLOUDFORMATION_STACKID="+regionState.StackId)
 			}
 
 			hookRunner := &regionHookRunner{

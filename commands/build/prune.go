@@ -21,8 +21,9 @@ import (
 	"github.com/adobe-platform/porter/constants"
 	"github.com/adobe-platform/porter/hook"
 	"github.com/adobe-platform/porter/logger"
-	"github.com/adobe-platform/porter/provision_output"
+	"github.com/adobe-platform/porter/provision_state"
 	"github.com/adobe-platform/porter/prune"
+	"github.com/inconshreveable/log15"
 	"github.com/phylake/go-cli"
 )
 
@@ -86,46 +87,59 @@ func (recv *PruneCmd) Execute(args []string) bool {
 		}
 	}
 
-	log := logger.CLI("cmd", "build-prune")
+	log := logger.CLI("cmd", "prune")
 
-	config, success := conf.GetAlteredConfig(log)
-	if !success {
-		os.Exit(1)
-	}
-
-	provisionedEnv := &provision_output.Environment{}
 	provisionEnvBytes, err := ioutil.ReadFile(constants.ProvisionOutputPath)
 	if err != nil {
 		log.Error("ioutil.ReadFile", "Error", err)
 		os.Exit(1)
 	}
 
-	err = json.Unmarshal(provisionEnvBytes, provisionedEnv)
+	stack := &provision_state.Stack{}
+	err = json.Unmarshal(provisionEnvBytes, stack)
 	if err != nil {
 		log.Error("json.Unmarshal", "Error", err)
 		os.Exit(1)
 	}
 
-	env, err := config.GetEnvironment(provisionedEnv.Environment)
-	if err != nil {
-		log.Error("GetEnvironment", "Error", err)
-		os.Exit(1)
+	if stack.Hotswap {
+		log.Info("No prune occurs during a hot swap")
+		return true
 	}
 
-	commandSuccess := hook.Execute(log, constants.HookPrePrune,
-		provisionedEnv.Environment, provisionedEnv.Regions, true)
-
-	if commandSuccess {
-		commandSuccess = prune.Do(log, config, env, keepCount, true, elbTag)
-	}
-
-	commandSuccess = hook.Execute(log, constants.HookPostPrune,
-		provisionedEnv.Environment, provisionedEnv.Regions, commandSuccess)
-
-	if !commandSuccess {
+	if !doPrune(log, stack, keepCount, elbTag) {
 		os.Exit(1)
 	}
 
 	log.Info("Prune complete")
 	return true
+}
+
+func doPrune(log log15.Logger, stack *provision_state.Stack, keepCount int, elbTag string) (success bool) {
+
+	defer func() {
+
+		postHookSuccess := hook.Execute(log, constants.HookPostPrune,
+			stack.Environment, stack.Regions, success)
+
+		success = success && postHookSuccess
+	}()
+
+	config, success := conf.GetAlteredConfig(log)
+	if !success {
+		return
+	}
+
+	env, err := config.GetEnvironment(stack.Environment)
+	if err != nil {
+		log.Error("GetEnvironment", "Error", err)
+		return
+	}
+
+	if !hook.Execute(log, constants.HookPrePrune, stack.Environment, stack.Regions, true) {
+		return
+	}
+
+	success = prune.Do(log, config, env, keepCount, true, elbTag)
+	return
 }

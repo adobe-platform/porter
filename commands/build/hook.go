@@ -64,13 +64,15 @@ func (recv *HookCmd) Execute(args []string) bool {
 		}
 		flagSet.Parse(args)
 
-		log := logger.CLI("cmd", "build-hook")
+		log := logger.CLI("cmd", "hook")
 
 		switch hookName {
 		case constants.HookPrePack,
 			constants.HookPostPack,
 			constants.HookPreProvision,
 			constants.HookPostProvision,
+			constants.HookPreHotswap,
+			constants.HookPostHotswap,
 			constants.HookPrePromote,
 			constants.HookPostPromote,
 			constants.HookPrePrune,

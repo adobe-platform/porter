@@ -9,19 +9,17 @@
  *  OF ANY KIND, either express or implied. See the License for the specific language
  *  governing permissions and limitations under the License.
  */
+package util
 
-// This is here to avoid the import cycle provision -> hook -> provision
-package provision_output
+import "github.com/aws/aws-sdk-go/service/cloudformation"
 
-type (
-	Environment struct {
-		Environment string   `json:"Environment"`
-		Regions     []Region `json:"Regions"`
-	}
+// ByDate sorts Stacks by creation date
+type ByDate []*cloudformation.Stack
 
-	Region struct {
-		AWSRegion          string `json:"AWSRegion"`
-		StackId            string `json:"StackId"`
-		ProvisionedELBName string `json:"ProvisionedELBName"`
-	}
-)
+func (s ByDate) Len() int { return len(s) }
+
+func (s ByDate) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
+func (s ByDate) Less(i, j int) bool {
+	return s[i].CreationTime.Before(*s[j].CreationTime)
+}

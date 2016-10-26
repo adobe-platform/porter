@@ -22,8 +22,8 @@ import (
 	"github.com/adobe-platform/porter/hook"
 	"github.com/adobe-platform/porter/logger"
 	"github.com/adobe-platform/porter/promote"
-	"github.com/adobe-platform/porter/provision_output"
-
+	"github.com/adobe-platform/porter/provision_state"
+	"github.com/inconshreveable/log15"
 	"github.com/phylake/go-cli"
 )
 
@@ -74,40 +74,53 @@ func (recv *PromoteCmd) Execute(args []string) bool {
 		provisionOutputPath = constants.ProvisionOutputPath
 	}
 
-	log := logger.CLI("cmd", "build-promote")
+	log := logger.CLI("cmd", "promote")
 
-	config, success := conf.GetAlteredConfig(log)
-	if !success {
-		os.Exit(1)
-	}
-
-	provisionedEnv := &provision_output.Environment{}
-	provisionEnvBytes, err := ioutil.ReadFile(provisionOutputPath)
+	stackBytes, err := ioutil.ReadFile(provisionOutputPath)
 	if err != nil {
 		log.Error("Unable to read provision output file", "Error", err)
 		os.Exit(1)
 	}
 
-	err = json.Unmarshal(provisionEnvBytes, provisionedEnv)
+	stack := &provision_state.Stack{}
+	err = json.Unmarshal(stackBytes, stack)
 	if err != nil {
 		log.Error("json unmarshal error on provision output", "Error", err)
 		os.Exit(1)
 	}
 
-	commandSuccess := hook.Execute(log, constants.HookPrePromote,
-		provisionedEnv.Environment, provisionedEnv.Regions, true)
-
-	if commandSuccess {
-		commandSuccess = promote.Promote(log, config, provisionedEnv, elbType)
+	if stack.Hotswap {
+		log.Info("No promotion occurs during a hot swap")
+		return true
 	}
 
-	commandSuccess = hook.Execute(log, constants.HookPostPromote,
-		provisionedEnv.Environment, provisionedEnv.Regions, commandSuccess)
-
-	if !commandSuccess {
+	if !doPromote(log, stack, elbType) {
 		os.Exit(1)
 	}
 
 	log.Info("Promote complete")
 	return true
+}
+
+func doPromote(log log15.Logger, stack *provision_state.Stack, elbType string) (success bool) {
+
+	defer func() {
+
+		postHookSuccess := hook.Execute(log, constants.HookPostPromote,
+			stack.Environment, stack.Regions, success)
+
+		success = success && postHookSuccess
+	}()
+
+	if !hook.Execute(log, constants.HookPrePromote, stack.Environment, stack.Regions, true) {
+		return
+	}
+
+	config, getConfigSuccess := conf.GetAlteredConfig(log)
+	if !getConfigSuccess {
+		return
+	}
+
+	success = promote.Promote(log, config, stack, elbType)
+	return
 }

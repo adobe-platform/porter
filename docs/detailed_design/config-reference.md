@@ -19,6 +19,7 @@ For each field the following notation is used
   - [instance_count](#instance_count) (==1?)
   - [instance_type](#instance_type) (==1?)
   - [blackout_windows](#blackout_windows) (>=1?)
+  - [hot_swap](#hot_swap) (==1?)
   - [regions](#regions) (>=1!)
     - [name](#region-name) (==1!)
     - [stack_definition_path](#stack_definition_path) (==1?)
@@ -226,6 +227,16 @@ A sample blackout_window
 blackout_windows:
 - start_time: 2015-01-02T15:04:05Z07:00
   end_time: 2015-01-03T15:04:05Z07:00
+```
+
+### hot_swap
+
+Opt into [hot swap deployments](#hotswap.md)
+
+```yaml
+environments:
+- name: stage
+  hot_swap: true
 ```
 
 ### regions

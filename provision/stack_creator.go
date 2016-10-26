@@ -27,6 +27,7 @@ import (
 	"github.com/adobe-platform/porter/cfn"
 	"github.com/adobe-platform/porter/conf"
 	"github.com/adobe-platform/porter/constants"
+	"github.com/adobe-platform/porter/provision_state"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	cfnlib "github.com/aws/aws-sdk-go/service/cloudformation"
@@ -38,10 +39,7 @@ import (
 type (
 	// A struct for manipulating a Cloudformation stack in a single region
 	stackCreator struct {
-		log  log15.Logger
-		args StackArgs
-
-		stackName string
+		log log15.Logger
 
 		config      conf.Config
 		environment conf.Environment
@@ -68,34 +66,28 @@ const (
 	s3KeyOptDeployment
 )
 
-func (recv *stackCreator) createUpdateStackForRegion(outChan chan CreateStackRegionOutput, errChan chan struct{}) {
+func (recv *stackCreator) createUpdateStackForRegion(regionState *provision_state.Region) bool {
 
 	checksum, success := recv.uploadServicePayload()
 	if !success {
 		// uploadServicePayload logs errors. all we care about is success
-		errChan <- struct{}{}
-		return
+		return false
 	}
 
 	if !recv.uploadSecrets(checksum) {
 		// uploadSecrets logs errors. all we care about is success
-		errChan <- struct{}{}
-		return
+		return false
 	}
 
 	stackId, success := recv.createStack()
 	if !success {
 		// createStack logs errors. all we care about is success
-		errChan <- struct{}{}
-		return
+		return false
 	}
 
-	output := CreateStackRegionOutput{
-		StackId: stackId,
-		Region:  recv.region.Name,
-	}
+	regionState.StackId = stackId
 
-	outChan <- output
+	return true
 }
 
 func (recv *stackCreator) uploadServicePayload() (checksum string, success bool) {

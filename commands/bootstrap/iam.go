@@ -146,6 +146,7 @@ const porterDeploymentPolicy = `{
         "cloudformation:DeleteStack",
         "cloudformation:DescribeStackEvents",
         "cloudformation:DescribeStackResource",
+        "cloudformation:DescribeStackResources",
         "cloudformation:DescribeStacks",
         "cloudformation:UpdateStack",
         "ec2:AuthorizeSecurityGroupEgress",
@@ -165,6 +166,7 @@ const porterDeploymentPolicy = `{
         "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
         "elasticloadbalancing:DescribeInstanceHealth",
         "elasticloadbalancing:DescribeLoadBalancers",
+        "elasticloadbalancing:DescribeTags",
         "elasticloadbalancing:ModifyLoadBalancerAttributes",
         "elasticloadbalancing:RegisterInstancesWithLoadBalancer",
         "elasticloadbalancing:SetLoadBalancerPoliciesOfListener",
@@ -186,7 +188,12 @@ const porterDeploymentPolicy = `{
         "route53:ListResourceRecordSets",
         "s3:GetObject",
         "s3:ListBucket",
-        "s3:PutObject"
+        "s3:PutObject",
+        "sqs:CreateQueue",
+        "sqs:DeleteQueue",
+        "sqs:GetQueueAttributes",
+        "sqs:GetQueueUrl",
+        "sqs:ReceiveMessage"
       ],
       "Resource": [
         "*"

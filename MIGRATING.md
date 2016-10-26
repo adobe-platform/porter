@@ -3,6 +3,25 @@ Migration
 
 Read the [release notes](RELEASE_NOTES.md) for context on these changes.
 
+v2 to v3
+--------
+
+Add the following permissions to your `porter-deployment` role's policy document.
+
+If you didn't use `porter bootstrap iam` to create the deployment policy it may
+have a different name. You can look at your `.porter/config` for `role_arn` to
+find the role that needs updated.
+
+```
+cloudformation:DescribeStackResources
+elasticloadbalancing:DescribeTags
+sqs:CreateQueue
+sqs:DeleteQueue
+sqs:GetQueueAttributes
+sqs:GetQueueUrl
+sqs:ReceiveMessages:ReceiveMessage
+```
+
 v1 to v2
 --------
 

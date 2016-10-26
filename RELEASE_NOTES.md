@@ -1,5 +1,17 @@
 See the [CHANGELOG](CHANGELOG.md) for a complete list of changes.
 
+v3.0
+====
+
+Code can now be hot swapped on existing infrastructure. This will mitigate a
+whole class of errors related to provisioning.
+
+One of the primary problems was signaling the build system that a hot swap
+completed. This signal is now sent via a SQS queue that's provisioned with every
+stack.
+
+[Read more about how hot swap works](docs/detailed_design/hotswap.md)
+
 v2.4
 ====
 

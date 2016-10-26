@@ -24,7 +24,7 @@ import (
 	"github.com/adobe-platform/porter/conf"
 	"github.com/adobe-platform/porter/constants"
 	"github.com/adobe-platform/porter/hook"
-	"github.com/adobe-platform/porter/provision_output"
+	"github.com/adobe-platform/porter/provision_state"
 )
 
 // MapResource is a function that operates on the input resource
@@ -468,10 +468,8 @@ func setAutoScalingLaunchConfigurationMetadata(recv *stackCreator, template *cfn
 	hookSuccess := hook.ExecuteWithRunCapture(recv.log,
 		constants.HookEC2Bootstrap,
 		recv.environment.Name,
-		[]provision_output.Region{
-			{
-				AWSRegion: recv.region.Name,
-			},
+		map[string]*provision_state.Region{
+			recv.region.Name: {},
 		},
 		true, &runOutputChan,
 	)
@@ -498,7 +496,7 @@ loop:
 
 	cfnInitContext := cfn_template.AWSCloudFormationInitCtx{
 		PorterVersion: constants.Version,
-		Environment:   recv.args.Environment,
+		Environment:   recv.environment.Name,
 		Region:        recv.region.Name,
 		EnvFile:       constants.EnvFile,
 
@@ -690,7 +688,7 @@ func addAutoScaleGroupTags(recv *stackCreator, template *cfn.Template, resource 
 	additionalTags := []interface{}{
 		map[string]interface{}{
 			"Key":               constants.PorterEnvironmentTag,
-			"Value":             recv.args.Environment,
+			"Value":             recv.environment.Name,
 			"PropagateAtLaunch": true,
 		},
 		map[string]interface{}{
@@ -729,7 +727,7 @@ func addAutoScaleGroupTags(recv *stackCreator, template *cfn.Template, resource 
 
 	recv.log.Info("Adding tags to AWS::AutoScaling::AutoScalingGroup")
 
-	nameTagValue, err := GetStackName(recv.config.ServiceName, recv.args.Environment, false)
+	nameTagValue, err := GetStackName(recv.config.ServiceName, recv.environment.Name, false)
 	if err != nil {
 		recv.log.Error("Failed to get stack name", "Error", err)
 	} else {
@@ -1108,6 +1106,20 @@ func addInlinePolicies(recv *stackCreator, template *cfn.Template, resource map[
 					},
 					"Resource": fmt.Sprintf("arn:aws:s3:::%s/%s/*",
 						recv.region.S3Bucket, recv.s3KeyRoot(s3KeyOptDeployment)),
+				},
+				map[string]interface{}{
+					"Sid":    "4",
+					"Effect": "Allow",
+					"Action": []string{
+						// hotswap signal
+						"sqs:SendMessage",
+					},
+					"Resource": map[string][]string{
+						"Fn::GetAtt": {
+							constants.SignalQueue,
+							"Arn",
+						},
+					},
 				},
 			},
 		},

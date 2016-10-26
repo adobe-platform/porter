@@ -1,17 +1,31 @@
-**v2.4.3**
+### v3.0.0
 
-- reject config files with `run_condition` set in a pre- hook
-- run post- hooks with `run_condition` set to `fail` when a pre- hook fails
+- hot swap code on existing infrastructure
+- switched from haproxy to nginx due to 503s during hot swap
+- added pre and post hotswap hooks
+- added `cloudformation:DescribeStackResources` to deployment policy
+- added `elasticloadbalancing:DescribeTags` to deployment policy
+- added `sqs:CreateQueue` to deployment policy
+- added `sqs:DeleteQueue` to deployment policy
+- added `sqs:GetQueueAttributes` to deployment policy
+- added `sqs:GetQueueUrl` to deployment policy
+- added `sqs:ReceiveMessage` to deployment policy
+- added `sqs:SendMessage` to ASG inline policy
 
-**v2.4.2**
+### v2.4.3
+
+- reject config files with `run_condition` set in a pre hook
+- run post hooks with `run_condition` set to `fail` when a pre hook fails
+
+### v2.4.2
 
 - fix missing or incomplete hook logs
 
-**v2.4.1**
+### v2.4.1
 
 - gather hook log output by hook since they run concurrently
 
-**v2.4.0**
+### v2.4.0
 
 - added retries to instance autoregistration
 - gather hook log output by region since they run concurrently
@@ -19,14 +33,14 @@
 - run hooks concurrently across regions
 - hook `run_condition`
 
-**v2.3.0**
+### v2.3.0
 
 - more resiliency for service payload downloads
 - switch to sha-256 and validate service payload integrity
 - extend container secret management to the host with `porter_get_secrets`
 - fix support for running arbitrary user defined hooks
 
-**v2.2.0**
+### v2.2.0
 
 - run docker with `--security-opt=no-new-privileges`
 - support docker registries as an alternative to S3
@@ -34,22 +48,22 @@
 - deprecated `dst_env_file`
 - added `sse_kms_key_id` for optional SSE-KMS on all porter uploads
 
-**v2.1.2**
+### v2.1.2
 
 - increase logrotate size from 10M to 100M
 
-**v2.1.1**
+### v2.1.1
 
 - fix ec2-bootstrap hook clone for multi-region deployment
 - configurable `-x` in `/var/log/cloud-init-output.log`
 - service payload path is relative to support non-root volume
 
-**v2.1.0**
+### v2.1.0
 
 - `topology: worker` now supported
 - configurable `read_only: false` to disable `docker run --read-only`
 
-**v2.0.0**
+### v2.0.0
 
 - improved secrets handling in transit
 - enabled pluggable secrets provider
@@ -68,29 +82,29 @@
 - CloudFormation templates are now uploaded to S3 to avoid the 51,200 byte limit
 - S3 keys are scoped under `porter-deployment` and `porter-template`
 
-**v1.0.6**
+### v1.0.6
 
 - run the container as root (configurable with uid) to fix breaking change
 
-**v1.0.5**
+### v1.0.5
 
 - run the container as a non-root user by default (configurable with uid)
 
-**v1.0.4**
+### v1.0.4
 
 - add retries to one more DescribeStackResource
 - add an adjustable stack status polling frequency, see `porter debug help`
 
-**v1.0.3**
+### v1.0.3
 
 - add retries to DescribeStackResource
 
-**v1.0.2**
+### v1.0.2
 
 - update aws sdk to v1.1.36
 
-**v1.0.1**
+### v1.0.1
 
 - Fixed security group on ELB for SSL in VPC
 
-**v1 - Initial release**
+### v1 - Initial release
