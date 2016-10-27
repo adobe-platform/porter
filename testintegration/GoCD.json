@@ -650,7 +650,7 @@
             },
             "files": {
               "/go-server.noarch.rpm": {
-                "source": "https://download.go.cd/binaries/16.3.0-3183/rpm/go-server-16.3.0-3183.noarch.rpm",
+                "source": "https://download.go.cd/binaries/16.5.0-3305/rpm/go-server-16.5.0-3305.noarch.rpm",
                 "group": "root",
                 "mode": "000644",
                 "owner": "root"
@@ -1217,7 +1217,7 @@
             },
             "files": {
               "/go-agent.noarch.rpm": {
-                "source": "https://download.go.cd/binaries/16.3.0-3183/rpm/go-agent-16.3.0-3183.noarch.rpm",
+                "source": "https://download.go.cd/binaries/16.5.0-3305/rpm/go-agent-16.5.0-3305.noarch.rpm",
                 "group": "root",
                 "mode": "000644",
                 "owner": "root"
