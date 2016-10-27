@@ -189,9 +189,7 @@ func ProvisionOrHotswapStack(env string) (success bool) {
 
 				default:
 
-					log.Error("Undocumented stack status",
-						"StackStatus", hotswapData.stackStatus)
-					return
+					hotswapData.shouldHotswap = false
 				}
 
 				shouldHotswap = shouldHotswap && hotswapData.shouldHotswap
