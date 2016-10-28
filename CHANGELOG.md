@@ -1,5 +1,6 @@
 ### v3.0.0
 
+- updated to Amazon Linux 2016.09
 - hot swap code on existing infrastructure
 - switched from haproxy to nginx due to 503s during hot swap
 - added pre and post hotswap hooks
