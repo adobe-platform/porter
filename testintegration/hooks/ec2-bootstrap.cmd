@@ -15,7 +15,7 @@ HOST_PORT=$1
 if [[ -z "$HOST_PORT" ]]; then
     exit 2
 fi
-IMAGE_NAME=porter-tcpdump-tcpdump-$HOST_PORT
+IMAGE_NAME=tcpdump-$HOST_PORT
 
 cat <<'DOCKERFILE' | docker build -t $IMAGE_NAME -
 FROM ubuntu:16.04
