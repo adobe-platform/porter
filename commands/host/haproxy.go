@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 	"text/template"
 	"time"
 
@@ -35,7 +36,7 @@ type (
 	HAProxyCmd struct{}
 
 	haProxyConfigContext struct {
-		BackendName     string
+		ServiceName     string
 		FrontEndPorts   []uint16
 		HAPStdin        HAPStdin
 		StatsUsername   string
@@ -53,6 +54,14 @@ type (
 		HealthCheckMethod string `json:"healthCheckMethod"`
 		HealthCheckPath   string `json:"healthCheckPath"`
 		HostPort          uint16 `json:"hostPort"`
+	}
+
+	hostSignal struct {
+		Containers []containerSignal `json:"containers"`
+	}
+
+	containerSignal struct {
+		HostPort uint16 `json:"hostPort"`
 	}
 )
 
@@ -134,7 +143,7 @@ func (recv *HAProxyCmd) Execute(args []string) bool {
 		}
 
 		context := haProxyConfigContext{
-			BackendName:     serviceName,
+			ServiceName:     serviceName,
 			FrontEndPorts:   constants.InetBindPorts,
 			HAPStdin:        stdinStruct,
 			StatsUsername:   constants.HAProxyStatsUsername,
@@ -143,7 +152,7 @@ func (recv *HAProxyCmd) Execute(args []string) bool {
 			IpBlacklistPath: ipBlacklistPath,
 		}
 
-		if !rewriteConfig(log, context) {
+		if !hotswap(log, context) {
 			os.Exit(1)
 		}
 		return true
@@ -152,11 +161,31 @@ func (recv *HAProxyCmd) Execute(args []string) bool {
 	return false
 }
 
-func rewriteConfig(log log15.Logger, context haProxyConfigContext) (success bool) {
+func hotswap(log log15.Logger, context haProxyConfigContext) (success bool) {
 
 	if !healthCheckContainers(log, context.HAPStdin) {
 		return
 	}
+
+	if !writeNewConfig(log, context) {
+		return
+	}
+
+	if !reloadHaproxy(log) {
+		return
+	}
+
+	if !signalHost(log, context) {
+		return
+	}
+
+	success = true
+	return
+}
+
+func writeNewConfig(log log15.Logger, context haProxyConfigContext) (success bool) {
+
+	log.Info("writing new config")
 
 	tmpl, err := template.New("").Parse(files.HaproxyCfg)
 	if err != nil {
@@ -178,10 +207,104 @@ func rewriteConfig(log log15.Logger, context haProxyConfigContext) (success bool
 		return
 	}
 
+	success = true
+	return
+}
+
+func reloadHaproxy(log log15.Logger) (success bool) {
+	// http://marc.info/?l=haproxy&m=133262017329084&w=2
+	exec.Command("iptables", "-I", "INPUT", "-p", "tcp", "--dport", "80", "--syn", "-j", "DROP").Run()
+	exec.Command("iptables", "-I", "INPUT", "-p", "tcp", "--dport", "8080", "--syn", "-j", "DROP").Run()
+	restoreIpTables := func() {
+		exec.Command("iptables", "-D", "INPUT", "-p", "tcp", "--dport", "80", "--syn", "-j", "DROP").Run()
+		exec.Command("iptables", "-D", "INPUT", "-p", "tcp", "--dport", "8080", "--syn", "-j", "DROP").Run()
+	}
+
+	time.Sleep(1 * time.Second)
+
+	pidBytes, err := ioutil.ReadFile("/var/run/haproxy.pid")
+	if err != nil {
+		restoreIpTables()
+		log.Error("Couldn't read HAProxy pid file")
+		return
+	}
+	pid := strings.TrimSpace(string(pidBytes))
+
+	log.Info("reloading config")
+
 	err = exec.Command("service", "haproxy", "reload").Run()
 	if err != nil {
+		restoreIpTables()
 		log.Error("service haproxy reload", "Error", err)
 		return
+	}
+
+	// not defered because we need to restore before polling the previous pid
+	restoreIpTables()
+
+	// wait for pid to go away
+	for {
+		log.Info("waiting for reload to complete")
+		time.Sleep(1 * time.Second)
+
+		_, err = os.Stat("/proc/" + pid)
+		if err != nil {
+			break
+		}
+	}
+	log.Info("previous haproxy pid is gone")
+
+	success = true
+	return
+}
+
+func signalHost(log log15.Logger, context haProxyConfigContext) (success bool) {
+
+	err := exec.Command("which", "porter_hotswap_signal").Run()
+	if err != nil {
+		success = true
+		return
+	}
+
+	hSignal := hostSignal{}
+
+	for _, container := range context.HAPStdin.Containers {
+		if container.HostPort != 0 {
+
+			cSignal := containerSignal{
+				HostPort: container.HostPort,
+			}
+
+			hSignal.Containers = append(hSignal.Containers, cSignal)
+		}
+	}
+
+	signalBytes, err := json.Marshal(hSignal)
+	if err != nil {
+		log.Error("json.Marshal", "Error", err)
+		return
+	}
+	signalStr := string(signalBytes)
+	log.Info("calling porter_hotswap_signal", "stdin", signalStr)
+
+	cmd := exec.Command("porter_hotswap_signal")
+	cmd.Stdin = strings.NewReader(signalStr)
+
+	cmdComplete := make(chan struct{})
+	go func(cmd *exec.Cmd) {
+
+		err = cmd.Run()
+		if err != nil {
+			log.Error("porter_hotswap_signal", "Error", err)
+		}
+
+		cmdComplete <- struct{}{}
+	}(cmd)
+
+	select {
+	case <-cmdComplete:
+	case <-time.After(60 * time.Second):
+		log.Error("porter_hotswap_signal timed out after 60 seconds")
 	}
 
 	success = true
@@ -192,12 +315,11 @@ func healthCheckContainers(log log15.Logger, stdin HAPStdin) (success bool) {
 
 	successChan := make(chan bool)
 	for _, container := range stdin.Containers {
+
 		go func(container HAPContainer) {
-			if healthCheckContainer(log, container) {
-				successChan <- true
-			} else {
-				successChan <- false
-			}
+
+			successChan <- healthCheckContainer(log, container)
+
 		}(container)
 	}
 

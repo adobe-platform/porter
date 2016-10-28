@@ -1,8 +1,9 @@
 ### v3.0.0
 
 - updated to Amazon Linux 2016.09
+- use Standard - Infrequent Access for service payload
 - hot swap code on existing infrastructure
-- switched from haproxy to nginx due to 503s during hot swap
+- kernel tuning allowing more concurrent connections
 - added pre and post hotswap hooks
 - added `cloudformation:DescribeStackResources` to deployment policy
 - added `elasticloadbalancing:DescribeTags` to deployment policy

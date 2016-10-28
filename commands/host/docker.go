@@ -270,6 +270,17 @@ func startContainers(environmentStr, regionStr string) {
 				os.Exit(1)
 			}
 
+			cmdComplete := make(chan struct{})
+			go func(cmd *exec.Cmd) {
+				exec.Command("porter_docker_post_run", strconv.Itoa(int(hostPort))).Run()
+				cmdComplete <- struct{}{}
+			}(cmd)
+
+			select {
+			case <-cmdComplete:
+			case <-time.After(1 * time.Minute):
+			}
+
 			hapContainer := HAPContainer{
 				Id:                containerId,
 				HealthCheckMethod: container.HealthCheck.Method,
@@ -479,7 +490,8 @@ func cleanContainers(environmentStr, regionStr string) {
 			continue
 		}
 
-		drainConnections(log, containerId)
+		// leaving this here in case i need it again
+		// drainConnections(log, containerId)
 
 		log.Info("docker stop " + containerId)
 		err = exec.Command("docker", "stop", containerId).Run()

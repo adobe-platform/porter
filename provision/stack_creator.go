@@ -134,6 +134,7 @@ func (recv *stackCreator) uploadServicePayload() (checksum string, success bool)
 		Body:            bytes.NewReader(payloadBytes),
 		ContentType:     aws.String("application/x-tar"),
 		ContentEncoding: aws.String("gzip"),
+		StorageClass:    aws.String("STANDARD_IA"),
 	}
 
 	s3Manager := s3manager.NewUploader(recv.roleSession)

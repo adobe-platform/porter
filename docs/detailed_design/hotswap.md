@@ -21,14 +21,14 @@ infrastructure drift.
 When not to use it
 ------------------
 
-Often integration tests are run in the `pre_promote` hook as a quality gate. Since
-promotion is skipped there's no chance to run tests against your running code
-before it starts serving traffic.
+Often integration tests are run in the `pre_promote` hook as a quality gate.
+Since promotion is skipped there's no chance to run tests against your running
+code before it starts serving traffic.
 
-We suggest a stage and production environment (in general but especially for hot
-swap). Both can be configured to hot swap and in addition to a `pre_promote`
-hook you would configure stage to run a `post_hotswap` hook that performs the
-same testing as a gate to allow code through to production.
+We suggest - in general, but especially for hot swap - a stage and production
+environment. Both can be configured to hot swap and in addition to a
+`pre_promote` hook you would configure stage to run a `post_hotswap` hook that
+performs the same testing as a gate to allow code through to production.
 
 How it works
 ------------
@@ -55,8 +55,12 @@ following occurs:
 1. [cfn-hup](http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-hup.html)
    sits in a polling loop and triggers `/usr/bin/porter_hotswap` once a stack
    update is detected
-1. `/usr/bin/porter_hotswap` runs the configured docker containers
-1. `/usr/bin/porter_hotswap` reloads nginx config to send traffic to them
-1. `/usr/bin/porter_hotswap` drains connections on the old containers
-1. `/usr/bin/porter_hotswap` sends a success message to the same SQS queue that
-    porter is currently receiving messages on
+1. Run the configured docker containers
+1. Health check the containers on their configured `inet_port` and `health_check`
+1. Once healthy reload haproxy config to send traffic to them
+1. Drain connections on the old containers
+1. `docker stop` on the old container ids
+1. `docker rm` on the old container ids
+1. `docker rmi` on the old image
+1. Send a success message to the same SQS queue that porter is currently
+   receiving messages on
