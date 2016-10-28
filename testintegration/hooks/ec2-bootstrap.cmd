@@ -8,23 +8,21 @@ cat <<'EOF'
 SECRET=$(porter_get_secrets)
 [[ $SECRET = 'hi' ]] || exit 1
 
-curl -Lo /usr/bin/jq https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64
-chmod 555 /usr/bin/jq
-
-cat <<'HOTSWAP_SIGNAL' > /usr/bin/porter_hotswap_signal
+cat <<'DOCKER_POST_RUN' > /usr/bin/porter_docker_post_run
 #!/bin/bash
 
-read STDIN
-HOST_PORTS=`echo $STDIN | jq -r '.containers[].hostPort'`
-for HOST_PORT in $HOST_PORTS; do
+HOST_PORT=$1
+if [[ -z "$HOST_PORT" ]]; then
+    exit 2
+fi
 
-cat <<'DOCKERFILE' | docker build -t tcpdump-$HOST_PORT -
+cat <<'DOCKERFILE' | docker build -t porter-tcpdump-tcpdump-$HOST_PORT -
 FROM ubuntu:16.04
 
 RUN apt-get update
 RUN apt-get install -y tcpdump
 
-CMD tcpdump -w /host/tcpdump-$PORT -n -s 100 -i lo port $PORT
+CMD tcpdump -w /host/porter-tcpdump-tcpdump-$PORT -n -s 100 -i lo port $PORT
 DOCKERFILE
 
 docker run -d \
@@ -35,8 +33,8 @@ docker run -d \
 tcpdump-$HOST_PORT
 done
 
-HOTSWAP_SIGNAL
-chmod 755 /usr/bin/porter_hotswap_signal
+DOCKER_POST_RUN
+chmod 755 /usr/bin/porter_docker_post_run
 EOF
 
 fi
