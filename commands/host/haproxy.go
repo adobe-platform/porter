@@ -245,7 +245,7 @@ func reloadHaproxy(log log15.Logger) (success bool) {
 	// wait for pid to go away
 	for {
 		log.Info("waiting for reload to complete")
-		time.Sleep(1 * time.Second)
+		time.Sleep(2 * time.Second)
 
 		_, err = os.Stat("/proc/" + pid)
 		if err != nil {
