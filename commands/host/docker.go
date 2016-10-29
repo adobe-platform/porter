@@ -272,7 +272,10 @@ func startContainers(environmentStr, regionStr string) {
 
 			cmdComplete := make(chan struct{})
 			go func(cmd *exec.Cmd) {
-				exec.Command("porter_docker_post_run", strconv.Itoa(int(hostPort))).Run()
+				err := exec.Command("which", "porter_docker_post_run").Run()
+				if err == nil {
+					exec.Command("porter_docker_post_run", strconv.Itoa(int(hostPort))).Run()
+				}
 				cmdComplete <- struct{}{}
 			}(cmd)
 
