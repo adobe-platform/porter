@@ -126,6 +126,8 @@ func ProvisionOrHotswapStack(env string) (success bool) {
 
 	if environment.Hotswap {
 
+		log.Info("Hot swap enabled")
+
 		hotswapStructs := make([]hotswapStruct, 0)
 		hotswapChan := make(chan hotswapStruct)
 		failureChan := make(chan struct{})
@@ -221,6 +223,7 @@ func checkShouldHotswapRegion(log log15.Logger, environment *conf.Environment,
 
 	log.Debug("checkShouldHotswapRegion BEGIN")
 	defer log.Debug("checkShouldHotswapRegion END")
+	log.Info("Checking if this region is eligible for hot swap")
 
 	hotswapData.shouldHotswap = true
 	hotswapData.region = region.Name
@@ -268,61 +271,81 @@ elbLoop:
 
 		for _, tagDescription := range tagDescriptions {
 
+			var foundStackId bool
+			var foundPorterVersion bool
+
 			for _, tag := range tagDescription.Tags {
-				if tag.Key == nil || *tag.Key != constants.PorterStackIdTag {
+				if tag.Key == nil {
 					continue
 				}
 
-				log.Info("Found stack attached to " + elbName)
+				switch *tag.Key {
+				case constants.PorterStackIdTag:
+					foundStackId = true
 
-				hotswapData.stackId = *tag.Value
+					log.Info("Found stack attached to ELB. Checking creation time")
 
-				describeStacksInput := &cloudformation.DescribeStacksInput{
-					StackName: tag.Value,
-				}
-				var describeStacksOutput *cloudformation.DescribeStacksOutput
+					hotswapData.stackId = *tag.Value
 
-				log.Info("cloudformation:DescribeStacks")
-				retryMsg := func(i int) { log.Warn("cloudformation:DescribeStacks retrying", "Count", i) }
-				if !util.SuccessRetryer(7, retryMsg, func() bool {
-					describeStacksOutput, err = cfnClient.DescribeStacks(describeStacksInput)
-					if err != nil {
-						log.Error("cloudformation:DescribeStacks", "Error", err)
-						return false
+					describeStacksInput := &cloudformation.DescribeStacksInput{
+						StackName: tag.Value,
 					}
-					if len(describeStacksOutput.Stacks) != 1 {
-						log.Error("len(describeStacksOutput.Stacks != 1)")
-						return false
+					var describeStacksOutput *cloudformation.DescribeStacksOutput
+
+					log.Info("cloudformation:DescribeStacks")
+					retryMsg := func(i int) { log.Warn("cloudformation:DescribeStacks retrying", "Count", i) }
+					if !util.SuccessRetryer(7, retryMsg, func() bool {
+						describeStacksOutput, err = cfnClient.DescribeStacks(describeStacksInput)
+						if err != nil {
+							log.Error("cloudformation:DescribeStacks", "Error", err)
+							return false
+						}
+						if len(describeStacksOutput.Stacks) != 1 {
+							log.Error("len(describeStacksOutput.Stacks != 1)")
+							return false
+						}
+						return true
+					}) {
+						log.Crit("Failed to cloudformation:DescribeStacks")
+						return
 					}
-					return true
-				}) {
-					log.Crit("Failed to cloudformation:DescribeStacks")
-					return
+
+					stack := describeStacksOutput.Stacks[0]
+
+					hotswapData.stackStatus = *stack.StackStatus
+					hotswapData.stackName = *stack.StackName
+					log.Info("DescribeStacks output",
+						"StackName", hotswapData.stackName,
+						"StackId", hotswapData.stackId)
+
+					creationTime := *stack.CreationTime
+					hotswapCutoffTime := creationTime.Add(constants.InfrastructureTTL)
+
+					log.Info("Times",
+						"CreationTime", creationTime.Format(time.UnixDate),
+						"HotswapCutoffTime", hotswapCutoffTime.Format(time.UnixDate))
+
+					if time.Now().After(hotswapCutoffTime) {
+						hotswapData.shouldHotswap = false
+					}
+
+				case constants.PorterVersion:
+					foundPorterVersion = true
+
+					if *tag.Value != constants.Version {
+						log.Info("porter version mismatch will skip hot swap",
+							"porter_deployed_version", *tag.Value)
+
+						hotswapData.shouldHotswap = false
+					}
 				}
 
-				stack := describeStacksOutput.Stacks[0]
-
-				hotswapData.stackStatus = *stack.StackStatus
-				hotswapData.stackName = *stack.StackName
-				log.Info("DescribeStacks output",
-					"StackName", hotswapData.stackName,
-					"StackId", hotswapData.stackId)
-
-				creationTime := *stack.CreationTime
-				hotswapCutoffTime := creationTime.Add(constants.InfrastructureTTL)
-
-				log.Info("Times",
-					"CreationTime", creationTime.Format(time.UnixDate),
-					"HotswapCutoffTime", hotswapCutoffTime.Format(time.UnixDate))
-
-				if time.Now().After(hotswapCutoffTime) {
-					hotswapData.shouldHotswap = false
+				if foundStackId && foundPorterVersion {
+					continue elbLoop
 				}
-
-				continue elbLoop
 			}
 
-			log.Info("ELB missing tag " + constants.PorterStackIdTag)
+			log.Info("ELB missing required tags to determine hot swap eligibility")
 			hotswapData.shouldHotswap = false
 			break elbLoop
 		}
