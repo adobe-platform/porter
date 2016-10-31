@@ -460,14 +460,14 @@ func hotswapStackPoll(log log15.Logger, environment *conf.Environment,
 	loopCount := 0
 	for asgSize != receiveSuccess {
 
-		if loopCount == 10 {
+		if loopCount == 30 {
 			log.Error("Never received messages from all EC2 instances")
 			return
 		}
 
 		receiveMessageInput := &sqs.ReceiveMessageInput{
 			QueueUrl:        aws.String(queueUrl),
-			WaitTimeSeconds: aws.Int64(60),
+			WaitTimeSeconds: aws.Int64(20),
 		}
 
 		log.Info("sqs:ReceiveMessage")
