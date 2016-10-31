@@ -447,6 +447,15 @@ func hotswapStackPoll(log log15.Logger, environment *conf.Environment,
 		return
 	}
 
+	// from cloudformation:UpdateStack there are a few timings that inform this
+	// loop
+	// 1. ~ 1min: cfn-hup polls every 60 seconds to detect the stack update and
+	//            call porter_hotswap
+	// 2. variable: time to download and start the service
+	// 3. HC_HealthyThreshold * HC_Interval seconds: health check on each container
+	// 4. ~ 1min: to complete haproxy reload which is the Keep-Alive time from ELB
+	//
+	// That's 2m 15s excluding step 2
 	receiveSuccess := 0
 	loopCount := 0
 	for asgSize != receiveSuccess {
@@ -458,7 +467,7 @@ func hotswapStackPoll(log log15.Logger, environment *conf.Environment,
 
 		receiveMessageInput := &sqs.ReceiveMessageInput{
 			QueueUrl:        aws.String(queueUrl),
-			WaitTimeSeconds: aws.Int64(20),
+			WaitTimeSeconds: aws.Int64(60),
 		}
 
 		log.Info("sqs:ReceiveMessage")
