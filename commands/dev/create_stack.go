@@ -261,12 +261,12 @@ outer:
 				stackEvent.LogicalResourceId != nil {
 
 				switch *stackEvent.ResourceStatus {
-				case "CREATE_IN_PROGRESS":
+				case cfn.CREATE_IN_PROGRESS:
 					log.Info("CREATE_IN_PROGRESS",
 						"LogicalId", *stackEvent.LogicalResourceId,
 						"Type", *stackEvent.ResourceType,
 					)
-				case "CREATE_COMPLETE":
+				case cfn.CREATE_COMPLETE:
 					switch *stackEvent.ResourceType {
 					case cfn.AutoScaling_AutoScalingGroup:
 						go logInstanceDNS(log, ec2Client, stackId)
@@ -281,7 +281,7 @@ outer:
 						"LogicalId", *stackEvent.LogicalResourceId,
 						"Type", *stackEvent.ResourceType,
 					)
-				case "CREATE_FAILED":
+				case cfn.CREATE_FAILED:
 					log.Error("CREATE_FAILED",
 						"LogicalId", *stackEvent.LogicalResourceId,
 						"Type", *stackEvent.ResourceType,

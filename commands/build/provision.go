@@ -153,35 +153,35 @@ func ProvisionOrHotswapStack(env string) (success bool) {
 			case hotswapData := <-hotswapChan:
 
 				switch hotswapData.stackStatus {
-				case "CREATE_COMPLETE", "UPDATE_COMPLETE":
+				case cfn.CREATE_COMPLETE, cfn.UPDATE_COMPLETE:
 					// only states eligible for hot swap
 
-				case "CREATE_FAILED",
-					"DELETE_COMPLETE",
-					"DELETE_FAILED",
-					"DELETE_IN_PROGRESS",
-					"ROLLBACK_COMPLETE",
-					"ROLLBACK_FAILED",
-					"ROLLBACK_IN_PROGRESS":
+				case cfn.CREATE_FAILED,
+					cfn.DELETE_COMPLETE,
+					cfn.DELETE_FAILED,
+					cfn.DELETE_IN_PROGRESS,
+					cfn.ROLLBACK_COMPLETE,
+					cfn.ROLLBACK_FAILED,
+					cfn.ROLLBACK_IN_PROGRESS:
 
 					hotswapData.shouldHotswap = false
 
-				case "CREATE_IN_PROGRESS":
+				case cfn.CREATE_IN_PROGRESS:
 
 					log.Error("Can't hot swap a stack being created")
 					return
 
-				case "UPDATE_COMPLETE_CLEANUP_IN_PROGRESS",
-					"UPDATE_IN_PROGRESS":
+				case cfn.UPDATE_COMPLETE_CLEANUP_IN_PROGRESS,
+					cfn.UPDATE_IN_PROGRESS:
 
 					log.Error("A previous hot swap is still in progress",
 						"StackStatus", hotswapData.stackStatus)
 					return
 
-				case "UPDATE_ROLLBACK_COMPLETE",
-					"UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS",
-					"UPDATE_ROLLBACK_FAILED",
-					"UPDATE_ROLLBACK_IN_PROGRESS":
+				case cfn.UPDATE_ROLLBACK_COMPLETE,
+					cfn.UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS,
+					cfn.UPDATE_ROLLBACK_FAILED,
+					cfn.UPDATE_ROLLBACK_IN_PROGRESS:
 
 					log.Error("A previous hot swap appears to have failed",
 						"StackStatus", hotswapData.stackStatus)
@@ -720,16 +720,16 @@ stackEventPoll:
 		log.Info("Stack status", "StackStatus", *describeStackOutput.Stacks[0].StackStatus)
 
 		switch *describeStackOutput.Stacks[0].StackStatus {
-		case "CREATE_COMPLETE":
+		case cfn.CREATE_COMPLETE:
 			stackProvisioned = true
 			break stackEventPoll
-		case "CREATE_FAILED":
+		case cfn.CREATE_FAILED:
 			log.Error("Stack creation failed")
 			return
-		case "DELETE_IN_PROGRESS":
+		case cfn.DELETE_IN_PROGRESS:
 			log.Error("Stack is being deleted")
 			return
-		case "ROLLBACK_IN_PROGRESS":
+		case cfn.ROLLBACK_IN_PROGRESS:
 			log.Error("Stack is rolling back")
 			return
 		}

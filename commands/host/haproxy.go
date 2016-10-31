@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -213,11 +214,21 @@ func writeNewConfig(log log15.Logger, context haProxyConfigContext) (success boo
 
 func reloadHaproxy(log log15.Logger) (success bool) {
 	// http://marc.info/?l=haproxy&m=133262017329084&w=2
-	exec.Command("iptables", "-I", "INPUT", "-p", "tcp", "--dport", "80", "--syn", "-j", "DROP").Run()
-	exec.Command("iptables", "-I", "INPUT", "-p", "tcp", "--dport", "8080", "--syn", "-j", "DROP").Run()
+	for _, port := range constants.InetBindPorts {
+		portStr := strconv.Itoa(int(port))
+		err := exec.Command("iptables", "-I", "INPUT", "-p", "tcp", "--dport", portStr, "--syn", "-j", "DROP").Run()
+		if err != nil {
+			log.Warn("iptables -I", "Error", err)
+		}
+	}
 	restoreIpTables := func() {
-		exec.Command("iptables", "-D", "INPUT", "-p", "tcp", "--dport", "80", "--syn", "-j", "DROP").Run()
-		exec.Command("iptables", "-D", "INPUT", "-p", "tcp", "--dport", "8080", "--syn", "-j", "DROP").Run()
+		for _, port := range constants.InetBindPorts {
+			portStr := strconv.Itoa(int(port))
+			err := exec.Command("iptables", "-D", "INPUT", "-p", "tcp", "--dport", portStr, "--syn", "-j", "DROP").Run()
+			if err != nil {
+				log.Warn("iptables -D", "Error", err)
+			}
+		}
 	}
 
 	time.Sleep(1 * time.Second)
@@ -232,6 +243,7 @@ func reloadHaproxy(log log15.Logger) (success bool) {
 
 	log.Info("reloading config")
 
+	t0 := time.Now()
 	err = exec.Command("service", "haproxy", "reload").Run()
 	if err != nil {
 		restoreIpTables()
@@ -242,8 +254,10 @@ func reloadHaproxy(log log15.Logger) (success bool) {
 	// not defered because we need to restore before polling the previous pid
 	restoreIpTables()
 
-	// wait for pid to go away
-	for {
+	// observing 60+-5s for pid to go away
+	// wait 3 mins
+	for i := 0; i < 90; i++ {
+
 		log.Info("waiting for reload to complete")
 		time.Sleep(2 * time.Second)
 
@@ -252,7 +266,7 @@ func reloadHaproxy(log log15.Logger) (success bool) {
 			break
 		}
 	}
-	log.Info("previous haproxy pid is gone")
+	log.Info("previous haproxy pid is gone", "seconds", time.Now().Sub(t0).Seconds())
 
 	success = true
 	return

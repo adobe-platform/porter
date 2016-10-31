@@ -20,6 +20,7 @@ import (
 
 	"github.com/adobe-platform/porter/aws/cloudformation"
 	"github.com/adobe-platform/porter/aws_session"
+	"github.com/adobe-platform/porter/cfn"
 	"github.com/adobe-platform/porter/conf"
 	"github.com/adobe-platform/porter/constants"
 	"github.com/adobe-platform/porter/logger"
@@ -160,7 +161,7 @@ func pollUpdateComplete(log log15.Logger, environment *conf.Environment, stackId
 			if stackEvent.ResourceType != nil && stackEvent.ResourceStatus != nil {
 
 				switch *stackEvent.ResourceStatus {
-				case "UPDATE_COMPLETE":
+				case cfn.UPDATE_COMPLETE:
 					switch *stackEvent.ResourceType {
 					case "AWS::CloudFormation::Stack":
 						log.Info("Received AWS::CloudFormation::Stack UPDATE_COMPLETE")
