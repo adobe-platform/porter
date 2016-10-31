@@ -100,6 +100,7 @@ const (
 	PorterWaitConditionHandleLogicalIdTag = "porter:aws:cloudformation:waitconditionhandle:logical-id"
 	PorterEnvironmentTag                  = "porter-config-environment"
 	PorterServiceNameTag                  = "porter-service-name"
+	PorterVersion                         = "porter-version"
 
 	// This is different than AwsCfnStackIdTag. Porter tags the elb into which a
 	// stack is promoted. This is different than the use of AwsCfnStackIdTag

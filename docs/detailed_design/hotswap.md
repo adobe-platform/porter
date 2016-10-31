@@ -15,7 +15,7 @@ infrastructure exposes a whole class of errors that are easily avoidable.
 
 For these reasons porter enforces that hot swap can only occur for a maximum of
 24 hours before re-provision must occur. We think this strikes a nice balance
-between a fast feedback loop, a good security posture, and avoiding
+between a fast feedback loop, a good default security posture, and avoiding
 infrastructure drift.
 
 When not to use it
@@ -29,6 +29,13 @@ We suggest - in general, but especially for hot swap - a stage and production
 environment. Both can be configured to hot swap and in addition to a
 `pre_promote` hook you would configure stage to run a `post_hotswap` hook that
 performs the same testing as a gate to allow code through to production.
+
+Caveats
+-------
+
+The AutoScalingGroup's min/max size isn't matched with what currently deployed
+meaning any changes that were made to the AutoScaling group after porter
+deployed it are lost.
 
 How it works
 ------------
