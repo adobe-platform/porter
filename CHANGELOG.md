@@ -5,6 +5,7 @@
 - hot swap code on existing infrastructure
 - kernel tuning allowing more concurrent connections
 - added pre and post hotswap hooks
+- fixed v2.4.3 issue that could create false-positives in `porter build` steps
 - added `cloudformation:DescribeStackResources` to deployment policy
 - added `elasticloadbalancing:DescribeTags` to deployment policy
 - added `sqs:CreateQueue` to deployment policy
