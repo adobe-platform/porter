@@ -94,6 +94,7 @@ type (
 		Name                string           `yaml:"name"`
 		StackDefinitionPath string           `yaml:"stack_definition_path"`
 		RoleARN             string           `yaml:"role_arn"`
+		Hotswap             bool             `yaml:"hot_swap"`
 		InstanceCount       uint             `yaml:"instance_count"`
 		InstanceType        string           `yaml:"instance_type"`
 		BlackoutWindows     []BlackoutWindow `yaml:"blackout_windows"`

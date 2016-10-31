@@ -113,10 +113,11 @@ func (recv *Config) ValidateHooks() (err error) {
 		for _, hook := range hookList {
 
 			switch name {
-			case constants.HookPostProvision:
-			case constants.HookPostPack:
-			case constants.HookPostPromote:
-			case constants.HookPostPrune:
+			case constants.HookPostPack,
+				constants.HookPostProvision,
+				constants.HookPostHotswap,
+				constants.HookPostPromote,
+				constants.HookPostPrune:
 			default:
 				if hook.RunCondition != constants.HRC_Pass {
 					return fmt.Errorf("A run_condition option is not valid for a %s hook", name)
@@ -124,9 +125,9 @@ func (recv *Config) ValidateHooks() (err error) {
 			}
 
 			switch hook.RunCondition {
-			case constants.HRC_Pass:
-			case constants.HRC_Fail:
-			case constants.HRC_Always:
+			case constants.HRC_Pass,
+				constants.HRC_Fail,
+				constants.HRC_Always:
 			default:
 				return fmt.Errorf("Invalid run_condition [%s] on a %s hook",
 					hook.RunCondition, name)

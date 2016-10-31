@@ -8,7 +8,7 @@
       "repo_upgrade: security\n",
       "\n",
       "# http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AmazonLinuxAMIBasics.html#RepoConfig\n",
-      "repo_releasever: 2016.03\n",
+      "repo_releasever: 2016.09\n",
       "\n",
       "packages:\n",
       "  - haproxy-1.5.2\n",

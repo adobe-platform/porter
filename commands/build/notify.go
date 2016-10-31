@@ -59,7 +59,7 @@ func (recv *NotifyCmd) SubCommands() []cli.Command {
 }
 
 func (recv *NotifyCmd) Execute(args []string) bool {
-	log := logger.CLI("cmd", "build-notify")
+	log := logger.CLI("cmd", "notify")
 
 	if len(args) > 1 && args[0] == "-go-ci" {
 		var buildPhase, webhookURL string
@@ -131,9 +131,12 @@ func slackPost(slackURL string, message string) {
 	}
 
 	resp, err := http.PostForm(slackURL, url.Values{"payload": {string(messageBodyBytes)}})
-
-	if err != nil || resp.StatusCode != 200 {
-		log.Error("Post to slack failed", "Error", err, "StatusCode", resp.StatusCode)
+	if err != nil {
+		log.Error("Post to slack failed", "Error", err)
+		return
+	}
+	if resp.StatusCode != 200 {
+		log.Error("Post to slack failed", "StatusCode", resp.StatusCode)
 		return
 	}
 

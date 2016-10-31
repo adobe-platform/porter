@@ -31,6 +31,11 @@ func (recv *stackCreator) ensureResources(template *cfn.Template) (success bool)
 		return
 	}
 
+	success = recv.ensureSignalQueue(template)
+	if !success {
+		return
+	}
+
 	success = recv.ensureIAMRole(template)
 	if !success {
 		return
@@ -137,6 +142,20 @@ func (recv *stackCreator) ensureMappings(template *cfn.Template) bool {
 	}
 
 	template.Mappings[constants.MappingRegionToAMI] = cfn_template.RegionToAmazonLinuxAMI()
+
+	return true
+}
+
+func (recv *stackCreator) ensureSignalQueue(template *cfn.Template) bool {
+	resource := map[string]interface{}{
+		"Type": cfn.SQS_Queue,
+		"Properties": map[string]interface{}{
+			"MaximumMessageSize":     1024,
+			"MessageRetentionPeriod": 120,
+		},
+	}
+
+	template.SetResource(constants.SignalQueue, resource)
 
 	return true
 }

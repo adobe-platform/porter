@@ -247,6 +247,7 @@ func AWSCloudFormationInit(autoScalingLaunchConfigurationLogicalId string, conte
 	hotSwapContents := []interface{}{
 		"#!/bin/bash -e\n",
 		"export AWS_STACKID=", map[string]string{"Ref": "AWS::StackId"}, "\n",
+		"export SIGNAL_QUEUE_URL='", map[string]string{"Ref": constants.SignalQueue}, "'\n",
 	}
 	for _, line := range strings.Split(buf.String(), "\n") {
 		hotSwapContents = append(hotSwapContents, line+"\n")

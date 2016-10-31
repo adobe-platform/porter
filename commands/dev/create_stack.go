@@ -29,6 +29,7 @@ import (
 	"github.com/adobe-platform/porter/constants"
 	"github.com/adobe-platform/porter/logger"
 	"github.com/adobe-platform/porter/provision"
+	"github.com/adobe-platform/porter/provision_state"
 	"github.com/adobe-platform/porter/prune"
 	"github.com/adobe-platform/porter/util"
 	ec2lib "github.com/aws/aws-sdk-go/service/ec2"
@@ -128,18 +129,13 @@ func (recv *CreateStackCmd) Execute(args []string) bool {
 			return false
 		}
 
-		stackArgs := provision.StackArgs{
-			Environment: environment,
-			KeepCount:   keepCount,
-		}
-
-		CreateStack(stackArgs, block)
+		CreateStack(environment, keepCount, block)
 		return true
 	}
 	return false
 }
 
-func CreateStack(stackArgs provision.StackArgs, block bool) {
+func CreateStack(environmentStr string, keepCount int, block bool) {
 	var (
 		environment  *conf.Environment
 		regionName   string
@@ -157,13 +153,13 @@ func CreateStack(stackArgs provision.StackArgs, block bool) {
 		config.Print()
 	}
 
-	environment, err := config.GetEnvironment(stackArgs.Environment)
+	environment, err := config.GetEnvironment(environmentStr)
 	if err != nil {
 		log.Error("GetEnvironment", "Error", err)
 		os.Exit(1)
 	}
 
-	if !prune.Do(log, config, environment, stackArgs.KeepCount, false, "") {
+	if !prune.Do(log, config, environment, keepCount, false, "") {
 		os.Exit(1)
 	}
 
@@ -182,19 +178,22 @@ func CreateStack(stackArgs provision.StackArgs, block bool) {
 		os.Exit(1)
 	}
 
-	stackOutput, success := provision.CreateStack(log, config, stackArgs)
-	if !success {
+	stack := &provision_state.Stack{
+		Environment: environmentStr,
+	}
+
+	if !provision.CreateStack(log, config, stack) {
 		log.Error("Create stack failed")
 		os.Exit(1)
 	}
 
-	if len(stackOutput.Regions) != 1 {
-		log.Error("unexpected number of regions in stack output", "RegionCount", len(stackOutput.Regions))
+	if len(stack.Regions) != 1 {
+		log.Error("unexpected number of regions in stack output", "RegionCount", len(stack.Regions))
 		os.Exit(1)
 	}
 
 	regionName = environment.Regions[0].Name
-	stackId := stackOutput.Regions[regionName].StackId
+	stackId := stack.Regions[regionName].StackId
 
 	outputFile, err := os.Create(constants.CreateStackOutputPath)
 	if err != nil {
@@ -202,7 +201,7 @@ func CreateStack(stackArgs provision.StackArgs, block bool) {
 		os.Exit(1)
 	}
 
-	err = json.NewEncoder(outputFile).Encode(stackOutput)
+	err = json.NewEncoder(outputFile).Encode(stack)
 	if err != nil {
 		log.Error("couldn't write stack output")
 		os.Exit(1)
@@ -262,12 +261,12 @@ outer:
 				stackEvent.LogicalResourceId != nil {
 
 				switch *stackEvent.ResourceStatus {
-				case "CREATE_IN_PROGRESS":
+				case cfn.CREATE_IN_PROGRESS:
 					log.Info("CREATE_IN_PROGRESS",
 						"LogicalId", *stackEvent.LogicalResourceId,
 						"Type", *stackEvent.ResourceType,
 					)
-				case "CREATE_COMPLETE":
+				case cfn.CREATE_COMPLETE:
 					switch *stackEvent.ResourceType {
 					case cfn.AutoScaling_AutoScalingGroup:
 						go logInstanceDNS(log, ec2Client, stackId)
@@ -282,7 +281,7 @@ outer:
 						"LogicalId", *stackEvent.LogicalResourceId,
 						"Type", *stackEvent.ResourceType,
 					)
-				case "CREATE_FAILED":
+				case cfn.CREATE_FAILED:
 					log.Error("CREATE_FAILED",
 						"LogicalId", *stackEvent.LogicalResourceId,
 						"Type", *stackEvent.ResourceType,

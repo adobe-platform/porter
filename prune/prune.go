@@ -21,11 +21,11 @@ import (
 	"github.com/adobe-platform/porter/aws/cloudformation"
 	"github.com/adobe-platform/porter/aws/ec2"
 	"github.com/adobe-platform/porter/aws/elb"
+	awsutil "github.com/adobe-platform/porter/aws/util"
 	"github.com/adobe-platform/porter/aws_session"
 	"github.com/adobe-platform/porter/conf"
 	"github.com/adobe-platform/porter/constants"
 	"github.com/adobe-platform/porter/provision"
-
 	"github.com/aws/aws-sdk-go/aws/session"
 	cfnlib "github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/inconshreveable/log15"
@@ -33,17 +33,6 @@ import (
 
 // exponential backoff
 const mixedStackRetryCount = 6
-
-// byDate sorts Stacks by creation date
-type byDate []*cfnlib.Stack
-
-func (s byDate) Len() int { return len(s) }
-
-func (s byDate) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-
-func (s byDate) Less(i, j int) bool {
-	return s[i].CreationTime.Before(*s[j].CreationTime)
-}
 
 func Do(log log15.Logger, config *conf.Config, environment *conf.Environment,
 	keepCount int, elbFilter bool, elbTag string) (success bool) {
@@ -171,7 +160,7 @@ func pruneStacks(log log15.Logger, region *conf.Region,
 	}
 
 	//sort the stacks by CreationTime
-	sort.Sort(sort.Reverse(byDate(pruneList)))
+	sort.Sort(sort.Reverse(awsutil.ByDate(pruneList)))
 
 	for i, stack := range pruneList {
 		if i >= keepCount {

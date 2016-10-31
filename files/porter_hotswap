@@ -28,3 +28,5 @@ tar -xzOf $PAYLOAD_PATH ./{{ .ServicePayloadConfigPath }} \
 echo "cleaning containers"
 tar -xzOf $PAYLOAD_PATH ./{{ .ServicePayloadConfigPath }} \
 | porter host docker --clean -e {{ .Environment }} -r {{ .Region }}
+
+porter host signal --hotswap-complete -r {{ .Region }}

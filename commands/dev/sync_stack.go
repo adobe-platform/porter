@@ -20,10 +20,12 @@ import (
 
 	"github.com/adobe-platform/porter/aws/cloudformation"
 	"github.com/adobe-platform/porter/aws_session"
+	"github.com/adobe-platform/porter/cfn"
 	"github.com/adobe-platform/porter/conf"
 	"github.com/adobe-platform/porter/constants"
 	"github.com/adobe-platform/porter/logger"
 	"github.com/adobe-platform/porter/provision"
+	"github.com/adobe-platform/porter/provision_state"
 	"github.com/inconshreveable/log15"
 	"github.com/phylake/go-cli"
 )
@@ -66,18 +68,14 @@ func (recv *SyncStackCmd) Execute(args []string) bool {
 		}
 		set.Parse(args)
 
-		stackArgs := provision.StackArgs{
-			Environment: environment,
-		}
-
-		UpdateStack(stackArgs)
+		UpdateStack(environment)
 		return true
 	}
 
 	return false
 }
 
-func UpdateStack(stackArgs provision.StackArgs) {
+func UpdateStack(environmentStr string) {
 
 	log := logger.CLI()
 
@@ -86,7 +84,7 @@ func UpdateStack(stackArgs provision.StackArgs) {
 		os.Exit(1)
 	}
 
-	environment, err := config.GetEnvironment(stackArgs.Environment)
+	environment, err := config.GetEnvironment(environmentStr)
 	if err != nil {
 		log.Error("GetEnvironment", "Error", err)
 		os.Exit(1)
@@ -98,36 +96,36 @@ func UpdateStack(stackArgs provision.StackArgs) {
 		os.Exit(1)
 	}
 
-	createStackOutput := provision.CreateStackOutput{}
-	err = json.NewDecoder(outputFile).Decode(&createStackOutput)
+	stack := provision_state.Stack{}
+	err = json.NewDecoder(outputFile).Decode(&stack)
 	if err != nil {
 		log.Error("json.Decode", "Error", err)
 		os.Exit(1)
 	}
 
-	if len(createStackOutput.Regions) != 1 {
+	if len(stack.Regions) != 1 {
 		msg := fmt.Sprintf("sync-stack works with a single region. found %d",
-			len(createStackOutput.Regions))
+			len(stack.Regions))
 		log.Error(msg)
 		os.Exit(1)
 	}
 
-	var regionOutput provision.CreateStackRegionOutput
-	for _, output := range createStackOutput.Regions {
-		regionOutput = output
+	var regionState *provision_state.Region
+	for _, output := range stack.Regions {
+		regionState = output
 	}
 
 	if success := provision.Package(log, config); !success {
 		os.Exit(1)
 	}
 
-	if success := provision.UpdateStack(log, config, stackArgs, createStackOutput); !success {
+	if success := provision.UpdateStack(log, config, stack); !success {
 		log.Error("Update stack failed")
 		os.Exit(1)
 	}
 
 	log.Info("Called UpdateStack. Waiting for UPDATE_COMPLETE")
-	pollUpdateComplete(log, environment, regionOutput.StackId)
+	pollUpdateComplete(log, environment, regionState.StackId)
 }
 
 func pollUpdateComplete(log log15.Logger, environment *conf.Environment, stackId string) {
@@ -163,7 +161,7 @@ func pollUpdateComplete(log log15.Logger, environment *conf.Environment, stackId
 			if stackEvent.ResourceType != nil && stackEvent.ResourceStatus != nil {
 
 				switch *stackEvent.ResourceStatus {
-				case "UPDATE_COMPLETE":
+				case cfn.UPDATE_COMPLETE:
 					switch *stackEvent.ResourceType {
 					case "AWS::CloudFormation::Stack":
 						log.Info("Received AWS::CloudFormation::Stack UPDATE_COMPLETE")

@@ -69,7 +69,7 @@ godep_save:
 	docker run -it --rm \
 	-v $$PWD:/go/src/github.com/adobe-platform/porter \
 	-w /go/src/github.com/adobe-platform/porter \
-	golang:1.5.2 \
+	golang:1.7.3 \
 	go get github.com/tools/godep && \
 	godep restore && \
 	godep save ./...

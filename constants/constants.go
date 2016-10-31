@@ -25,7 +25,7 @@ const (
 	PayloadWorkingDir          = TempDir + "/payload"
 	PayloadPath                = TempDir + "/payload.tar.gz"
 	PackOutputPath             = TempDir + "/pack_output.json"
-	ProvisionOutputPath        = TempDir + "/provision_output.json"
+	ProvisionOutputPath        = TempDir + "/provision_state.json"
 	CreateStackOutputPath      = TempDir + "/create_stack_output.json"
 	CloudFormationTemplatePath = TempDir + "/CloudFormationTemplate.json"
 	EnvFile                    = "/dockerfile.env"
@@ -56,6 +56,8 @@ const (
 	HookPostPromote   = "post_promote"
 	HookPrePrune      = "pre_prune"
 	HookPostPrune     = "post_prune"
+	HookPreHotswap    = "pre_hotswap"
+	HookPostHotswap   = "post_hotswap"
 	HookEC2Bootstrap  = "ec2_bootstrap"
 
 	HRC_Pass   = "pass"
@@ -135,7 +137,10 @@ const (
 	// http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-hup.html#cfn-hup-config-file
 	CfnHupPollIntervalMinutes = 1
 
+	InfrastructureTTL = 24 * time.Hour
+
 	DstELBSecurityGroup = "DestinationELBToInstance"
+	SignalQueue         = "PorterSignalQueue"
 
 	ContainerUserUid = "1001"
 )

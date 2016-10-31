@@ -43,7 +43,7 @@ func (recv *PackCmd) SubCommands() []cli.Command {
 
 func (recv *PackCmd) Execute(args []string) bool {
 
-	log := logger.CLI("cmd", "build-pack")
+	log := logger.CLI("cmd", "pack")
 
 	commandSuccess := hook.Execute(log, constants.HookPrePack, "", nil, true)
 

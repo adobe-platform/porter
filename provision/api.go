@@ -19,18 +19,13 @@ import (
 	"github.com/adobe-platform/porter/aws_session"
 	"github.com/adobe-platform/porter/conf"
 	"github.com/adobe-platform/porter/constants"
+	"github.com/adobe-platform/porter/provision_state"
 	"github.com/aws/aws-sdk-go/aws"
 	cfnlib "github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/inconshreveable/log15"
 )
 
 type (
-	StackArgs struct {
-		Environment  string
-		KeepCount    int
-		PayloadS3Key string
-	}
-
 	CfnApiInput struct {
 		Environment string
 		Region      string
@@ -38,24 +33,16 @@ type (
 		SecretsLoc  string
 		TemplateUrl string
 	}
-
-	CreateStackOutput struct {
-		StackName string
-		Regions   map[string]CreateStackRegionOutput
-	}
-
-	CreateStackRegionOutput struct {
-		StackId string
-		Region  string
-	}
 )
 
-func CreateStack(log log15.Logger, config *conf.Config, args StackArgs) (CreateStackOutput, bool) {
+func CreateStack(log log15.Logger, config *conf.Config, stack *provision_state.Stack) bool {
 
-	stackName, err := GetStackName(config.ServiceName, args.Environment, true)
+	var err error
+
+	stack.Name, err = GetStackName(config.ServiceName, stack.Environment, true)
 	if err != nil {
 		log.Error("Failed to get stack name", "Error", err)
-		return CreateStackOutput{}, false
+		return false
 	}
 
 	var fLock sync.RWMutex
@@ -67,7 +54,7 @@ func CreateStack(log log15.Logger, config *conf.Config, args StackArgs) (CreateS
 		parameters := []*cfnlib.Parameter{
 			{
 				ParameterKey:   aws.String(constants.ParameterStackName),
-				ParameterValue: aws.String(stackName),
+				ParameterValue: aws.String(stack.Name),
 			},
 			{
 				ParameterKey:   aws.String(constants.ParameterSecretsKey),
@@ -79,7 +66,7 @@ func CreateStack(log log15.Logger, config *conf.Config, args StackArgs) (CreateS
 			},
 		}
 
-		stackId, err := cloudformation.CreateStack(client, stackName, input.TemplateUrl, parameters)
+		stackId, err := cloudformation.CreateStack(client, stack.Name, input.TemplateUrl, parameters)
 		if err != nil {
 			log.Error("CreateStack API call failed", "Error", err)
 			return
@@ -88,20 +75,20 @@ func CreateStack(log log15.Logger, config *conf.Config, args StackArgs) (CreateS
 		return
 	}
 
-	output, success := createUpdateStack(log, stackName, config, args, cfnAPI)
-
-	return output, success
+	return createUpdateStack(log, stack, config, cfnAPI)
 }
 
-func UpdateStack(log log15.Logger, config *conf.Config, args StackArgs, createStackOutput CreateStackOutput) bool {
+func UpdateStack(log log15.Logger, config *conf.Config, stack provision_state.Stack) bool {
 
 	var fLock sync.RWMutex
+
+	log.Debug("UpdateStack", "stack.Name", stack.Name)
 
 	cfnAPI := func(client *cfnlib.CloudFormation, input CfnApiInput) (stackId string, success bool) {
 		fLock.Lock()
 		defer fLock.Unlock()
 
-		regionOutput, exists := createStackOutput.Regions[input.Region]
+		regionOutput, exists := stack.Regions[input.Region]
 		if !exists {
 			log.Error("Missing stack name for region", "region", input.Region)
 			return
@@ -110,7 +97,7 @@ func UpdateStack(log log15.Logger, config *conf.Config, args StackArgs, createSt
 		parameters := []*cfnlib.Parameter{
 			{
 				ParameterKey:   aws.String(constants.ParameterStackName),
-				ParameterValue: aws.String(createStackOutput.StackName),
+				ParameterValue: aws.String(stack.Name),
 			},
 			{
 				ParameterKey:   aws.String(constants.ParameterSecretsKey),
@@ -128,32 +115,31 @@ func UpdateStack(log log15.Logger, config *conf.Config, args StackArgs, createSt
 			return
 		}
 
+		stackId = regionOutput.StackId
 		success = true
 		return
 	}
 
-	_, success := createUpdateStack(log, createStackOutput.StackName, config, args, cfnAPI)
-	return success
+	return createUpdateStack(log, &stack, config, cfnAPI)
 }
 
 func createUpdateStack(
 	log log15.Logger,
-	stackName string,
+	stack *provision_state.Stack,
 	config *conf.Config,
-	args StackArgs,
-	cfnAPI func(*cfnlib.CloudFormation, CfnApiInput) (string, bool)) (stackOutput CreateStackOutput, success bool) {
+	cfnAPI func(*cfnlib.CloudFormation, CfnApiInput) (string, bool)) (success bool) {
 
-	environment, err := config.GetEnvironment(args.Environment)
+	environment, err := config.GetEnvironment(stack.Environment)
 	if err != nil {
 		log.Error("GetEnvironment", "Error", err)
 		return
 	}
 
-	regionCount := len(environment.Regions)
+	if stack.Regions == nil {
+		stack.Regions = make(map[string]*provision_state.Region)
+	}
 
-	regionOutputs := make(map[string]CreateStackRegionOutput)
-	outChan := make(chan CreateStackRegionOutput, regionCount)
-	errChan := make(chan struct{}, regionCount)
+	successChan := make(chan bool)
 
 	for _, region := range environment.Regions {
 
@@ -166,10 +152,7 @@ func createUpdateStack(
 		roleSession := aws_session.STS(region.Name, roleARN, 1*time.Hour)
 
 		recv := &stackCreator{
-			log:  log.New("Region", region.Name),
-			args: args,
-
-			stackName: stackName,
+			log: log.New("Region", region.Name),
 
 			config:      *config,
 			environment: *environment,
@@ -182,23 +165,27 @@ func createUpdateStack(
 			templateTransforms: make(map[string][]MapResource),
 		}
 
-		go recv.createUpdateStackForRegion(outChan, errChan)
-	}
-
-	for i := 0; i < regionCount; i++ {
-		select {
-		case regionOutput := <-outChan:
-			regionOutputs[regionOutput.Region] = regionOutput
-		case _ = <-errChan:
-			return
+		var regionState *provision_state.Region
+		var exists bool
+		if regionState, exists = stack.Regions[region.Name]; !exists {
+			regionState = &provision_state.Region{}
 		}
-	}
 
-	stackOutput = CreateStackOutput{
-		StackName: stackName,
-		Regions:   regionOutputs,
+		stack.Regions[region.Name] = regionState
+
+		go func(recv *stackCreator, regionState *provision_state.Region) {
+
+			successChan <- recv.createUpdateStackForRegion(regionState)
+
+		}(recv, regionState)
 	}
 
 	success = true
+
+	for i := 0; i < len(environment.Regions); i++ {
+		regionSuccess := <-successChan
+		success = success && regionSuccess
+	}
+
 	return
 }

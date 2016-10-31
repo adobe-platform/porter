@@ -24,37 +24,37 @@ hooks:
       TEST_REPO_BRANCH:
       ELB_1_NAME:
       ELB_2_NAME:
-      AWS_ACCOUNT_ID:
+      DEPLOYMENT_ROLE_ARN:
       SSH_KEY:
-  post_pack:
-  - dockerfile: hooks/post-pack-fail
-    run_condition: always
-  - repo: $TEST_REPO_URL
-    ref: $TEST_REPO_BRANCH
-    dockerfile: testintegration/plugins/post-pack
-    concurrent: true
-  - repo: $TEST_REPO_URL
-    ref: $TEST_REPO_BRANCH
-    dockerfile: testintegration/plugins/post-pack
-    concurrent: true
-  - repo: $TEST_REPO_URL
-    ref: $TEST_REPO_BRANCH
-    dockerfile: testintegration/plugins/post-pack
-    concurrent: true
-  - repo: $TEST_REPO_URL
-    ref: $TEST_REPO_BRANCH
-    dockerfile: testintegration/plugins/post-pack
+  # post_pack:
+  # - dockerfile: hooks/post-pack-fail
+  #   run_condition: always
+  # - repo: $TEST_REPO_URL
+  #   ref: $TEST_REPO_BRANCH
+  #   dockerfile: testintegration/plugins/post-pack
+  #   concurrent: true
+  # - repo: $TEST_REPO_URL
+  #   ref: $TEST_REPO_BRANCH
+  #   dockerfile: testintegration/plugins/post-pack
+  #   concurrent: true
+  # - repo: $TEST_REPO_URL
+  #   ref: $TEST_REPO_BRANCH
+  #   dockerfile: testintegration/plugins/post-pack
+  #   concurrent: true
+  # - repo: $TEST_REPO_URL
+  #   ref: $TEST_REPO_BRANCH
+  #   dockerfile: testintegration/plugins/post-pack
   ec2_bootstrap:
   - dockerfile: hooks/ec2-bootstrap
     concurrent: true
     environment:
       DEV_MODE:
       FOO: bar
-  - dockerfile: hooks/ec2-bootstrap
-    concurrent: true
-    environment:
-      DEV_MODE:
-      FOO: bar
+  # - dockerfile: hooks/ec2-bootstrap
+  #   concurrent: true
+  #   environment:
+  #     DEV_MODE:
+  #     FOO: bar
   user_defined:
   - dockerfile: hooks/user-defined
   - repo: $TEST_REPO_URL
@@ -81,8 +81,9 @@ environments:
 - name: CustomVPC
 
   stack_definition_path: vpc.json
+  hot_swap: true
 
-  instance_type: t2.medium
+  instance_type: m4.large
 
   regions:
   - name: us-west-2
@@ -92,7 +93,7 @@ environments:
       subnet_id: $SUBNET_ID
 
     vpc_id: $VPC_ID
-    role_arn: arn:aws:iam::$AWS_ACCOUNT_ID:role/porter-deployment
+    role_arn: $DEPLOYMENT_ROLE_ARN
     s3_bucket: porter-sandbox-us-west-2
     key_pair_name: $SSH_KEY
 
@@ -107,19 +108,19 @@ environments:
         exec_name: cat
         exec_args:
         - secrets.env-file
-    - <<: *CONTAINER_BASE_INET
-      name: inet2
-      src_env_file:
-        exec_name: cat
-        exec_args:
-        - secrets.env-file
-    - <<: *CONTAINER_BASE_WORKER
-      read_only: false
-    - <<: *CONTAINER_BASE_WORKER
-      name: worker2
-      read_only: true
-    - <<: *CONTAINER_BASE_WORKER
-      name: worker3
+    # - <<: *CONTAINER_BASE_INET
+    #   name: inet2
+    #   src_env_file:
+    #     exec_name: cat
+    #     exec_args:
+    #     - secrets.env-file
+    # - <<: *CONTAINER_BASE_WORKER
+    #   read_only: false
+    # - <<: *CONTAINER_BASE_WORKER
+    #   name: worker2
+    #   read_only: true
+    # - <<: *CONTAINER_BASE_WORKER
+    #   name: worker3
 
     elb: $ELB_1_NAME
 
@@ -137,7 +138,7 @@ environments:
       subnet_id: $SUBNET_ID
 
     vpc_id: $VPC_ID
-    role_arn: arn:aws:iam::$AWS_ACCOUNT_ID:role/porter-deployment
+    role_arn: $DEPLOYMENT_ROLE_ARN
     s3_bucket: porter-sandbox-us-west-2
     key_pair_name: $SSH_KEY
 
@@ -160,7 +161,7 @@ environments:
       subnet_id: $SUBNET_ID
 
     vpc_id: $VPC_ID
-    role_arn: arn:aws:iam::$AWS_ACCOUNT_ID:role/porter-deployment
+    role_arn: $DEPLOYMENT_ROLE_ARN
     s3_bucket: porter-sandbox-us-west-2
     key_pair_name: $SSH_KEY
 

@@ -18,7 +18,7 @@ import (
 	"github.com/adobe-platform/porter/aws_session"
 	"github.com/adobe-platform/porter/conf"
 	"github.com/adobe-platform/porter/constants"
-	"github.com/adobe-platform/porter/provision_output"
+	"github.com/adobe-platform/porter/provision_state"
 	"github.com/aws/aws-sdk-go/aws"
 	elblib "github.com/aws/aws-sdk-go/service/elb"
 	"github.com/inconshreveable/log15"
@@ -29,21 +29,22 @@ const (
 	pollDuration  = 10 * time.Minute
 )
 
-func Promote(log log15.Logger, config *conf.Config, provisionedEnv *provision_output.Environment, elb string) (success bool) {
+func Promote(log log15.Logger, config *conf.Config, stack *provision_state.Stack, elb string) (success bool) {
 
-	environment := provisionedEnv.Environment
+	successChan := make(chan bool)
 
-	stackCount := len(provisionedEnv.Regions)
-	promoteServiceChan := make(chan bool, stackCount)
+	for regionName, regionState := range stack.Regions {
 
-	for _, provisionedRegion := range provisionedEnv.Regions {
-		go func(provisionedRegion provision_output.Region) {
-			promoteServiceChan <- promoteService(log, environment, provisionedRegion, config, elb)
-		}(provisionedRegion)
+		go func(regionName string, regionState *provision_state.Region) {
+
+			successChan <- promoteService(log, stack.Environment, regionName,
+				regionState, config, elb)
+
+		}(regionName, regionState)
 	}
 
-	for i := 0; i < stackCount; i++ {
-		promoteSuccess := <-promoteServiceChan
+	for i := 0; i < len(stack.Regions); i++ {
+		promoteSuccess := <-successChan
 		if !promoteSuccess {
 			return
 		}
@@ -53,8 +54,10 @@ func Promote(log log15.Logger, config *conf.Config, provisionedEnv *provision_ou
 	return
 }
 
-func promoteService(log log15.Logger, env string, provisionedRegion provision_output.Region, config *conf.Config, elbTag string) (success bool) {
-	log = log.New("Region", provisionedRegion.AWSRegion)
+func promoteService(log log15.Logger, env, regionName string,
+	regionState *provision_state.Region, config *conf.Config, elbTag string) (success bool) {
+
+	log = log.New("Region", regionName)
 
 	environment, err := config.GetEnvironment(env)
 	if err != nil {
@@ -62,7 +65,7 @@ func promoteService(log log15.Logger, env string, provisionedRegion provision_ou
 		return
 	}
 
-	region, err := environment.GetRegion(provisionedRegion.AWSRegion)
+	region, err := environment.GetRegion(regionName)
 	if err != nil {
 		log.Error("GetRegion", "Error", err)
 		return
@@ -88,7 +91,7 @@ func promoteService(log log15.Logger, env string, provisionedRegion provision_ou
 		return
 	}
 	log.Info("Destination ELB", "LoadBalancerName", destinationELB)
-	log.Info("Source ELB", "LoadBalancerName", provisionedRegion.ProvisionedELBName)
+	log.Info("Source ELB", "LoadBalancerName", regionState.ProvisionedELBName)
 
 	oldInstanceStates, err := elb.DescribeInstanceHealth(elbClient, destinationELB)
 	if err != nil {
@@ -96,13 +99,13 @@ func promoteService(log log15.Logger, env string, provisionedRegion provision_ou
 		return
 	}
 
-	newInstanceStates, err := elb.DescribeInstanceHealth(elbClient, provisionedRegion.ProvisionedELBName)
+	newInstanceStates, err := elb.DescribeInstanceHealth(elbClient, regionState.ProvisionedELBName)
 	if err != nil {
-		log.Error("DescribeInstanceHealth", "LoadBalancerName", provisionedRegion.ProvisionedELBName, "Error", err)
+		log.Error("DescribeInstanceHealth", "LoadBalancerName", regionState.ProvisionedELBName, "Error", err)
 		return
 	}
 	if newInstanceStates == nil {
-		log.Error("DescribeInstanceHealth response is null", "LoadBalancerName", provisionedRegion.ProvisionedELBName)
+		log.Error("DescribeInstanceHealth response is null", "LoadBalancerName", regionState.ProvisionedELBName)
 		return
 	}
 
@@ -132,9 +135,9 @@ func promoteService(log log15.Logger, env string, provisionedRegion provision_ou
 		}
 	}
 
-	log.Info("Waiting for newly provisioned instances to be InService", "LoadBalancerName", provisionedRegion.ProvisionedELBName)
-	if ok := waitForInServiceInstances(log, elbClient, provisionedRegion.ProvisionedELBName, nil); !ok {
-		log.Error("Instances never became InService in the newly provisioned ELB", "LoadBalancerName", provisionedRegion.ProvisionedELBName)
+	log.Info("Waiting for newly provisioned instances to be InService", "LoadBalancerName", regionState.ProvisionedELBName)
+	if ok := waitForInServiceInstances(log, elbClient, regionState.ProvisionedELBName, nil); !ok {
+		log.Error("Instances never became InService in the newly provisioned ELB", "LoadBalancerName", regionState.ProvisionedELBName)
 		return
 	}
 
@@ -166,7 +169,7 @@ func promoteService(log log15.Logger, env string, provisionedRegion provision_ou
 	}
 
 	elbTags := make(map[string]string)
-	elbTags[constants.PorterStackIdTag] = provisionedRegion.StackId
+	elbTags[constants.PorterStackIdTag] = regionState.StackId
 	err = elb.AddTags(elbClient, destinationELB, elbTags)
 	if err != nil {
 		log.Warn("elb.AddTags", "Error", err)
