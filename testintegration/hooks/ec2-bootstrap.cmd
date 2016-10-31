@@ -7,7 +7,13 @@ if [[ $PORTER_ENVIRONMENT = 'CustomVPC' ]]; then
 cat <<'EOF'
 SECRET=$(porter_get_secrets)
 [[ $SECRET = 'hi' ]] || exit 1
+EOF
 
+fi
+
+if [[ $TCPDUMP = '1' ]]; then
+
+cat <<'EOF'
 cat <<'DOCKER_POST_RUN' > /usr/bin/porter_docker_post_run
 #!/bin/bash
 
