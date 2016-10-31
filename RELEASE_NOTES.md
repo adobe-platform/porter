@@ -3,6 +3,8 @@ See the [CHANGELOG](CHANGELOG.md) for a complete list of changes.
 v3.0
 ====
 
+[How to migrate](MIGRATING.md#v2-to-v3)
+
 Code can now be hot swapped on existing infrastructure. This will mitigate a
 whole class of errors related to provisioning.
 
