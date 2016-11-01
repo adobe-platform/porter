@@ -11,6 +11,7 @@
 - kernel tuning allowing more concurrent connections
 - added pre and post hotswap hooks
 - fixed v2.4.3 issue that could create false-positives in `porter build` steps
+- `net.ipv4.netfilter.ip_conntrack_tcp_timeout_time_wait = 1`
 - added `cloudformation:DescribeStackResources` to deployment policy
 - added `elasticloadbalancing:DescribeTags` to deployment policy
 - added `sqs:CreateQueue` to deployment policy
