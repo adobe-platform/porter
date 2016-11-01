@@ -1,3 +1,8 @@
+### v3.0.1
+
+- allow 10 mins for service payload download+install during hot swap
+- check for egress rules before writing `SecurityGroupEgress`
+
 ### v3.0.0
 
 - updated to Amazon Linux 2016.09

@@ -18,8 +18,34 @@ For these reasons porter enforces that hot swap can only occur for a maximum of
 between a fast feedback loop, a good default security posture, and avoiding
 infrastructure drift.
 
+Assumptions
+-----------
+
+The assumptions exist in normal provisioning as well but they are slightly
+different in the hot swap flow and worth calling out.
+
+### Short-lived connections
+
+ELB keep-alive to HAProxy is 60 seconds. Per-host, porter waits an additional
+120 seconds before declaring hot swap a failure. The primary assumption of hot
+swap is short-lived connections. If you have long-lived connections you'll want
+to avoid hot swap. That said you can't have longer-lived connections than what
+you set your ELB connection draining to anyway (max is 3600 seconds).
+
+### Version compatibility
+
+Partial failures can occur and porter doesn't try to repair them. In the worst
+case a multi-region hot swap could see a whole region fail to hot swap and other
+regions partially fail to hot swap.
+
+If version A of your software is deployed and can not coexist with version B
+then you should not use hot swap.
+
 When not to use it
 ------------------
+
+An extension of assumptions relates to best practices around delivering SaaS -
+namely testing.
 
 Often integration tests are run in the `pre_promote` hook as a quality gate.
 Since promotion is skipped there's no chance to run tests against your running
@@ -29,13 +55,6 @@ We suggest - in general, but especially for hot swap - a stage and production
 environment. Both can be configured to hot swap and in addition to a
 `pre_promote` hook you would configure stage to run a `post_hotswap` hook that
 performs the same testing as a gate to allow code through to production.
-
-Caveats
--------
-
-The AutoScalingGroup's min/max size isn't matched with what currently deployed
-meaning any changes that were made to the AutoScaling group after porter
-deployed it are lost.
 
 How it works
 ------------

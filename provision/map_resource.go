@@ -216,6 +216,10 @@ func overwriteASGSecurityGroupEgress(recv *stackCreator, template *cfn.Template,
 		return true
 	}
 
+	if len(recv.region.AutoScalingGroup.SecurityGroupEgress) == 0 {
+		return true
+	}
+
 	if props, ok = resource["Properties"].(map[string]interface{}); !ok {
 		recv.log.Error("Missing Properties on resource")
 		return false
