@@ -21,7 +21,7 @@ during the pack phase:
 
 ```
 docker build -t foo-builder -f Dockerfile.build .
-docker run -it --rm foo-builder | docker build -t foo -f Dockerfile -
+docker run --rm foo-builder | docker build -t foo -f Dockerfile -
 ```
 
 This enables separating a build environment from a runtime environment, as well
