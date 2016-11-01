@@ -1,3 +1,7 @@
+### v3.1.0
+
+- allow 10 mins for service payload download+install during hot swap
+
 ### v3.0.0
 
 - updated to Amazon Linux 2016.09

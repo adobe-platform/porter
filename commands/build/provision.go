@@ -477,13 +477,15 @@ func hotswapStackPoll(log log15.Logger, environment *conf.Environment,
 	// 2. variable: time to download and start the service
 	// 3. HC_HealthyThreshold * HC_Interval seconds: health check on each container
 	// 4. ~ 1min: to complete haproxy reload which is the Keep-Alive time from ELB
+	// 5. 1min: timeout on hot swap signal
 	//
-	// That's 2m 15s excluding step 2
+	// That's 3m 15s excluding step 2
+	// Allow 10 mins for step 2
 	receiveSuccess := 0
 	loopCount := 0
 	for asgSize != receiveSuccess {
 
-		if loopCount == 30 {
+		if loopCount == 40 {
 			log.Error("Never received messages from all EC2 instances")
 			return
 		}
