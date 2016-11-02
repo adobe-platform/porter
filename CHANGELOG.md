@@ -1,3 +1,7 @@
+### v3.0.2
+
+- match currently promoted stack's ASG size for provisioning and hot swap
+
 ### v3.0.1
 
 - allow 10 mins for service payload download+install during hot swap
