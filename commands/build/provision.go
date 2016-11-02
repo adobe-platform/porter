@@ -320,12 +320,14 @@ elbLoop:
 
 					creationTime := *stack.CreationTime
 					hotswapCutoffTime := creationTime.Add(constants.InfrastructureTTL)
+					now := time.Now()
 
 					log.Info("Times",
 						"CreationTime", creationTime.Format(time.UnixDate),
-						"HotswapCutoffTime", hotswapCutoffTime.Format(time.UnixDate))
+						"HotswapCutoffTime", hotswapCutoffTime.Format(time.UnixDate),
+						"Now", now.Format(time.UnixDate))
 
-					if time.Now().After(hotswapCutoffTime) {
+					if now.After(hotswapCutoffTime) {
 						hotswapData.shouldHotswap = false
 					}
 
