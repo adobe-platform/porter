@@ -24,5 +24,10 @@ type (
 	Region struct {
 		StackId            string
 		ProvisionedELBName string
+
+		// info on currently promoted stack
+		AsgMin     int `json:"-"`
+		AsgDesired int `json:"-"`
+		AsgMax     int `json:"-"`
 	}
 )

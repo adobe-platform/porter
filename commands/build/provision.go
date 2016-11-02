@@ -30,7 +30,6 @@ import (
 	"github.com/adobe-platform/porter/util"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/aws/aws-sdk-go/service/sqs"
@@ -244,7 +243,6 @@ elbLoop:
 		elbName := rELB.Name
 
 		log := log.New("LoadBalancerName", elbName)
-		log.Info("elb:DescribeTags")
 
 		var tagDescriptions []*elb.TagDescription
 
@@ -255,6 +253,7 @@ elbLoop:
 				LoadBalancerNames: []*string{aws.String(elbName)},
 			}
 
+			log.Info("elb:DescribeTags")
 			describeTagsOutput, err := elbClient.DescribeTags(describeTagsInput)
 			if err != nil {
 				log.Error("elb:DescribeTags", "Error", err)
@@ -283,7 +282,7 @@ elbLoop:
 				case constants.PorterStackIdTag:
 					foundStackId = true
 
-					log.Info("Found stack attached to ELB. Checking creation time")
+					log.Info("Found ELB tag of currently promoted stack. Getting stack info")
 
 					hotswapData.stackId = *tag.Value
 
@@ -328,7 +327,12 @@ elbLoop:
 						"Now", now.Format(time.UnixDate))
 
 					if now.After(hotswapCutoffTime) {
+
+						log.Info("Region is NOT eligible for hot swap. Cutoff time exceeded")
 						hotswapData.shouldHotswap = false
+					} else {
+
+						log.Info("Region is eligible for hot swap")
 					}
 
 				case constants.PorterVersion:
@@ -451,8 +455,6 @@ func hotswapStackPoll(log log15.Logger, environment *conf.Environment,
 		receiveMessageOutput *sqs.ReceiveMessageOutput
 
 		queueUrl string
-		asgName  string
-		asgSize  int
 	)
 
 	roleARN, err := environment.GetRoleARN(regionName)
@@ -464,11 +466,7 @@ func hotswapStackPoll(log log15.Logger, environment *conf.Environment,
 	roleSession := aws_session.STS(regionName, roleARN, 0)
 	sqsClient := sqs.New(roleSession)
 
-	if !getQueueUrlAndAsgName(log, roleSession, regionState.StackId, &queueUrl, &asgName) {
-		return
-	}
-
-	if !getAsgSize(log, roleSession, asgName, &asgSize) {
+	if !getQueueUrl(log, roleSession, regionState.StackId, &queueUrl) {
 		return
 	}
 
@@ -485,7 +483,7 @@ func hotswapStackPoll(log log15.Logger, environment *conf.Environment,
 	// Allow 10 mins for step 2
 	receiveSuccess := 0
 	loopCount := 0
-	for asgSize != receiveSuccess {
+	for regionState.AsgDesired != receiveSuccess {
 
 		if loopCount == 40 {
 			log.Error("Never received messages from all EC2 instances")
@@ -531,15 +529,15 @@ func hotswapStackPoll(log log15.Logger, environment *conf.Environment,
 	return
 }
 
-func getQueueUrlAndAsgName(log log15.Logger, roleSession *session.Session,
-	stackId string, queueUrl, asgName *string) (success bool) {
+func getQueueUrl(log log15.Logger, roleSession *session.Session,
+	stackId string, queueUrl *string) (success bool) {
 
 	var (
 		describeStackResourcesOutput *cloudformation.DescribeStackResourcesOutput
 		err                          error
 	)
 
-	log.Debug("getQueueUrlAndAsgName", "stackId", stackId)
+	log.Debug("getQueueUrl", "stackId", stackId)
 
 	cfnClient := cloudformation.New(roleSession)
 
@@ -560,19 +558,10 @@ func getQueueUrlAndAsgName(log log15.Logger, roleSession *session.Session,
 
 		for _, stackResource := range describeStackResourcesOutput.StackResources {
 
-			if *queueUrl != "" && *asgName != "" {
+			if *stackResource.ResourceType == cfn.SQS_Queue {
+
+				*queueUrl = *stackResource.PhysicalResourceId
 				break
-			}
-
-			switch *stackResource.ResourceType {
-
-			case cfn.SQS_Queue:
-				if *stackResource.LogicalResourceId == constants.SignalQueue {
-					*queueUrl = *stackResource.PhysicalResourceId
-				}
-
-			case cfn.AutoScaling_AutoScalingGroup:
-				*asgName = *stackResource.PhysicalResourceId
 			}
 		}
 
@@ -582,53 +571,7 @@ func getQueueUrlAndAsgName(log log15.Logger, roleSession *session.Session,
 		return
 	}
 
-	log.Debug("getQueueUrlAndAsgName", "queueUrl", *queueUrl, "asgName", *asgName)
-
-	success = true
-	return
-}
-
-func getAsgSize(log log15.Logger, roleSession *session.Session, asgName string, asgSize *int) (success bool) {
-
-	var (
-		describeAutoScalingGroupsOutput *autoscaling.DescribeAutoScalingGroupsOutput
-		err                             error
-	)
-
-	log = log.New("PhysicalId", asgName)
-
-	log.Debug("getAsgSize() BEGIN")
-	defer log.Debug("getAsgSize() END")
-
-	asgClient := autoscaling.New(roleSession)
-
-	describeAutoScalingGroupsInput := &autoscaling.DescribeAutoScalingGroupsInput{
-		AutoScalingGroupNames: []*string{aws.String(asgName)},
-	}
-
-	log.Info("Getting instance count of ASG")
-	log.Info("autoscaling:DescribeAutoScalingGroups")
-	retryMsg := func(i int) { log.Warn("autoscaling:DescribeAutoScalingGroups retrying", "Count", i) }
-	if !util.SuccessRetryer(7, retryMsg, func() bool {
-
-		describeAutoScalingGroupsOutput, err = asgClient.DescribeAutoScalingGroups(describeAutoScalingGroupsInput)
-		if err != nil {
-			log.Error("autoscaling:DescribeAutoScalingGroups", "Error", err)
-			return false
-		}
-		if len(describeAutoScalingGroupsOutput.AutoScalingGroups) != 1 {
-			log.Error("autoscaling:DescribeAutoScalingGroups did not return a ASG")
-			return false
-		}
-
-		*asgSize = len(describeAutoScalingGroupsOutput.AutoScalingGroups[0].Instances)
-		log.Info(fmt.Sprintf("Found %d instances", *asgSize))
-
-		return true
-	}) {
-		log.Crit("Failed to autoscaling:DescribeAutoScalingGroups")
-		return
-	}
+	log.Debug("getQueueUrl", "queueUrl", *queueUrl)
 
 	success = true
 	return
