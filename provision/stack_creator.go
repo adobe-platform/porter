@@ -215,22 +215,19 @@ tagLoop:
 		cfn.UPDATE_ROLLBACK_FAILED:
 
 	// error cases that should cause a failure
-	case cfn.CREATE_IN_PROGRESS,
-		cfn.DELETE_IN_PROGRESS,
-		cfn.ROLLBACK_IN_PROGRESS,
-		cfn.UPDATE_COMPLETE_CLEANUP_IN_PROGRESS,
+	case cfn.UPDATE_COMPLETE_CLEANUP_IN_PROGRESS,
 		cfn.UPDATE_IN_PROGRESS,
 		cfn.UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS,
 		cfn.UPDATE_ROLLBACK_IN_PROGRESS:
 
-		log.Error("Stack is transitioning state so ASG size can not be determined safely",
+		log.Error("Stack is currently updating so ASG size can not be determined safely",
 			"StackStatus", stackStatus)
 		return
 
 	// error cases that should NOT cause a failure
 	default:
 
-		log.Warn("Stack is not in a state that ASG size can be determined safely",
+		log.Warn("Stack is not in a state that ASG size can be used",
 			"StackStatus", stackStatus)
 		log.Warn("ASG size matching will not occur meaning whatever is in the CloudFormation template will be used")
 		success = true
