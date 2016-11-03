@@ -1,3 +1,9 @@
+### v3.0.3
+
+- add `CREATE_IN_PROGRESS` to list of statuses that ignore ASG size
+- add `DELETE_IN_PROGRESS` to list of statuses that ignore ASG size
+- add `ROLLBACK_IN_PROGRESS` to list of statuses that ignore ASG size
+
 ### v3.0.2
 
 - additional UPDATE steady states allow ASG matching
