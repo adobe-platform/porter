@@ -1,5 +1,6 @@
 ### v3.0.2
 
+- mac binaries are now built with Go 1.7.3
 - match currently promoted stack's ASG size for provisioning and hot swap
 
 ### v3.0.1
