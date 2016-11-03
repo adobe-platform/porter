@@ -1,5 +1,7 @@
 ### v3.0.2
 
+- additional UPDATE steady states allow ASG matching
+- any UPDATE in progress state causes hot swap to fail
 - mac binaries are now built with Go 1.7.3
 - match currently promoted stack's ASG size for provisioning and hot swap
 

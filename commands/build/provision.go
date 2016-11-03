@@ -157,34 +157,12 @@ func ProvisionOrHotswapStack(env string) (success bool) {
 				case cfn.CREATE_COMPLETE, cfn.UPDATE_COMPLETE:
 					// only states eligible for hot swap
 
-				case cfn.CREATE_FAILED,
-					cfn.DELETE_COMPLETE,
-					cfn.DELETE_FAILED,
-					cfn.DELETE_IN_PROGRESS,
-					cfn.ROLLBACK_COMPLETE,
-					cfn.ROLLBACK_FAILED,
-					cfn.ROLLBACK_IN_PROGRESS:
-
-					hotswapData.shouldHotswap = false
-
-				case cfn.CREATE_IN_PROGRESS:
-
-					log.Error("Can't hot swap a stack being created")
-					return
-
 				case cfn.UPDATE_COMPLETE_CLEANUP_IN_PROGRESS,
-					cfn.UPDATE_IN_PROGRESS:
-
-					log.Error("A previous hot swap is still in progress",
-						"StackStatus", hotswapData.stackStatus)
-					return
-
-				case cfn.UPDATE_ROLLBACK_COMPLETE,
+					cfn.UPDATE_IN_PROGRESS,
 					cfn.UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS,
-					cfn.UPDATE_ROLLBACK_FAILED,
 					cfn.UPDATE_ROLLBACK_IN_PROGRESS:
 
-					log.Error("A previous hot swap appears to have failed",
+					log.Error("A previous hot swap is still in progress",
 						"StackStatus", hotswapData.stackStatus)
 					return
 
