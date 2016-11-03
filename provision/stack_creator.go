@@ -211,7 +211,8 @@ tagLoop:
 	switch stackStatus {
 	case cfn.CREATE_COMPLETE,
 		cfn.UPDATE_COMPLETE,
-		cfn.UPDATE_ROLLBACK_COMPLETE:
+		cfn.UPDATE_ROLLBACK_COMPLETE,
+		cfn.UPDATE_ROLLBACK_FAILED:
 
 	// error cases that should cause a failure
 	case cfn.CREATE_IN_PROGRESS,
