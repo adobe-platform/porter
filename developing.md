@@ -28,7 +28,7 @@ Users of porter should checkout the [the documentation](docs)
 
 ### Prerequisites
 
-- Golang 1.6.3
+- Golang 1.7.3
 - [godep](https://github.com/tools/godep#readme)
 - Docker 1.11.2
 
@@ -45,7 +45,7 @@ reference incase of an issue.
 ##### Download/install Go
 
 ```
-curl -O https://storage.googleapis.com/golang/go1.6.3.darwin-amd64.pkg && open go1.6.3.darwin-amd64.pkg
+curl -O https://storage.googleapis.com/golang/go1.7.3.darwin-amd64.pkg && open go1.7.3.darwin-amd64.pkg
 ```
 
 Follow the instructions to install Go

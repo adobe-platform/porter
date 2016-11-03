@@ -23,14 +23,16 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/adobe-platform/porter/aws/cloudformation"
 	"github.com/adobe-platform/porter/cfn"
 	"github.com/adobe-platform/porter/conf"
 	"github.com/adobe-platform/porter/constants"
 	"github.com/adobe-platform/porter/provision_state"
+	"github.com/adobe-platform/porter/util"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	cfnlib "github.com/aws/aws-sdk-go/service/cloudformation"
+	"github.com/aws/aws-sdk-go/service/autoscaling"
+	"github.com/aws/aws-sdk-go/service/cloudformation"
+	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/inconshreveable/log15"
@@ -55,9 +57,13 @@ type (
 
 		// Stack creation is mostly the same between CreateStack and UpdateStack
 		// The difference is in the API call to CloudFormation
-		cfnAPI func(*cfnlib.CloudFormation, CfnApiInput) (string, bool)
+		cfnAPI func(*cloudformation.CloudFormation, CfnApiInput) (string, bool)
 
 		templateTransforms map[string][]MapResource
+
+		asgMin     int
+		asgDesired int
+		asgMax     int
 	}
 )
 
@@ -67,6 +73,18 @@ const (
 )
 
 func (recv *stackCreator) createUpdateStackForRegion(regionState *provision_state.Region) bool {
+
+	asgId := new(string)
+
+	if !recv.getAsgId(asgId) {
+		return false
+	}
+
+	if *asgId != "" {
+		if !recv.getAsgSize(*asgId, regionState) {
+			return false
+		}
+	}
 
 	checksum, success := recv.uploadServicePayload()
 	if !success {
@@ -88,6 +106,235 @@ func (recv *stackCreator) createUpdateStackForRegion(regionState *provision_stat
 	regionState.StackId = stackId
 
 	return true
+}
+
+func (recv *stackCreator) getAsgId(asgId *string) (success bool) {
+
+	if len(recv.region.ELBs) == 0 {
+		success = true
+		return
+	} else if len(recv.region.ELBs) > 1 {
+		recv.log.Info("ASG size matching only works on regions where a single ELB is defined")
+		success = true
+		return
+	}
+
+	elbName := recv.region.ELBs[0].Name
+
+	log := recv.log.New("LoadBalancerName", elbName)
+	log.Info("Getting ELB tags")
+
+	elbClient := elb.New(recv.roleSession)
+	cfnClient := cloudformation.New(recv.roleSession)
+
+	var tagDescriptions []*elb.TagDescription
+
+	retryMsg := func(i int) { log.Warn("elb:DescribeTags retrying", "Count", i) }
+	if !util.SuccessRetryer(5, retryMsg, func() bool {
+
+		describeTagsInput := &elb.DescribeTagsInput{
+			LoadBalancerNames: []*string{aws.String(elbName)},
+		}
+
+		log.Info("elb:DescribeTags")
+		describeTagsOutput, err := elbClient.DescribeTags(describeTagsInput)
+		if err != nil {
+			log.Error("elb:DescribeTags", "Error", err)
+			return false
+		}
+
+		tagDescriptions = describeTagsOutput.TagDescriptions
+
+		return true
+	}) {
+		log.Crit("Failed to elb:DescribeTags")
+		return
+	}
+
+	var stackId *string
+	var err error
+
+tagLoop:
+	for _, tagDescription := range tagDescriptions {
+
+		for _, tag := range tagDescription.Tags {
+			if tag.Key == nil || *tag.Key != constants.PorterStackIdTag {
+				continue
+			}
+
+			log.Info("Found ELB tag of currently promoted stack. Getting ASG physical id")
+
+			stackId = new(string)
+			*stackId = *tag.Value
+
+			break tagLoop
+		}
+	}
+
+	if stackId == nil || *stackId == "" {
+		log.Warn("Did not find ELB tag of currently promoted stack")
+		log.Warn("If this is the first deployment into this ELB then this is normal")
+		log.Warn("Otherwise you should investigate why the ELB is missing the tag " + constants.PorterStackIdTag)
+		log.Warn("ASG size matching will not occur meaning whatever is in the CloudFormation template will be used")
+		success = true
+		return
+	}
+
+	describeStacksInput := &cloudformation.DescribeStacksInput{
+		StackName: stackId,
+	}
+	var describeStacksOutput *cloudformation.DescribeStacksOutput
+
+	retryMsg = func(i int) { log.Warn("cloudformation:DescribeStacks retrying", "Count", i) }
+	if !util.SuccessRetryer(5, retryMsg, func() bool {
+
+		log.Info("cloudformation:DescribeStacks")
+		describeStacksOutput, err = cfnClient.DescribeStacks(describeStacksInput)
+		if err != nil {
+			log.Error("cloudformation:DescribeStacks", "Error", err)
+			return false
+		}
+
+		return true
+	}) {
+		log.Crit("Failed to cloudformation:DescribeStacks")
+		return
+	}
+
+	if len(describeStacksOutput.Stacks) != 1 {
+		log.Error(fmt.Sprintf("Found %d stacks", len(describeStacksOutput.Stacks)))
+		return
+	}
+
+	stackStatus := *describeStacksOutput.Stacks[0].StackStatus
+
+	switch stackStatus {
+	case cfn.CREATE_COMPLETE,
+		cfn.UPDATE_COMPLETE,
+		cfn.UPDATE_ROLLBACK_COMPLETE:
+
+	// error cases that should cause a failure
+	case cfn.CREATE_IN_PROGRESS,
+		cfn.DELETE_IN_PROGRESS,
+		cfn.ROLLBACK_IN_PROGRESS,
+		cfn.UPDATE_COMPLETE_CLEANUP_IN_PROGRESS,
+		cfn.UPDATE_IN_PROGRESS,
+		cfn.UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS,
+		cfn.UPDATE_ROLLBACK_IN_PROGRESS:
+
+		log.Error("Stack is transitioning state so ASG size can not be determined safely",
+			"StackStatus", stackStatus)
+		return
+
+	// error cases that should NOT cause a failure
+	default:
+
+		log.Warn("Stack is not in a state that ASG size can be determined safely",
+			"StackStatus", stackStatus)
+		log.Warn("ASG size matching will not occur meaning whatever is in the CloudFormation template will be used")
+		success = true
+		return
+	}
+
+	describeStackResourcesInput := &cloudformation.DescribeStackResourcesInput{
+		StackName: stackId,
+	}
+	var describeStackResourcesOutput *cloudformation.DescribeStackResourcesOutput
+
+	retryMsg = func(i int) { log.Warn("cloudformation:DescribeStackResources retrying", "Count", i) }
+	if !util.SuccessRetryer(5, retryMsg, func() bool {
+
+		log.Info("cloudformation:DescribeStackResources")
+		describeStackResourcesOutput, err = cfnClient.DescribeStackResources(describeStackResourcesInput)
+		if err != nil {
+			log.Error("cloudformation:DescribeStackResources", "Error", err)
+			return false
+		}
+
+		for _, stackResource := range describeStackResourcesOutput.StackResources {
+
+			if *stackResource.ResourceType == cfn.AutoScaling_AutoScalingGroup {
+
+				*asgId = *stackResource.PhysicalResourceId
+				break
+			}
+		}
+
+		return true
+	}) {
+		log.Crit("Failed to cloudformation:DescribeStackResources")
+		return
+	}
+
+	if *asgId == "" {
+		log.Warn("Found the ELB tag of a previously promoted stack but that stack appears to be gone")
+		log.Warn("This should only happen if the stack was intentionally deleted")
+		log.Warn("This is an unexpected case but is not an error")
+		log.Warn("ASG size matching will not occur meaning whatever is in the CloudFormation template will be used")
+		success = true
+		return
+	}
+
+	success = true
+	return
+}
+
+func (recv *stackCreator) getAsgSize(asgName string, regionState *provision_state.Region) (success bool) {
+
+	var (
+		err                             error
+		describeAutoScalingGroupsOutput *autoscaling.DescribeAutoScalingGroupsOutput
+	)
+
+	asgClient := autoscaling.New(recv.roleSession)
+
+	describeAutoScalingGroupsInput := &autoscaling.DescribeAutoScalingGroupsInput{
+		AutoScalingGroupNames: []*string{aws.String(asgName)},
+	}
+
+	log := recv.log.New("AutoScalingPhysicalResourceId", asgName)
+	log.Info("Getting currently promoted stack's ASG size")
+
+	retryMsg := func(i int) { log.Warn("autoscaling:DescribeAutoScalingGroups retrying", "Count", i) }
+	if !util.SuccessRetryer(5, retryMsg, func() bool {
+
+		log.Info("autoscaling:DescribeAutoScalingGroups")
+		describeAutoScalingGroupsOutput, err = asgClient.DescribeAutoScalingGroups(describeAutoScalingGroupsInput)
+		if err != nil {
+			log.Error("autoscaling:DescribeAutoScalingGroups", "Error", err)
+			return false
+		}
+		if len(describeAutoScalingGroupsOutput.AutoScalingGroups) != 1 {
+			log.Error("autoscaling:DescribeAutoScalingGroups did not return a ASG")
+			return false
+		}
+
+		asg := describeAutoScalingGroupsOutput.AutoScalingGroups[0]
+		asgMin := int(*asg.MinSize)
+		asgDesired := int(*asg.DesiredCapacity)
+		asgMax := int(*asg.MaxSize)
+
+		log.Info("Will match currently promoted stack's ASG size to preserve scaling events that have occurred",
+			"MinSize", asgMin,
+			"MazSize", asgMax,
+			"DesiredCapacity", asgDesired)
+
+		regionState.AsgMin = asgMin
+		regionState.AsgDesired = asgDesired
+		regionState.AsgMax = asgMax
+
+		recv.asgMin = asgMin
+		recv.asgDesired = asgDesired
+		recv.asgMax = asgMax
+
+		return true
+	}) {
+		log.Crit("Failed to autoscaling:DescribeAutoScalingGroups")
+		return
+	}
+
+	success = true
+	return
 }
 
 func (recv *stackCreator) uploadServicePayload() (checksum string, success bool) {

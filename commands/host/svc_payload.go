@@ -105,7 +105,8 @@ func (recv *SvcPayloadCmd) Execute(args []string) bool {
 				os.Exit(0)
 			}
 
-			log.Info("downloading/verifying service payload")
+			log.Info("downloading/verifying service payload",
+				"Location", locationFlag)
 
 			s3Client := s3manager.NewDownloader(aws_session.Get(regionFlag))
 			s3Client.Concurrency = runtime.GOMAXPROCS(-1) // read, don't set, the value

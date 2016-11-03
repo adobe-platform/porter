@@ -1,3 +1,8 @@
+### v3.0.2
+
+- mac binaries are now built with Go 1.7.3
+- match currently promoted stack's ASG size for provisioning and hot swap
+
 ### v3.0.1
 
 - allow 10 mins for service payload download+install during hot swap
@@ -11,6 +16,7 @@
 - kernel tuning allowing more concurrent connections
 - added pre and post hotswap hooks
 - fixed v2.4.3 issue that could create false-positives in `porter build` steps
+- `net.ipv4.netfilter.ip_conntrack_tcp_timeout_time_wait = 1`
 - added `cloudformation:DescribeStackResources` to deployment policy
 - added `elasticloadbalancing:DescribeTags` to deployment policy
 - added `sqs:CreateQueue` to deployment policy

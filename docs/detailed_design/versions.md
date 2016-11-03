@@ -26,7 +26,7 @@ for additional package information
 | sysstat                | 9.0.4   |
 | rsyslogd               | 5.8.10  |
 | HA-Proxy               | 1.5.2   |
-| porter (Go)            | 1.6.3   |
-| porterd (Go)           | 1.6.3   |
+| porter (Go)            | 1.7.3   |
+| porterd (Go)           | 1.7.3   |
 | curl                   | 7.40.0  |
 | wget                   | 1.16.1  |

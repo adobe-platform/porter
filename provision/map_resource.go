@@ -620,12 +620,37 @@ func setPoolSize(recv *stackCreator, template *cfn.Template, resource map[string
 		resource["Properties"] = props
 	}
 
-	if _, exists := props["MinSize"]; !exists {
-		props["MinSize"] = recv.environment.InstanceCount
+	if recv.asgMin == 0 {
+
+		if _, exists := props["MinSize"]; !exists {
+			props["MinSize"] = recv.environment.InstanceCount
+		}
+	} else {
+
+		recv.log.Info("Overwriting ASG MinSize", "MinSize", recv.asgMin)
+		props["MinSize"] = recv.asgMin
 	}
 
-	if _, exists := props["MaxSize"]; !exists {
-		props["MaxSize"] = recv.environment.InstanceCount
+	if recv.asgDesired == 0 {
+
+		if _, exists := props["DesiredCapacity"]; !exists {
+			props["DesiredCapacity"] = recv.environment.InstanceCount
+		}
+	} else {
+
+		recv.log.Info("Overwriting ASG DesiredCapacity", "DesiredCapacity", recv.asgDesired)
+		props["DesiredCapacity"] = recv.asgDesired
+	}
+
+	if recv.asgMax == 0 {
+
+		if _, exists := props["MaxSize"]; !exists {
+			props["MaxSize"] = recv.environment.InstanceCount
+		}
+	} else {
+
+		recv.log.Info("Overwriting ASG MaxSize", "MaxSize", recv.asgMax)
+		props["MaxSize"] = recv.asgMax
 	}
 	return true
 }
