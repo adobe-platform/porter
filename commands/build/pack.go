@@ -43,30 +43,42 @@ func (recv *PackCmd) SubCommands() []cli.Command {
 
 func (recv *PackCmd) Execute(args []string) bool {
 
-	log := logger.CLI("cmd", "pack")
-
-	commandSuccess := hook.Execute(log, constants.HookPrePack, "", nil, true)
-
-	if commandSuccess {
-		config, success := conf.GetConfig(log, true)
-		if !success {
-			os.Exit(1)
-		}
-
-		if os.Getenv(constants.EnvConfig) != "" {
-			config.Print()
-		}
-
-		commandSuccess = provision.Package(log, config)
-	}
-
-	commandSuccess = hook.Execute(log, constants.HookPostPack, "", nil, commandSuccess)
-
-	if !commandSuccess {
+	if !doPack() {
 		os.Exit(1)
 	}
 
-	log.Info("Packaged service", "FilePath", constants.PayloadPath)
-
 	return true
+}
+
+func doPack() (success bool) {
+	log := logger.CLI("cmd", "pack")
+
+	defer func() {
+
+		postHookSuccess := hook.Execute(log, constants.HookPostPack, "", nil, success)
+
+		success = success && postHookSuccess
+	}()
+
+	if !hook.Execute(log, constants.HookPrePack, "", nil, true) {
+		return
+	}
+
+	config, getConfigSuccess := conf.GetConfig(log, true)
+	if !getConfigSuccess {
+		return
+	}
+
+	if os.Getenv(constants.EnvConfig) != "" {
+		config.Print()
+	}
+
+	success = provision.Package(log, config)
+
+	if success {
+		log.Info("Packaged service", "FilePath", constants.PayloadPath)
+	}
+
+	success = true
+	return
 }

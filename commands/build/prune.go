@@ -120,8 +120,8 @@ func doPrune(log log15.Logger, stack *provision_state.Stack, keepCount int, elbT
 		success = success && postHookSuccess
 	}()
 
-	config, success := conf.GetAlteredConfig(log)
-	if !success {
+	config, getAlteredConfigSuccess := conf.GetAlteredConfig(log)
+	if !getAlteredConfigSuccess {
 		return
 	}
 

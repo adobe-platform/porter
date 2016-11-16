@@ -21,81 +21,68 @@ import (
 )
 
 func (recv *stackCreator) ensureResources(template *cfn.Template) (success bool) {
-	success = recv.ensureParameters(template)
-	if !success {
+	if !recv.ensureParameters(template) {
 		return
 	}
 
-	success = recv.ensureMappings(template)
-	if !success {
+	if !recv.ensureMappings(template) {
 		return
 	}
 
-	success = recv.ensureSignalQueue(template)
-	if !success {
+	if !recv.ensureSignalQueue(template) {
 		return
 	}
 
-	success = recv.ensureIAMRole(template)
-	if !success {
+	if !recv.ensureIAMRole(template) {
 		return
 	}
 
-	success = recv.ensureIAMInstanceProfile(template)
-	if !success {
+	if !recv.ensureIAMInstanceProfile(template) {
 		return
 	}
 
-	success = recv.ensureAutoScalingLaunchConfig(template)
-	if !success {
+	if !recv.ensureAutoScalingLaunchConfig(template) {
 		return
 	}
 
-	success = recv.ensureAutoScalingGroup(template)
-	if !success {
+	if !recv.ensureAutoScalingGroup(template) {
 		return
 	}
 
 	// overloaded to include metadata which is why it applies
 	// to all topologies
-	success = recv.ensureWaitConditionHandle(template)
-	if !success {
+	if !recv.ensureWaitConditionHandle(template) {
 		return
 	}
 
-	success = recv.ensureWaitCondition(template)
-	if !success {
+	if !recv.ensureWaitCondition(template) {
 		return
 	}
 
 	switch recv.region.PrimaryTopology() {
 	case conf.Topology_Inet:
-		success = recv.ensureELB(template)
-		if !success {
+		if !recv.ensureELB(template) {
 			return
 		}
 
-		success = recv.ensureDestinationELBSecurityGroup(template)
-		if !success {
+		if !recv.ensureDestinationELBSecurityGroup(template) {
 			return
 		}
 
-		success = recv.ensureInetToELBSG(template)
-		if !success {
+		if !recv.ensureInetToELBSG(template) {
 			return
 		}
 
-		success = recv.ensureProvisionedELBToInstanceSG(template)
-		if !success {
+		if !recv.ensureProvisionedELBToInstanceSG(template) {
 			return
 		}
 
-		success = recv.ensureDNSResources(template)
-		if !success {
+		if !recv.ensureDNSResources(template) {
 			return
 		}
 	}
 
+	success = true
 	return
 }
 

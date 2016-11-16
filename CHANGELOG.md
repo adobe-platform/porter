@@ -1,3 +1,8 @@
+### v3.0.4
+
+- fixed issue with region-concurrent cleanup of service payload
+- fixed possible issues with false-positive command success
+
 ### v3.0.3
 
 - add `CREATE_IN_PROGRESS` to list of statuses that ignore ASG size
