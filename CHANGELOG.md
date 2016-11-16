@@ -1,6 +1,7 @@
 ### v3.0.4
 
 - fixed issue with region-concurrent cleanup of service payload
+- fixed possible issues with false-positive command success
 
 ### v3.0.3
 
