@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"runtime"
 	"strings"
 
@@ -336,8 +335,6 @@ func (recv *stackCreator) getAsgSize(asgName string, regionState *provision_stat
 }
 
 func (recv *stackCreator) uploadServicePayload() (checksum string, success bool) {
-
-	defer exec.Command("rm", "-rf", constants.PayloadPath).Run()
 
 	payloadBytes, err := ioutil.ReadFile(constants.PayloadPath)
 	if err != nil {

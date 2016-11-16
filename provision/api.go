@@ -12,6 +12,7 @@
 package provision
 
 import (
+	"os/exec"
 	"sync"
 	"time"
 
@@ -38,6 +39,8 @@ type (
 func CreateStack(log log15.Logger, config *conf.Config, stack *provision_state.Stack) bool {
 
 	var err error
+
+	defer exec.Command("rm", "-rf", constants.PayloadPath).Run()
 
 	stack.Name, err = GetStackName(config.ServiceName, stack.Environment, true)
 	if err != nil {
