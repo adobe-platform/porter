@@ -100,8 +100,8 @@ func (recv *ProvisionStackCmd) Execute(args []string) bool {
 func ProvisionOrHotswapStack(env string) (success bool) {
 	log := logger.CLI("cmd", "provision")
 
-	config, success := conf.GetAlteredConfig(log)
-	if !success {
+	config, getAlteredConfigSuccess := conf.GetAlteredConfig(log)
+	if !getAlteredConfigSuccess {
 		return
 	}
 
@@ -135,7 +135,7 @@ func ProvisionOrHotswapStack(env string) (success bool) {
 
 			go func(environment *conf.Environment, region *conf.Region) {
 
-				if hotswapData, success := checkShouldHotswapRegion(log, environment, region); success {
+				if hotswapData, ok := checkShouldHotswapRegion(log, environment, region); ok {
 
 					hotswapChan <- hotswapData
 				} else {
