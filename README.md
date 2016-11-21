@@ -10,9 +10,9 @@ Docker containers to EC2.
 
 [User Documentation](docs/readme.md)
 
-[Developer Documentation](developing.md)
+[Change log](CHANGELOG.md) and [upgrade guide](MIGRATING.md)
 
-[Upgrade guide](MIGRATING.md)
+[Developer Documentation](developing.md)
 
 A porter is "a person employed to carry luggage and other loads".
 

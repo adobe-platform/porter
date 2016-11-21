@@ -38,6 +38,7 @@ Features
 - Interactive command line interface (CLI) packaged as a statically linked binary
 - Multi-region, multi-AZ, blue-green deployments
 - Secrets management
+  - S3 with SSE-KMS or bring your own secrets storage
 - Works in EC2-Classic, Default VPC, and Custom VPCs
 - Highly customizable
   - Programmable deployment pipeline and EC2 host-level customizations to help
@@ -51,8 +52,6 @@ Features
   CloudFormation template used in other environments to verify feature and bug
   fixes _without_ needing to integrate in a shared environment (e.g. QA2)
 - Configurable deployment blackout windows
-- Secure secret transport backed by S3 and SSE-KMS, or provide your own
-  long-term secrets storage integration
 
 Project fit
 -----------
