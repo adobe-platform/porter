@@ -78,6 +78,7 @@ func populateInstanceIdentity(log log15.Logger) error {
 		log.Error("Error on instanceIdResp", "Error", err)
 		return err
 	}
+	defer instanceIdResp.Body.Close()
 
 	//Get AWS Region
 	awsRegionResp, err := http.Get(constants.EC2MetadataURL + "/placement/availability-zone")
@@ -85,20 +86,19 @@ func populateInstanceIdentity(log log15.Logger) error {
 		log.Error("Error on awsRegionResp", "Error", err)
 		return err
 	}
+	defer awsRegionResp.Body.Close()
 
 	bs, err := ioutil.ReadAll(instanceIdResp.Body)
 	if err != nil {
 		log.Error("ioutil.ReadAll instanceIdResp", "Error", err)
 		return err
 	}
-	instanceIdResp.Body.Close()
 
 	region, err := ioutil.ReadAll(awsRegionResp.Body)
 	if err != nil {
 		log.Error("ioutil.ReadAll awsRegionResp", "Error", err)
 		return err
 	}
-	awsRegionResp.Body.Close()
 	awsRegion := string(region)
 	//strip down the AZ char
 	awsRegion = awsRegion[:len(awsRegion)-1]

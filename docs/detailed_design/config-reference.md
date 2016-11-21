@@ -15,6 +15,7 @@ For each field the following notation is used
 - [environments](#environments) (>=1!)
   - [name](#environment-name) (>=1!)
   - [stack_definition_path](#stack_definition_path) (==1?)
+  - [autowire_security_groups](#autowire_security_groups) (==1?)
   - [role_arn](#role_arn) (==1!)
   - [instance_count](#instance_count) (==1?)
   - [instance_type](#instance_type) (==1?)
@@ -150,6 +151,16 @@ CloudFormation stack definition file.
 The most specific definition is used meaning if it's defined on an environment
 and an environment's region, the region value will be used.
 
+### autowire_security_groups
+
+By default porter manages security groups to allow the provisioned ELB, and
+inspects the ELB that instances will be promoted into so that both ELBs can send
+traffic to EC2 instances.
+
+Set `autowire_security_groups: false` to disable this.
+
+This setting does not affect, and is not affected by, `security_group_egress`
+
 ### role_arn
 
 role_arn is the IAM Role that porter will call AssumeRole on in order to perform
@@ -231,7 +242,7 @@ blackout_windows:
 
 ### hot_swap
 
-Opt into [hot swap deployments](#hotswap.md)
+Opt into [hot swap deployments](hotswap.md)
 
 ```yaml
 environments:
