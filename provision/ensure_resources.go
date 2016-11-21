@@ -65,16 +65,19 @@ func (recv *stackCreator) ensureResources(template *cfn.Template) (success bool)
 			return
 		}
 
-		if !recv.ensureDestinationELBSecurityGroup(template) {
-			return
-		}
+		if recv.environment.CreateSecurityGroups == nil || *recv.environment.CreateSecurityGroups == true {
 
-		if !recv.ensureInetToELBSG(template) {
-			return
-		}
+			if !recv.ensureDestinationELBSecurityGroup(template) {
+				return
+			}
 
-		if !recv.ensureProvisionedELBToInstanceSG(template) {
-			return
+			if !recv.ensureInetToELBSG(template) {
+				return
+			}
+
+			if !recv.ensureProvisionedELBToInstanceSG(template) {
+				return
+			}
 		}
 
 		if !recv.ensureDNSResources(template) {

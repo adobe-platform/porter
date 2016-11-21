@@ -99,6 +99,12 @@ type (
 		InstanceType        string           `yaml:"instance_type"`
 		BlackoutWindows     []BlackoutWindow `yaml:"blackout_windows"`
 		Regions             []*Region        `yaml:"regions"`
+
+		// From the client's perspective this relates to SG creation and ELB
+		// inspection that allows the 2 ELBs to communicate with EC2 instances.
+		// From porter's perspective this is just a signal to create them so
+		// further transformations can happen
+		CreateSecurityGroups *bool `yaml:"autowire_security_groups"`
 	}
 
 	BlackoutWindow struct {

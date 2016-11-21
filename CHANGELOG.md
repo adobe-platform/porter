@@ -1,3 +1,7 @@
+### v3.0.5
+
+- add `autowire_security_groups` so security group management can be turned off
+
 ### v3.0.4
 
 - fixed issue with region-concurrent cleanup of service payload
