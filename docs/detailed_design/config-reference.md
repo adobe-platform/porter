@@ -231,7 +231,7 @@ blackout_windows:
 
 ### hot_swap
 
-Opt into [hot swap deployments](#hotswap.md)
+Opt into [hot swap deployments](hotswap.md)
 
 ```yaml
 environments:
