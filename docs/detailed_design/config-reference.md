@@ -137,7 +137,7 @@ Must match `/^v\d+\.\d+\.\d+$/`
 
 ### environments
 
-environments is a complex object and namespace for configuration
+environments is a namespace for configuration
 
 ### environment name
 
@@ -300,13 +300,14 @@ An example is `foo.com.`. Porter will prepend the stack name so you can visit
 
 ### security_group_egress
 
-Whitelist ASG egress rules. porter needs this config for 3 reasons.
+Whitelist ASG egress rules.
 
-(1) porter manages the security groups for a
-`AWS::AutoScaling::AutoScalingGroup` including dynamically adding ingress
-traffic for the elb into which instances will be promoted, (2) additional groups
-may be defined in a [custom CloudFormation template](cfn-customization.md), and
-(3) [the most permissive rule wins](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-network-security.html#vpc-security-groups):
+porter needs this config because it manages the security groups for the
+Autoscaling group and ELBs in a porter stack. You can disable this with
+[`autowire_security_groups`](#autowire_security_groups). If you disable security
+group management you don't technically need this configuration but there's a
+really good reason to do so anyway: when AWS collapses security groups into a
+single ruleset [the most permissive rule wins](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-network-security.html#vpc-security-groups):
 
 > If there is more than one rule for a specific port, we apply the most
 > permissive rule. For example, if you have a rule that allows access to TCP
@@ -317,7 +318,12 @@ may be defined in a [custom CloudFormation template](cfn-customization.md), and
 > each security group are effectively aggregated to create one set of rules. We
 > use this set of rules to determine whether to allow access.
 
-These values overwrite every AutoScalingGroup's SecurityGroup's
+Coupled with the fact that the implicit SecurityGroupEgress allows all outbound
+traffic on all protocols you can unwittingly add a new security group for its
+_ingress_ rules to, for example, an ELB, and overwrite all the egress rules of
+the other security groups.
+
+This config overwrites every AutoScalingGroup's SecurityGroup's
 [SecurityGroupEgress property](http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-security-group.html#cfn-ec2-securitygroup-securitygroupegress)
 
 Example config
@@ -507,7 +513,7 @@ Set `read_only: false` to disable this.
 
 ### health_check
 
-Health check is a complex object defining a container's HTTP-based health check
+Health check defines a container's HTTP-based health check.
 
 The method and path are needed if a health check object is provided.
 
