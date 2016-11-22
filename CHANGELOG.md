@@ -1,5 +1,9 @@
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+### v3.1.0
+
+- increased devicemapper base size to 50GB
+
 ### v3.0.5
 
 - add `autowire_security_groups` so security group management can be turned off
