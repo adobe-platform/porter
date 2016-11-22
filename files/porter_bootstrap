@@ -14,6 +14,7 @@ export LOG_DEBUG=1
 
 env
 adduser porter-docker -u {{ .ContainerUserUid }}
+echo 'OPTIONS="$OPTIONS --storage-opt dm.basesize=50G"' >> /etc/sysconfig/docker
 # CIS Docker Benchmark 1.11.0 2.13
 echo 'OPTIONS="$OPTIONS --disable-legacy-registry"' >> /etc/sysconfig/docker
 # CIS Docker Benchmark 1.11.0 2.1
@@ -21,6 +22,7 @@ echo 'OPTIONS="$OPTIONS --icc=false"' >> /etc/sysconfig/docker
 {{ if .InsecureRegistry -}}
 echo 'OPTIONS="$OPTIONS --insecure-registry={{ .InsecureRegistry }}"' >> /etc/sysconfig/docker
 {{ end -}}
+
 service haproxy start
 service docker restart
 docker version
