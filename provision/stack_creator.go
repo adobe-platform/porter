@@ -379,6 +379,11 @@ func (recv *stackCreator) uploadServicePayload() (checksum string, success bool)
 		StorageClass:    aws.String("STANDARD_IA"),
 	}
 
+	if recv.region.SSEKMSKeyId != nil {
+		uploadInput.SSEKMSKeyId = recv.region.SSEKMSKeyId
+		uploadInput.ServerSideEncryption = aws.String("aws:kms")
+	}
+
 	s3Manager := s3manager.NewUploader(recv.roleSession)
 	s3Manager.Concurrency = runtime.GOMAXPROCS(-1) // read, don't set, the value
 
