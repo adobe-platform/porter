@@ -1,5 +1,9 @@
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+### v3.1.1
+
+- service payloads were not encrypted as the docs said they were
+
 ### v3.1.0
 
 - increased devicemapper base size to 50GB
