@@ -2,6 +2,26 @@ See the [CHANGELOG](CHANGELOG.md) for a complete list of changes.
 
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+v4.0
+====
+
+[How to migrate](MIGRATING.md#v3-to-v4)
+
+v4 - Egress rules
+-----------------
+
+For a number of security reasons porter now locks down ASG and ELB egress
+traffic to allow by default NTP (udp 123), DNS (udp 80), HTTP (tcp 80), and
+HTTPS (tcp 443). You can still define your own egress rules using [`security_group_egress`](docs/detailed_design/config-reference.md#security_group_egress)
+or turn off porter's security group management entirely with
+[`autowire_security_groups: false`](docs/detailed_design/config-reference.md#autowire_security_groups)
+
+v4 - HAProxy header capture
+---------------------------
+
+Enabled configurable HAProxy header captures which make HAProxy logs more useful
+to those that weren't using UUIDv4 for `X-Request-Id`
+
 v3.0
 ====
 
@@ -62,18 +82,21 @@ v2
 
 [How to migrate](MIGRATING.md#v1-to-v2)
 
-## v2 - Version upgrades
+v2 - Version upgrades
+---------------------
 
 - Docker has been updated to 1.11.2
 - Amazon Linux AMI has been updated to 2016.03
 
-## v2 - UID
+v2 - UID
+--------
 
 v1.0.5 introduced what we later learned was a breaking change in how porter runs
 docker containers. It was then fixed in v1.0.6 and v2 was created from v1.0.5 to
 signal the break.
 
-## v2 - Hooks
+v2 - Hooks
+----------
 
 ### v2 - Hook Location
 
@@ -102,7 +125,8 @@ uses.
 See [the docs](docs/detailed_design/deployment-hooks.md#custom-environment-variables)
 for more
 
-## v2 - S3 keys
+v2 - S3 keys
+------------
 
 Templates are now uploaded to
 
@@ -118,7 +142,8 @@ porter-deployment/{service name}/{environment}/{short sha}/
 
 This is a breaking change for tooling relying on the old layout.
 
-## v2 - CloudFormation template location
+v2 - CloudFormation template location
+-------------------------------------
 
 **WARNING**: if you previously put secrets into your CloudFormation template be
 aware that they are now uploaded to S3 in the same bucket defined in the config.

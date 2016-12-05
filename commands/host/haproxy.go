@@ -24,6 +24,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/adobe-platform/porter/conf"
 	"github.com/adobe-platform/porter/constants"
 	"github.com/adobe-platform/porter/files"
 	"github.com/adobe-platform/porter/logger"
@@ -36,13 +37,15 @@ type (
 	HAProxyCmd struct{}
 
 	haProxyConfigContext struct {
-		ServiceName     string
-		FrontEndPorts   []uint16
-		HAPStdin        HAPStdin
-		StatsUsername   string
-		StatsPassword   string
-		StatsUri        string
-		IpBlacklistPath string
+		ServiceName       string
+		FrontEndPorts     []uint16
+		HAPStdin          HAPStdin
+		StatsUsername     string
+		StatsPassword     string
+		StatsUri          string
+		IpBlacklistPath   string
+		ReqHeaderCaptures []conf.HeaderCapture
+		ResHeaderCaptures []conf.HeaderCapture
 	}
 
 	HAPStdin struct {
@@ -109,17 +112,19 @@ func (recv *HAProxyCmd) SubCommands() []cli.Command {
 func (recv *HAProxyCmd) Execute(args []string) bool {
 	if len(args) > 0 {
 		var (
-			stdinStruct HAPStdin
-			serviceName string
+			hapStdin            HAPStdin
+			environment, region string
 		)
-		log := logger.Host("cmd", "haproxy")
 
 		flagSet := flag.NewFlagSet("", flag.ExitOnError)
-		flagSet.StringVar(&serviceName, "sn", "", "")
+		flagSet.StringVar(&environment, "e", "", "")
+		flagSet.StringVar(&region, "r", "", "")
 		flagSet.Usage = func() {
 			fmt.Println(recv.LongHelp())
 		}
 		flagSet.Parse(args)
+
+		log := logger.Host("cmd", "haproxy")
 
 		stdinBytes, err := stdin.GetBytes()
 		if err != nil {
@@ -131,28 +136,12 @@ func (recv *HAProxyCmd) Execute(args []string) bool {
 			return false
 		}
 
-		err = json.Unmarshal(stdinBytes, &stdinStruct)
+		err = json.Unmarshal(stdinBytes, &hapStdin)
 		if err != nil {
 			return false
 		}
 
-		var ipBlacklistPath string
-		_, err = os.Stat(constants.HAProxyIpBlacklistPath)
-		if err == nil {
-			ipBlacklistPath = constants.HAProxyIpBlacklistPath
-		}
-
-		context := haProxyConfigContext{
-			ServiceName:     serviceName,
-			FrontEndPorts:   constants.InetBindPorts,
-			HAPStdin:        stdinStruct,
-			StatsUsername:   constants.HAProxyStatsUsername,
-			StatsPassword:   constants.HAProxyStatsPassword,
-			StatsUri:        constants.HAProxyStatsUri,
-			IpBlacklistPath: ipBlacklistPath,
-		}
-
-		if !hotswap(log, context) {
+		if !hotswap(log, environment, region, hapStdin) {
 			os.Exit(1)
 		}
 		return true
@@ -161,7 +150,35 @@ func (recv *HAProxyCmd) Execute(args []string) bool {
 	return false
 }
 
-func hotswap(log log15.Logger, context haProxyConfigContext) (success bool) {
+func hotswap(log log15.Logger, environmentStr, regionStr string, hapStdin HAPStdin) (success bool) {
+
+	config, getHostConfigSuccess := conf.GetHostConfig(log)
+	if !getHostConfigSuccess {
+		return
+	}
+
+	environment, err := config.GetEnvironment(environmentStr)
+	if err != nil {
+		log.Error("GetEnvironment", "Error", err)
+		return
+	}
+
+	var ipBlacklistPath string
+	if _, err := os.Stat(constants.HAProxyIpBlacklistPath); err == nil {
+		ipBlacklistPath = constants.HAProxyIpBlacklistPath
+	}
+
+	context := haProxyConfigContext{
+		ServiceName:       config.ServiceName,
+		FrontEndPorts:     constants.InetBindPorts,
+		HAPStdin:          hapStdin,
+		StatsUsername:     constants.HAProxyStatsUsername,
+		StatsPassword:     constants.HAProxyStatsPassword,
+		StatsUri:          constants.HAProxyStatsUri,
+		IpBlacklistPath:   ipBlacklistPath,
+		ReqHeaderCaptures: environment.HAProxy.ReqHeaderCaptures,
+		ResHeaderCaptures: environment.HAProxy.ResHeaderCaptures,
+	}
 
 	if !healthCheckContainers(log, context.HAPStdin) {
 		return
