@@ -3,14 +3,14 @@ service_name: porter-test
 porter_version: vBCOOK
 
 slack:
-  # pack_success_webhook_url: $SPLUNK_WEBHOOK_URL
-  pack_failure_webhook_url: $SPLUNK_WEBHOOK_URL
+  # pack_success_webhook_url: ${SLACK_WEBHOOK_URL}
+  pack_failure_webhook_url: ${SLACK_WEBHOOK_URL}
 
-  # provision_success_webhook_url: $SPLUNK_WEBHOOK_URL
-  provision_failure_webhook_url: $SPLUNK_WEBHOOK_URL
+  # provision_success_webhook_url: ${SLACK_WEBHOOK_URL}
+  provision_failure_webhook_url: ${SLACK_WEBHOOK_URL}
 
-  # promote_success_webhook_url: $SPLUNK_WEBHOOK_URL
-  promote_failure_webhook_url: $SPLUNK_WEBHOOK_URL
+  # promote_success_webhook_url: ${SLACK_WEBHOOK_URL}
+  promote_failure_webhook_url: ${SLACK_WEBHOOK_URL}
 
 hooks:
   pre_pack:
@@ -18,7 +18,7 @@ hooks:
     environment:
       VPC_ID:
       SUBNET_ID:
-      SPLUNK_WEBHOOK_URL:
+      SLACK_WEBHOOK_URL:
       EXTERNAL_ACCESS_CIDR:
       TEST_REPO_URL:
       TEST_REPO_BRANCH:
@@ -26,23 +26,24 @@ hooks:
       ELB_2_NAME:
       DEPLOYMENT_ROLE_ARN:
       SSH_KEY:
+      AWS_REGION:
   # post_pack:
   # - dockerfile: hooks/post-pack-fail
   #   run_condition: always
-  # - repo: $TEST_REPO_URL
-  #   ref: $TEST_REPO_BRANCH
+  # - repo: ${TEST_REPO_URL}
+  #   ref: ${TEST_REPO_BRANCH}
   #   dockerfile: testintegration/plugins/post-pack
   #   concurrent: true
-  # - repo: $TEST_REPO_URL
-  #   ref: $TEST_REPO_BRANCH
+  # - repo: ${TEST_REPO_URL}
+  #   ref: ${TEST_REPO_BRANCH}
   #   dockerfile: testintegration/plugins/post-pack
   #   concurrent: true
-  # - repo: $TEST_REPO_URL
-  #   ref: $TEST_REPO_BRANCH
+  # - repo: ${TEST_REPO_URL}
+  #   ref: ${TEST_REPO_BRANCH}
   #   dockerfile: testintegration/plugins/post-pack
   #   concurrent: true
-  # - repo: $TEST_REPO_URL
-  #   ref: $TEST_REPO_BRANCH
+  # - repo: ${TEST_REPO_URL}
+  #   ref: ${TEST_REPO_BRANCH}
   #   dockerfile: testintegration/plugins/post-pack
   ec2_bootstrap:
   - dockerfile: hooks/ec2-bootstrap
@@ -57,8 +58,8 @@ hooks:
   #     FOO: bar
   user_defined:
   - dockerfile: hooks/user-defined
-  - repo: $TEST_REPO_URL
-    ref: $TEST_REPO_BRANCH
+  - repo: ${TEST_REPO_URL}
+    ref: ${TEST_REPO_BRANCH}
     dockerfile: testintegration/plugins/user-defined
 
 _container_base_inet: &CONTAINER_BASE_INET
@@ -85,17 +86,28 @@ environments:
 
   instance_type: m4.large
 
+  haproxy:
+    request_header_captures:
+    - header: X-Request-Id
+      length: 40
+    - header: X-Forwarded-For
+      length: 45
+
+    response_header_captures:
+    - header: X-Request-Id
+      length: 40
+
   regions:
-  - name: us-west-2
+  - name: ${AWS_REGION}
 
     azs:
-    - name: us-west-2a
-      subnet_id: $SUBNET_ID
+    - name: ${AWS_REGION}a
+      subnet_id: ${SUBNET_ID}
 
-    vpc_id: $VPC_ID
-    role_arn: $DEPLOYMENT_ROLE_ARN
-    s3_bucket: porter-sandbox-us-west-2
-    key_pair_name: $SSH_KEY
+    vpc_id: ${VPC_ID}
+    role_arn: ${DEPLOYMENT_ROLE_ARN}
+    s3_bucket: porter-sandbox-${AWS_REGION}
+    key_pair_name: ${SSH_KEY}
 
     auto_scaling_group:
       secrets_exec_name: echo
@@ -122,7 +134,7 @@ environments:
     # - <<: *CONTAINER_BASE_WORKER
     #   name: worker3
 
-    elb: $ELB_1_NAME
+    elb: ${ELB_1_NAME}
 
 - name: Worker
 
@@ -131,16 +143,16 @@ environments:
   instance_type: t2.medium
 
   regions:
-  - name: us-west-2
+  - name: ${AWS_REGION}
 
     azs:
-    - name: us-west-2a
-      subnet_id: $SUBNET_ID
+    - name: ${AWS_REGION}a
+      subnet_id: ${SUBNET_ID}
 
-    vpc_id: $VPC_ID
-    role_arn: $DEPLOYMENT_ROLE_ARN
-    s3_bucket: porter-sandbox-us-west-2
-    key_pair_name: $SSH_KEY
+    vpc_id: ${VPC_ID}
+    role_arn: ${DEPLOYMENT_ROLE_ARN}
+    s3_bucket: porter-sandbox-${AWS_REGION}
+    key_pair_name: ${SSH_KEY}
 
     containers:
     - <<: *CONTAINER_BASE_WORKER
@@ -154,25 +166,25 @@ environments:
   instance_type: t2.medium
 
   regions:
-  - name: us-west-2
+  - name: ${AWS_REGION}
 
     azs:
-    - name: us-west-2a
-      subnet_id: $SUBNET_ID
+    - name: ${AWS_REGION}a
+      subnet_id: ${SUBNET_ID}
 
-    vpc_id: $VPC_ID
-    role_arn: $DEPLOYMENT_ROLE_ARN
-    s3_bucket: porter-sandbox-us-west-2
-    key_pair_name: $SSH_KEY
+    vpc_id: ${VPC_ID}
+    role_arn: ${DEPLOYMENT_ROLE_ARN}
+    s3_bucket: porter-sandbox-${AWS_REGION}
+    key_pair_name: ${SSH_KEY}
 
     containers:
     - <<: *CONTAINER_BASE_INET
       src_env_file:
-        s3_bucket: porter-sandbox-us-west-2
+        s3_bucket: porter-sandbox-${AWS_REGION}
         s3_key: env-file
-        s3_region: us-west-2
+        s3_region: ${AWS_REGION}
     - <<: *CONTAINER_BASE_WORKER
     - <<: *CONTAINER_BASE_WORKER
       name: worker2
 
-    elb: $ELB_2_NAME
+    elb: ${ELB_2_NAME}
