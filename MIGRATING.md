@@ -43,6 +43,10 @@ security_group_egress:
 See the [`security_group_egress`](docs/detailed_design/config-reference.md#security_group_egress)
 config for more info.
 
+Since egress rules are now added to every deployment the addition of
+`ec2:AuthorizeSecurityGroupEgress` and `ec2:RevokeSecurityGroupEgress` to the
+porter deployment policy are now required. They used to be optional.
+
 ### HAProxy request header captures
 
 This is a breaking change for logging field extractions that expect to parse
