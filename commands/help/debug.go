@@ -19,39 +19,58 @@ import (
 const debugLongHelp = `These are various environment variable porter looks for to enable debugging in
 the field.
 
-Most of the DEBUG_ flags cause additional logs to be sent via stdout.
+The DEBUG_ flags cause additional logs to be sent via stdout.
 
 The value for these flags is a non-empty string unless otherwise noted.
 
 DEBUG_CONFIG
+
     Print out configuration
 
     Example:
     DEBUG_CONFIG=1 porter create-stack -e dev
 
 DEBUG_AWS
+
     Dump all AWS HTTP calls
 
 LOG_DEBUG
+
     Turn on porter's debug logging
 
 LOG_COLOR
+
     Turn on log colors
 
 STACK_CREATION_TIMEOUT
-    Override rollback time with a string parsed by
+
+    Override rollback time with a string parsed by time.ParseDuration()
     https://golang.org/pkg/time/#ParseDuration
 
-    This is clamped to the min and max duration supported by STS AssumeRole
+    This is clamped to the min and max duration supported by sts:AssumeRole
 
     Example:
     export STACK_CREATION_TIMEOUT=1h
     porter create-stack -e dev
 
 STACK_CREATION_POLL_INTERVAL
+
     Override the default polling for creation status interval during
-    stack provisioning. The value is a string parsed by
-    https://golang.org/pkg/time/#ParseDuration. The default value is 10 seconds.
+    stack provisioning. The value is a string parsed by time.ParseDuration()
+    The default value is 10 seconds.
+
+    https://golang.org/pkg/time/#ParseDuration
+
+STACK_CREATION_ON_FAILURE
+
+    By default porter calls cloudformation:CreateStack with OnFailure = DELETE
+
+    Set this to DO_NOTHING or ROLLBACK to change this behavior. ROLLBACK is
+    often useful for examining CloudFormation events to see if resources failed
+    to provision. DO_NOTHING can give you time to login to an EC2 host if the
+    WaitCondition failed to complete
+
+    http://docs.aws.amazon.com/AWSCloudFormation/latest/APIReference/API_CreateStack.html
 
 DEV_MODE
     Grease the wheels on development`

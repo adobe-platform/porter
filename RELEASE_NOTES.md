@@ -22,6 +22,15 @@ v4 - HAProxy header capture
 Enabled configurable HAProxy header captures which make HAProxy logs more useful
 to those that weren't using UUIDv4 for `X-Request-Id`
 
+v4 - Failed stacks delete
+-------------------------
+
+The new default to the `OnFailure` parameter of `cloudformation:CreateStack` is
+`DELETE`.
+
+If the previous behavior is desired it can be set using `ON_STACK_FAILURE`. Run
+`porter help debug` for more
+
 v3.0
 ====
 

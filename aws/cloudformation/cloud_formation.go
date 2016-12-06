@@ -14,6 +14,7 @@ package cloudformation
 import (
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/adobe-platform/porter/constants"
 	"github.com/aws/aws-sdk-go/aws"
@@ -29,12 +30,20 @@ func New(config *session.Session) *cfnlib.CloudFormation {
 
 // CreateStack using AWS http://docs.aws.amazon.com/sdk-for-go/api/service/cloudformation/CloudFormation.html#CreateStack-instance_method
 func CreateStack(client *cfnlib.CloudFormation, stackName string, cfnTemplateUrl string, parameters []*cfnlib.Parameter) (string, error) {
+
+	onFailure := os.Getenv(constants.EnvStackCreationOnFailure)
+	switch onFailure {
+	case "ROLLBACK", "DO_NOTHING":
+	default:
+		onFailure = "DELETE"
+	}
+
 	input := &cfnlib.CreateStackInput{
 		StackName: aws.String(stackName),
 		Capabilities: []*string{
 			aws.String("CAPABILITY_IAM"), // Required
 		},
-		OnFailure:        aws.String("ROLLBACK"),
+		OnFailure:        aws.String(onFailure),
 		Parameters:       parameters,
 		TemplateURL:      aws.String(cfnTemplateUrl),
 		TimeoutInMinutes: aws.Int64(int64(constants.StackCreationTimeout().Minutes())),
