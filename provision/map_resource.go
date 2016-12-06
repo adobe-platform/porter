@@ -514,6 +514,7 @@ loop:
 		ServicePayloadBucket:     recv.region.S3Bucket,
 		ServicePayloadKey:        recv.servicePayloadKey,
 		ServicePayloadConfigPath: constants.ServicePayloadConfigPath,
+		ServicePayloadHostDir:    "/porter",
 		ServicePayloadHostPath:   fmt.Sprintf("/porter/%d.tar.gz", time.Now().UnixNano()),
 		ServicePayloadChecksum:   recv.servicePayloadChecksum,
 

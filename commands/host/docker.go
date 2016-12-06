@@ -139,7 +139,7 @@ func startContainers(environmentStr, regionStr string) {
 
 	log := logger.Host("cmd", "docker")
 
-	config, getStdinConfigSucces := conf.GetStdinConfig(log)
+	config, getStdinConfigSucces := conf.GetHostConfig(log)
 	if !getStdinConfigSucces {
 		os.Exit(1)
 	}
@@ -428,7 +428,7 @@ func cleanContainers(environmentStr, regionStr string) {
 
 	log := logger.Host("cmd", "docker")
 
-	config, getStdinConfigSucces := conf.GetStdinConfig(log)
+	config, getStdinConfigSucces := conf.GetHostConfig(log)
 	if !getStdinConfigSucces {
 		os.Exit(1)
 	}

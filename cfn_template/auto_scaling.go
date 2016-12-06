@@ -39,6 +39,7 @@ type (
 		ServicePayloadBucket     string
 		ServicePayloadKey        string
 		ServicePayloadConfigPath string
+		ServicePayloadHostDir    string
 		ServicePayloadHostPath   string
 		ServicePayloadChecksum   string
 

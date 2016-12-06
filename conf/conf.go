@@ -100,11 +100,24 @@ type (
 		BlackoutWindows     []BlackoutWindow `yaml:"blackout_windows"`
 		Regions             []*Region        `yaml:"regions"`
 
+		HAProxy HAProxy `yaml:"haproxy"`
+
 		// From the client's perspective this relates to SG creation and ELB
 		// inspection that allows the 2 ELBs to communicate with EC2 instances.
 		// From porter's perspective this is just a signal to create them so
 		// further transformations can happen
 		CreateSecurityGroups *bool `yaml:"autowire_security_groups"`
+	}
+
+	HAProxy struct {
+		// Capture headers for logging
+		ReqHeaderCaptures []HeaderCapture `yaml:"request_header_captures"`
+		ResHeaderCaptures []HeaderCapture `yaml:"response_header_captures"`
+	}
+
+	HeaderCapture struct {
+		Header string `yaml:"header"`
+		Length int    `yaml:"length"`
 	}
 
 	BlackoutWindow struct {
@@ -337,42 +350,6 @@ func printHooks(name string, hooks []Hook) {
 	}
 }
 
-func GetConfig(log log15.Logger, validate bool) (config *Config, success bool) {
-	var parseConfigSuccess bool
-
-	file, err := os.Open(constants.ConfigPath)
-	if err != nil {
-		log.Error("Failed to open "+constants.ConfigPath, "Error", err)
-		return
-	}
-	defer file.Close()
-
-	configBytes, err := ioutil.ReadAll(file)
-	if err != nil {
-		log.Error("Failed to read "+constants.ConfigPath, "Error", err)
-		return
-	}
-
-	config, parseConfigSuccess = parseConfig(log, configBytes)
-	if !parseConfigSuccess {
-		return
-	}
-
-	config.SetDefaults()
-
-	if validate {
-
-		err = config.Validate()
-		if err != nil {
-			log.Error("Config validation", "Error", err)
-			return
-		}
-	}
-
-	success = true
-	return
-}
-
 func GetStdinConfig(log log15.Logger) (config *Config, success bool) {
 
 	configBytes, err := stdin.GetBytes()
@@ -385,22 +362,58 @@ func GetStdinConfig(log log15.Logger) (config *Config, success bool) {
 	return
 }
 
+func GetConfig(log log15.Logger, validate bool) (*Config, bool) {
+
+	return getConfigFile(log, constants.ConfigPath, true, validate)
+}
+
 func GetAlteredConfig(log log15.Logger) (*Config, bool) {
 
-	file, err := os.Open(constants.AlteredConfigPath)
+	return getConfigFile(log, constants.AlteredConfigPath, false, false)
+}
+
+func GetHostConfig(log log15.Logger) (*Config, bool) {
+
+	return getConfigFile(log, os.Getenv(constants.EnvConfigPath), false, false)
+}
+
+func getConfigFile(log log15.Logger, filePath string, setDefaults, validate bool) (config *Config, success bool) {
+	var parseConfigSuccess bool
+
+	file, err := os.Open(filePath)
 	if err != nil {
-		log.Error("Failed to open "+constants.AlteredConfigPath, "Error", err)
-		return nil, false
+		log.Error("os.Open", "FilePath", filePath, "Error", err)
+		return
 	}
 	defer file.Close()
 
 	configBytes, err := ioutil.ReadAll(file)
 	if err != nil {
-		log.Error("Failed to read "+constants.AlteredConfigPath, "Error", err)
-		return nil, false
+		log.Error("ioutil.ReadAll", "FilePath", filePath, "Error", err)
+		return
 	}
 
-	return parseConfig(log, configBytes)
+	config, parseConfigSuccess = parseConfig(log, configBytes)
+	if !parseConfigSuccess {
+		return
+	}
+
+	if setDefaults {
+
+		config.SetDefaults()
+	}
+
+	if validate {
+
+		err = config.Validate()
+		if err != nil {
+			log.Error("Config validation", "Error", err)
+			return
+		}
+	}
+
+	success = true
+	return
 }
 
 func parseConfig(log log15.Logger, configBytes []byte) (config *Config, success bool) {

@@ -310,31 +310,6 @@
         ]
       }
     },
-    "PrivateSubnet3": {
-      "Type": "AWS::EC2::Subnet",
-      "Properties": {
-        "AvailabilityZone": {
-          "Fn::Select": [
-            2,
-            {
-              "Fn::GetAZs": ""
-            }
-          ]
-        },
-        "CidrBlock": {
-          "Ref": "PrivateSubnetCIDR3"
-        },
-        "VpcId": {
-          "Ref": "VPC"
-        },
-        "Tags": [
-          {
-            "Key": "Name",
-            "Value": "GoCD private"
-          }
-        ]
-      }
-    },
     "PublicSubnetRoute": {
       "Type": "AWS::EC2::SubnetRouteTableAssociation",
       "Properties": {
@@ -365,17 +340,6 @@
         },
         "SubnetId": {
           "Ref": "PrivateSubnet2"
-        }
-      }
-    },
-    "PrivateSubnet3Route": {
-      "Type": "AWS::EC2::SubnetRouteTableAssociation",
-      "Properties": {
-        "RouteTableId": {
-          "Ref": "PrivateRouteTable"
-        },
-        "SubnetId": {
-          "Ref": "PrivateSubnet3"
         }
       }
     },
@@ -599,9 +563,6 @@
           },
           {
             "Ref": "PrivateSubnet2"
-          },
-          {
-            "Ref": "PrivateSubnet3"
           }
         ],
         "LaunchConfigurationName": {
@@ -725,6 +686,9 @@
                   "vpc_id": {
                     "Ref": "VPC"
                   },
+                  "aws_region": {
+                    "Ref": "AWS::Region"
+                  },
                   "public_subnet_id": {
                     "Ref": "PublicSubnet"
                   },
@@ -806,7 +770,7 @@
                       "          <variable name=\"EXTERNAL_ACCESS_CIDR\">",
                       "            <value>{{external_access_cidr}}</value>",
                       "          </variable>",
-                      "          <variable name=\"SPLUNK_WEBHOOK_URL\">",
+                      "          <variable name=\"SLACK_WEBHOOK_URL\">",
                       "            <value>{{slack_notification_webhook}}</value>",
                       "          </variable>",
                       "          <variable name=\"GO_NOTIFICATION_URL\">",
@@ -820,6 +784,9 @@
                       "          </variable>",
                       "          <variable name=\"VPC_ID\">",
                       "            <value>{{vpc_id}}</value>",
+                      "          </variable>",
+                      "          <variable name=\"AWS_REGION\">",
+                      "            <value>{{aws_region}}</value>",
                       "          </variable>",
                       "          <variable name=\"SUBNET_ID\">",
                       "            <value>{{public_subnet_id}}</value>",

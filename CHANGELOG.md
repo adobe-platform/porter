@@ -1,5 +1,12 @@
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+### v4.0.0
+
+- lock down ASG egress traffic to allow by default NTP, DNS, HTTP, and HTTPS
+- moved `security_group_egress` off of `auto_scaling_group`
+- `security_group_egress` rules additionally apply to the provisioned ELB
+- configurable haproxy header capture for logging
+
 ### v3.1.1
 
 - service payloads were not encrypted as the docs said they were

@@ -21,6 +21,7 @@ For each field the following notation is used
   - [instance_type](#instance_type) (==1?)
   - [blackout_windows](#blackout_windows) (>=1?)
   - [hot_swap](#hot_swap) (==1?)
+  - [haproxy](#haproxy) (==1?)
   - [regions](#regions) (>=1!)
     - [name](#region-name) (==1!)
     - [stack_definition_path](#stack_definition_path) (==1?)
@@ -248,6 +249,26 @@ Opt into [hot swap deployments](hotswap.md)
 environments:
 - name: stage
   hot_swap: true
+```
+
+### haproxy
+
+Header captures can be defined. See the [HAProxy docs](https://cbonte.github.io/haproxy-dconv/1.5/configuration.html#8.8)
+for more about how to parse these logs.
+
+```yaml
+environments:
+- name: dev
+  haproxy:
+    request_header_captures:
+    - header: X-Request-Id
+      length: 40
+    - header: X-Forwarded-For
+      length: 45
+
+    response_header_captures:
+    - header: X-Request-Id
+      length: 40
 ```
 
 ### regions

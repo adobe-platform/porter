@@ -3,6 +3,54 @@ Migration
 
 Read the [release notes](RELEASE_NOTES.md) for context on these changes.
 
+v3 to v4
+--------
+
+### HAProxy request header captures
+
+**You must re-provision for these changes to take effect**
+
+The old config captured `X-Request-Id` for request and response, and
+`X-Forwarded-For` for the request.
+
+This is a snippet of the old config
+
+```
+  #
+  # This capture list is ordered. APPEND ONLY or risk messing up log parsing
+  #
+
+  # Log request ids
+  capture request header X-Request-Id len 40
+  capture response header X-Request-Id len 40
+
+  # Log original request IP
+  # Currently only IPv4 is seen from EC2 instances but 45 handles IPv6 with
+  # possible IPv4 tunneling. This is one of those things that's good to plan for
+  # http://docs.aws.amazon.com/ElasticLoadBalancing/latest/DeveloperGuide/x-forwarded-headers.html
+  capture request header X-Forwarded-For len 45
+```
+
+To match the old behavior add the `haproxy` object to your `.porter/config`
+
+```yaml
+environments:
+- name: dev
+  haproxy:
+    request_header_captures:
+    - header: X-Request-Id
+      length: 40
+    - header: X-Forwarded-For
+      length: 45
+
+    response_header_captures:
+    - header: X-Request-Id
+      length: 40
+```
+
+See the [HAProxy docs](https://cbonte.github.io/haproxy-dconv/1.5/configuration.html#8.8)
+for exactly where these end up in your logs
+
 v2 to v3
 --------
 
