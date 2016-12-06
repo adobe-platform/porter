@@ -212,22 +212,18 @@ func overwriteASGSecurityGroupEgress(recv *stackCreator, template *cfn.Template,
 		securityGroups []interface{}
 	)
 
-	if recv.region.AutoScalingGroup == nil {
-		return true
-	}
-
 	if len(recv.region.AutoScalingGroup.SecurityGroupEgress) == 0 {
 		return true
 	}
 
 	if props, ok = resource["Properties"].(map[string]interface{}); !ok {
-		recv.log.Error("Missing Properties on resource")
-		return false
+		props = make(map[string]interface{})
+		resource["Properties"] = props
 	}
 
 	if securityGroups, ok = props["SecurityGroups"].([]interface{}); !ok {
-		recv.log.Error("Missing SecurityGroups on Properties")
-		return false
+		securityGroups = make([]interface{}, 0)
+		props["SecurityGroups"] = securityGroups
 	}
 
 	fn := func(securityGroup map[string]interface{}) bool {
@@ -237,19 +233,11 @@ func overwriteASGSecurityGroupEgress(recv *stackCreator, template *cfn.Template,
 		)
 
 		if props, ok = securityGroup["Properties"].(map[string]interface{}); !ok {
-			recv.log.Error("Missing Properties on SecurityGroup")
-			return false
+			props = make(map[string]interface{})
+			securityGroup["Properties"] = props
 		}
 
-		delete(props, "SecurityGroupEgress")
-		securityGroupEgress := make([]interface{}, 0)
-
-		for _, configEgress := range recv.region.AutoScalingGroup.SecurityGroupEgress {
-
-			securityGroupEgress = append(securityGroupEgress, configEgress)
-		}
-
-		props["SecurityGroupEgress"] = securityGroupEgress
+		props["SecurityGroupEgress"] = recv.region.AutoScalingGroup.SecurityGroupEgress
 		return true
 	}
 

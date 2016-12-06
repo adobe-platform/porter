@@ -133,7 +133,7 @@ type (
 		ELBs                []*ELB             `yaml:"elbs"`
 		ELB                 string             `yaml:"elb"`
 		RoleARN             string             `yaml:"role_arn"`
-		AutoScalingGroup    *AutoScalingGroup  `yaml:"auto_scaling_group"`
+		AutoScalingGroup    AutoScalingGroup   `yaml:"auto_scaling_group"`
 		SSLCertARN          string             `yaml:"ssl_cert_arn"`
 		HostedZoneName      string             `yaml:"hosted_zone_name"`
 		KeyPairName         string             `yaml:"key_pair_name"`
@@ -217,6 +217,35 @@ func (recv *Config) SetDefaults() {
 		}
 
 		for _, region := range env.Regions {
+
+			if len(region.AutoScalingGroup.SecurityGroupEgress) == 0 {
+				region.AutoScalingGroup.SecurityGroupEgress = []SecurityGroupEgress{
+					{ // DNS
+						CidrIp:     "0.0.0.0/0",
+						IpProtocol: "udp",
+						FromPort:   53,
+						ToPort:     53,
+					},
+					{ // NTP
+						CidrIp:     "0.0.0.0/0",
+						IpProtocol: "udp",
+						FromPort:   123,
+						ToPort:     123,
+					},
+					{ // HTTP
+						CidrIp:     "0.0.0.0/0",
+						IpProtocol: "tcp",
+						FromPort:   80,
+						ToPort:     80,
+					},
+					{ // HTTPS
+						CidrIp:     "0.0.0.0/0",
+						IpProtocol: "tcp",
+						FromPort:   443,
+						ToPort:     443,
+					},
+				}
+			}
 
 			if region.ELB != "" {
 				if region.ELBs == nil {
