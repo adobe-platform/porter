@@ -327,8 +327,9 @@ porter needs this config because it manages the security groups for the
 Autoscaling group and ELBs in a porter stack. You can disable this with
 [`autowire_security_groups`](#autowire_security_groups). If you disable security
 group management you don't technically need this configuration but there's a
-really good reason to do so anyway: when AWS collapses security groups into a
-single ruleset [the most permissive rule wins](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-network-security.html#vpc-security-groups):
+really good reason to define egress rules here and not in your CloudFormation
+template: when AWS collapses security groups into a single ruleset
+[**the most permissive rule wins**](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-network-security.html#vpc-security-groups):
 
 > If there is more than one rule for a specific port, we apply the most
 > permissive rule. For example, if you have a rule that allows access to TCP
@@ -341,13 +342,13 @@ single ruleset [the most permissive rule wins](http://docs.aws.amazon.com/AWSEC2
 
 Coupled with the fact that the implicit SecurityGroupEgress allows all outbound
 traffic on all protocols you can unwittingly add a new security group for its
-_ingress_ rules to, for example, an ELB, and overwrite all the egress rules of
-the other security groups.
+_ingress_ rules to, for example, allow SSH traffic, and overwrite all the egress
+rules of the other security groups.
 
 This config overwrites every AutoScalingGroup's SecurityGroup's
 [SecurityGroupEgress property](http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-security-group.html#cfn-ec2-securitygroup-securitygroupegress)
 
-Example config
+If not defined the default is:
 
 ```yaml
 environments:
@@ -371,21 +372,33 @@ environments:
         from_port: 123
         to_port: 123
 
-      # allow connections to AWS network in us-west-2
-      # accurate as of this writing
-      # run `porter help aws-network` for more
-      - cidr_ip: 54.231.160.0/19
+      # allow all HTTP
+      - cidr_ip: 0.0.0.0/0
         ip_protocol: tcp
-        from_port: 0
-        to_port: 65535
-      - cidr_ip: 54.240.230.0/23
+        from_port: 80
+        to_port: 80
+
+      # allow all HTTPS
+      - cidr_ip: 0.0.0.0/0
         ip_protocol: tcp
-        from_port: 0
-        to_port: 65535
-      - cidr_ip: 54.240.248.0/21
-        ip_protocol: tcp
-        from_port: 0
-        to_port: 65535
+        from_port: 443
+        to_port: 443
+```
+
+Many AWS APIs and services connect over SSL (TCP 443). For some managed services
+like RDS you would still need to allow egress traffic to connect. For example,
+using RDS with MySQL you would need to allow outbound connections to TCP 3306.
+You would probably define a `destination_security_group_id` instead of
+`cidr_ip` like this
+
+```yaml
+security_group_egress:
+
+# allow connection to RDS
+- destination_security_group_id: sg-1234abcd
+  ip_protocol: tcp
+  from_port: 3306
+  to_port: 3306
 ```
 
 ### secrets_exec_name

@@ -10,8 +10,8 @@ v4.0
 v4 - Egress rules
 -----------------
 
-For a number of security reasons porter now locks down ASG and ELB egress
-traffic to allow by default NTP (udp 123), DNS (udp 53), HTTP (tcp 80), and
+For a number of security reasons porter now locks down ASG egress traffic to
+allow by default NTP (udp 123), DNS (udp 53), HTTP (tcp 80), and
 HTTPS (tcp 443). You can still define your own egress rules using [`security_group_egress`](docs/detailed_design/config-reference.md#security_group_egress)
 or turn off porter's security group management entirely with
 [`autowire_security_groups: false`](docs/detailed_design/config-reference.md#autowire_security_groups)

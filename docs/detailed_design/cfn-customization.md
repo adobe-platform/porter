@@ -5,8 +5,12 @@ Porter allows services to define the subset of a CloudFormation (CFN) template
 that they want to be different than what porter creates by default.
 
 The basic rule is that porter won't alter defined resources and properties on
-those resources. There are some exceptions for properties that are lists (like
-EC2 tags).
+those resources. There are 2 major exception to this rule:
+
+1. For properties that are lists like EC2 tags and SecurityGroups porter only
+   appends to these lists
+1. All the AutoScalingGroup's SecurityGroup's SecurityGroupEgress properties are
+   overwritten with secure defaults. For more on this see [`security_group_egress`](config-reference.md#security_group_egress)
 
 Some simple examples are below. Porter injects various [CFN parameters](http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html)
 such as `PorterServiceName` and `PorterEnvironment`. Additionally there are a
@@ -29,30 +33,10 @@ For all examples we'll use the following `.porter/config` and just change
 `.porter/cfn.json` in each example.
 
 ```yaml
-service_name: zero2porter
-
-porter_version: v0.61.1
-
-containers:
-- topology: inet
-
 environments:
-- name: PROD
+- name: dev
 
   stack_definition_path: .porter/cfn.json
-
-  regions:
-  - name: us-west-2
-    azs:
-    - name: us-west-2a
-    - name: us-west-2b
-    - name: us-west-2c
-
-    role_arn: arn:aws:iam::123456789012:role/zero2porter-deployment
-    s3_bucket: zero2porter-us-west-2
-
-    elb: zero2porter-prod
-
 ```
 
 Examples
@@ -62,9 +46,9 @@ Examples
 
 ### SSH
 
-This is probably the first customization every service operator needs, SSH
-access. Porter adds all the resources _not_ already defined in order to create a
-working CloudFormation template which means the
+This is probably the first customization you'll want as you begin to explore a
+porter deployment: SSH access. Porter adds all the resources _not_ already
+defined in order to create a working CloudFormation template which means the
 `AWS::AutoScaling::LaunchConfiguration` isn't overwritten, and security groups
 are added to the `SecurityGroups` property already defined.
 

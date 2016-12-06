@@ -6,12 +6,47 @@ Read the [release notes](RELEASE_NOTES.md) for context on these changes.
 v3 to v4
 --------
 
+### Egress rules
+
+If you HAVE defined `security_group_egress` this is not a breaking change.
+
+If you HAVE NOT defined `security_group_egress` the default list is now
+
+```yaml
+security_group_egress:
+
+# allow all DNS
+- cidr_ip: 0.0.0.0/0
+  ip_protocol: udp
+  from_port: 53
+  to_port: 53
+
+# allow all NTP
+- cidr_ip: 0.0.0.0/0
+  ip_protocol: udp
+  from_port: 123
+  to_port: 123
+
+# allow all HTTP
+- cidr_ip: 0.0.0.0/0
+  ip_protocol: tcp
+  from_port: 80
+  to_port: 80
+
+# allow all HTTPS
+- cidr_ip: 0.0.0.0/0
+  ip_protocol: tcp
+  from_port: 443
+  to_port: 443
+```
+
+See the [`security_group_egress`](docs/detailed_design/config-reference.md#security_group_egress)
+config for more info.
+
 ### HAProxy request header captures
 
-**You must re-provision for these changes to take effect**
-
-The old config captured `X-Request-Id` for request and response, and
-`X-Forwarded-For` for the request.
+This is a breaking change for logging field extractions that expect to parse
+`X-Request-Id` or `X-Forwarded-For` in haproxy logs.
 
 This is a snippet of the old config
 
@@ -47,6 +82,8 @@ environments:
     - header: X-Request-Id
       length: 40
 ```
+
+**You must re-provision for these changes to take effect**
 
 See the [HAProxy docs](https://cbonte.github.io/haproxy-dconv/1.5/configuration.html#8.8)
 for exactly where these end up in your logs

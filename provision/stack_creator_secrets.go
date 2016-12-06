@@ -159,11 +159,6 @@ func (recv *stackCreator) getHostSecrets() (hostSecrets []byte, success bool) {
 	recv.log.Debug("getHostSecrets() BEGIN")
 	defer recv.log.Debug("getHostSecrets() END")
 
-	if recv.region.AutoScalingGroup == nil {
-		success = true
-		return
-	}
-
 	if recv.region.AutoScalingGroup.SecretsExecName == "" {
 		success = true
 		return
