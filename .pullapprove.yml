@@ -1,26 +1,30 @@
-approve_by_comment: true
-approve_regex: '^(Approved|:shipit:|:\+1:)'
-reject_regex: ^Rejected
+version: 2
+
 always_pending:
   title_regex: '(WIP|wip)'
-  labels:
-    - wip
   explanation: 'This PR is a work in progress...'
-reset_on_push: true
-reset_on_reopened: true
-reviewers:
-  - name: owner
+
+group_defaults:
+  approve_by_comment:
+    enabled: true
+    approve_regex: '^(Approved|:shipit:|:\+1:)'
+  conditions:
+    files:
+    - "*.go" # only review source
+    - ".pullapprove.yml" # and this file
+
+groups:
+  owner:
     required: 1
-    members:
+    users:
     - phylake
-  - name: reviewer
+    reset_on_push:
+      enabled: true
+    reset_on_reopened:
+      enabled: true
+  reviewers:
     required: 1
-    members:
+    users:
     - davepersing
     - gregoryfischer
-    - apratina
     - jfieber
-    conditions:
-      files:
-      - "*.go" # only review source
-      - ".pullapprove.yml" # and this file
