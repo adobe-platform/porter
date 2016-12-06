@@ -10,7 +10,7 @@ those resources. There are 2 major exception to this rule:
 1. For properties that are lists like EC2 tags and SecurityGroups porter only
    appends to these lists
 1. All the AutoScalingGroup's SecurityGroup's SecurityGroupEgress properties are
-   overwritten with secure defaults. For more on this see [`security_group_egress`](config-reference.md#security_group_egress)
+   overwritten with the value of [`security_group_egress`](config-reference.md#security_group_egress)
 
 Some simple examples are below. Porter injects various [CFN parameters](http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html)
 such as `PorterServiceName` and `PorterEnvironment`. Additionally there are a
