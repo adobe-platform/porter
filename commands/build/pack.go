@@ -75,9 +75,12 @@ func doPack() (success bool) {
 
 	success = provision.Package(log, config)
 
-	if success {
-		log.Info("Packaged service", "FilePath", constants.PayloadPath)
+	if !success {
+		log.Error("Package failed")
+		return
 	}
+
+	log.Info("Packaged service", "FilePath", constants.PayloadPath)
 
 	success = true
 	return
