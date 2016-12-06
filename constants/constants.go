@@ -38,7 +38,7 @@ const (
 	EnvStackCreation             = "STACK_CREATION_TIMEOUT"
 	EnvStackCreationPollInterval = "STACK_CREATION_POLL_INTERVAL"
 	EnvDevMode                   = "DEV_MODE"
-	EnvConfigPath                = "CONFIG_PATH"
+	EnvStackCreationOnFailure    = "STACK_CREATION_ON_FAILURE"
 
 	// Registry-based deployment
 	EnvDockerRegistry         = "DOCKER_REGISTRY"
@@ -48,6 +48,9 @@ const (
 	EnvDockerPullPassword     = "DOCKER_PULL_PASSWORD"
 	EnvDockerPushUsername     = "DOCKER_PUSH_USERNAME"
 	EnvDockerPushPassword     = "DOCKER_PUSH_PASSWORD"
+
+	// Host
+	EnvConfigPath = "CONFIG_PATH"
 
 	HookPrePack       = "pre_pack"
 	HookPostPack      = "post_pack"

@@ -2,6 +2,7 @@
 
 ### v4.0.0
 
+- failed stacks now delete instead of rollback
 - lock down ASG egress traffic to allow by default NTP, DNS, HTTP, and HTTPS
 - configurable haproxy header capture for logging
 
