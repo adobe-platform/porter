@@ -28,8 +28,8 @@ v4 - Failed stacks delete
 The new default to the `OnFailure` parameter of `cloudformation:CreateStack` is
 `DELETE`.
 
-If the previous behavior is desired it can be set using `ON_STACK_FAILURE`. Run
-`porter help debug` for more
+If the previous behavior is desired it can be set using
+`STACK_CREATION_ON_FAILURE`. Run `porter help debug` for more.
 
 v3.0
 ====
