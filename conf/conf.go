@@ -140,6 +140,7 @@ type (
 		S3Bucket            string             `yaml:"s3_bucket"`
 		SSEKMSKeyId         *string            `yaml:"sse_kms_key_id"`
 		Containers          []*Container       `yaml:"containers"`
+		InstanceCount       uint               `yaml:"instance_count"`
 	}
 
 	AutoScalingGroup struct {
