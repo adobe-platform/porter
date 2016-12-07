@@ -77,6 +77,19 @@ func (recv *Environment) GetStackDefinitionPath(regionName string) (string, erro
 	return recv.StackDefinitionPath, nil
 }
 
+func (recv *Environment) GetInstanceCount(regionName string) (uint, error) {
+	region, err := recv.GetRegion(regionName)
+	if err != nil {
+		return 0, err
+	}
+
+	if region.InstanceCount != 0 {
+		return region.InstanceCount, nil
+	}
+
+	return recv.InstanceCount, nil
+}
+
 func (recv *Environment) IsWithinBlackoutWindow() error {
 	now := time.Now()
 

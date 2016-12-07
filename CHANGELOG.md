@@ -1,5 +1,9 @@
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+### v4.1.0
+
+- configurable instance count per region
+
 ### v4.0.1
 
 - fix type assertion for sg-ids that are statically defined

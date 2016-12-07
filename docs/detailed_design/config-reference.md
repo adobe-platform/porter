@@ -29,6 +29,7 @@ For each field the following notation is used
     - [role_arn](#role_arn) (==1!)
     - [ssl_cert_arn](#ssl_cert_arn) (==1?)
     - [hosted_zone_name](#hosted_zone_name) (==1?)
+    - [instance_count](#instance_count) (==1?)
     - auto_scaling_group
       - [security_group_egress](#security_group_egress) (==1?)
       - [secrets_exec_name](#secrets_exec_name) (==1?)

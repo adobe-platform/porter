@@ -607,10 +607,16 @@ func setPoolSize(recv *stackCreator, template *cfn.Template, resource map[string
 		resource["Properties"] = props
 	}
 
+	instanceCount, err := recv.environment.GetInstanceCount(recv.region.Name)
+	if err != nil {
+		recv.log.Error("GetInstanceCount", "Error", err)
+		return false
+	}
+
 	if recv.asgMin == 0 {
 
 		if _, exists := props["MinSize"]; !exists {
-			props["MinSize"] = recv.environment.InstanceCount
+			props["MinSize"] = instanceCount
 		}
 	} else {
 
@@ -621,7 +627,7 @@ func setPoolSize(recv *stackCreator, template *cfn.Template, resource map[string
 	if recv.asgDesired == 0 {
 
 		if _, exists := props["DesiredCapacity"]; !exists {
-			props["DesiredCapacity"] = recv.environment.InstanceCount
+			props["DesiredCapacity"] = instanceCount
 		}
 	} else {
 
@@ -632,7 +638,7 @@ func setPoolSize(recv *stackCreator, template *cfn.Template, resource map[string
 	if recv.asgMax == 0 {
 
 		if _, exists := props["MaxSize"]; !exists {
-			props["MaxSize"] = recv.environment.InstanceCount
+			props["MaxSize"] = instanceCount
 		}
 	} else {
 
@@ -653,8 +659,14 @@ func setCount(recv *stackCreator, template *cfn.Template, resource map[string]in
 		resource["Properties"] = props
 	}
 
+	instanceCount, err := recv.environment.GetInstanceCount(recv.region.Name)
+	if err != nil {
+		recv.log.Error("GetInstanceCount", "Error", err)
+		return false
+	}
+
 	if _, exists := props["Count"]; !exists {
-		props["Count"] = recv.environment.InstanceCount
+		props["Count"] = instanceCount
 	}
 	return true
 }
