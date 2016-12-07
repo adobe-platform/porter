@@ -1,5 +1,9 @@
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+### v4.0.1
+
+- fix type assertion for sg-ids that are statically defined
+
 ### v4.0.0
 
 - failed stacks now delete instead of rollback

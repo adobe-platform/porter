@@ -243,6 +243,8 @@ func overwriteASGSecurityGroupEgress(recv *stackCreator, template *cfn.Template,
 
 	logicalNameToSecurityGroup := template.GetResourcesByType(cfn.EC2_SecurityGroup)
 
+	// securityGroupRaw may be a string referencing a sg-id that isn't part of
+	// the cloudformation stack
 	for _, securityGroupRaw := range securityGroups {
 
 		if securityGroupMsi, ok := securityGroupRaw.(map[string]interface{}); ok {
@@ -265,10 +267,6 @@ func overwriteASGSecurityGroupEgress(recv *stackCreator, template *cfn.Template,
 					return false
 				}
 			}
-		} else {
-
-			recv.log.Error("SecurityGroup type assertion failed")
-			return false
 		}
 	}
 
