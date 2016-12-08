@@ -142,7 +142,7 @@ const (
 	// http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-hup.html#cfn-hup-config-file
 	CfnHupPollIntervalMinutes = 1
 
-	InfrastructureTTL = 24 * time.Hour
+	InfrastructureTTL = 24 * time.Hour * 7
 
 	DstELBSecurityGroup = "DestinationELBToInstance"
 	SignalQueue         = "PorterSignalQueue"
