@@ -23,6 +23,7 @@ to call them.
   - [Service payload (S3 and Docker registry)](detailed_design/service-payload.md)
   - [CI/CD integration](detailed_design/ci-cd-integration.md)
   - [Deployment customization](detailed_design/deployment-hooks.md)
+  - [Hot swap](detailed_design/hotswap.md)
 - Infrastructure
   - [CloudFormation customizations](detailed_design/cfn-customization.md)
 - Misc

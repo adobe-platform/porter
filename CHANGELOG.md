@@ -3,6 +3,7 @@
 ### v4.1.0
 
 - configurable instance count per region
+- extended infrastructure ttl to a week
 
 ### v4.0.1
 

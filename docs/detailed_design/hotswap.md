@@ -14,9 +14,9 @@ of drift include any host-level state like logs and package lists. Long-lived
 infrastructure exposes a whole class of errors that are easily avoidable.
 
 For these reasons porter enforces that hot swap can only occur for a maximum of
-24 hours before re-provision must occur. We think this strikes a nice balance
-between a fast feedback loop, a good default security posture, and avoiding
-infrastructure drift.
+one week hour before re-provision must occur. We think this strikes a nice
+balance between a fast feedback loop, a good default security posture, and
+avoiding infrastructure drift.
 
 Assumptions
 -----------
