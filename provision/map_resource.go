@@ -596,7 +596,7 @@ func setImageId(recv *stackCreator, template *cfn.Template, resource map[string]
 	return true
 }
 
-func setPoolSize(recv *stackCreator, template *cfn.Template, resource map[string]interface{}) bool {
+func setPoolSize(recv *stackCreator, template *cfn.Template, resource map[string]interface{}) (success bool) {
 	var (
 		props map[string]interface{}
 		ok    bool
@@ -610,18 +610,48 @@ func setPoolSize(recv *stackCreator, template *cfn.Template, resource map[string
 	instanceCount, err := recv.environment.GetInstanceCount(recv.region.Name)
 	if err != nil {
 		recv.log.Error("GetInstanceCount", "Error", err)
-		return false
+		return
 	}
 
-	if recv.asgMin == 0 {
+	var minSize int
+	var maxSize int
 
-		if _, exists := props["MinSize"]; !exists {
-			props["MinSize"] = instanceCount
+	if value, exists := props["MinSize"]; exists {
+		switch v := value.(type) {
+		case float64:
+			minSize = int(v)
+		case string:
+			minSize, err = strconv.Atoi(v)
+			if err != nil {
+				recv.log.Error("strconv.Atoi", "Error", err)
+				return
+			}
+		default:
+			recv.log.Error("MinSize exists but is not a float64 or string", "MinSize", value)
+			return
 		}
 	} else {
+		minSize = int(instanceCount)
+		props["MinSize"] = minSize
+	}
 
-		recv.log.Info("Overwriting ASG MinSize", "MinSize", recv.asgMin)
-		props["MinSize"] = recv.asgMin
+	if value, exists := props["MaxSize"]; exists {
+		switch v := value.(type) {
+		case float64:
+			maxSize = int(v)
+		case string:
+			maxSize, err = strconv.Atoi(v)
+			if err != nil {
+				recv.log.Error("strconv.Atoi", "Error", err)
+				return
+			}
+		default:
+			recv.log.Error("MaxSize exists but is not a float64 or string", "MaxSize", value)
+			return
+		}
+	} else {
+		maxSize = int(instanceCount)
+		props["MaxSize"] = maxSize
 	}
 
 	if recv.asgDesired == 0 {
@@ -631,21 +661,23 @@ func setPoolSize(recv *stackCreator, template *cfn.Template, resource map[string
 		}
 	} else {
 
-		recv.log.Info("Overwriting ASG DesiredCapacity", "DesiredCapacity", recv.asgDesired)
-		props["DesiredCapacity"] = recv.asgDesired
-	}
+		if minSize <= recv.asgDesired && recv.asgDesired <= maxSize {
 
-	if recv.asgMax == 0 {
+			recv.log.Info("Overwriting template-defined ASG DesiredCapacity to preserve AutoScaling events that may have occurred in the currently promoted stack",
+				"DesiredCapacity", recv.asgDesired)
 
-		if _, exists := props["MaxSize"]; !exists {
-			props["MaxSize"] = instanceCount
+			props["DesiredCapacity"] = recv.asgDesired
+		} else {
+
+			recv.log.Error("You're attempting to change the size of your ASG while hot swapping")
+			recv.log.Error("Turn off hot swap to have your new MinSize, DesiredCapacity, and MaxSize take effect")
+			recv.log.Error("The size of the promoted stack's ASG is " + strconv.Itoa(recv.asgDesired))
+			return
 		}
-	} else {
-
-		recv.log.Info("Overwriting ASG MaxSize", "MaxSize", recv.asgMax)
-		props["MaxSize"] = recv.asgMax
 	}
-	return true
+
+	success = true
+	return
 }
 
 func setCount(recv *stackCreator, template *cfn.Template, resource map[string]interface{}) bool {

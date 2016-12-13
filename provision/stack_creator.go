@@ -58,11 +58,11 @@ type (
 		// The difference is in the API call to CloudFormation
 		cfnAPI func(*cloudformation.CloudFormation, CfnApiInput) (string, bool)
 
+		updateStack bool
+
 		templateTransforms map[string][]MapResource
 
-		asgMin     int
 		asgDesired int
-		asgMax     int
 	}
 )
 
@@ -73,15 +73,18 @@ const (
 
 func (recv *stackCreator) createUpdateStackForRegion(regionState *provision_state.Region) bool {
 
-	asgId := new(string)
+	if recv.updateStack {
 
-	if !recv.getAsgId(asgId) {
-		return false
-	}
+		asgId := new(string)
 
-	if *asgId != "" {
-		if !recv.getAsgSize(*asgId, regionState) {
+		if !recv.getAsgId(asgId) {
 			return false
+		}
+
+		if *asgId != "" {
+			if !recv.getAsgSize(*asgId, regionState) {
+				return false
+			}
 		}
 	}
 
@@ -213,7 +216,7 @@ tagLoop:
 		cfn.UPDATE_ROLLBACK_COMPLETE,
 		cfn.UPDATE_ROLLBACK_FAILED:
 
-	// error cases that should cause a failure
+	// stack statuses that should cause a failure
 	case cfn.UPDATE_COMPLETE_CLEANUP_IN_PROGRESS,
 		cfn.UPDATE_IN_PROGRESS,
 		cfn.UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS,
@@ -223,13 +226,25 @@ tagLoop:
 			"StackStatus", stackStatus)
 		return
 
-	// error cases that should NOT cause a failure
-	default:
+	// stack statuses that should NOT cause a failure
+	case cfn.CREATE_FAILED,
+		cfn.CREATE_IN_PROGRESS,
+		cfn.DELETE_COMPLETE,
+		cfn.DELETE_FAILED,
+		cfn.DELETE_IN_PROGRESS,
+		cfn.ROLLBACK_COMPLETE,
+		cfn.ROLLBACK_FAILED,
+		cfn.ROLLBACK_IN_PROGRESS:
 
 		log.Warn("Stack is not in a state that ASG size can be used",
 			"StackStatus", stackStatus)
 		log.Warn("ASG size matching will not occur meaning whatever is in the CloudFormation template will be used")
 		success = true
+		return
+
+	default:
+
+		log.Error("Unhandled stack status", "StackStatus", stackStatus)
 		return
 	}
 
@@ -307,22 +322,16 @@ func (recv *stackCreator) getAsgSize(asgName string, regionState *provision_stat
 		}
 
 		asg := describeAutoScalingGroupsOutput.AutoScalingGroups[0]
-		asgMin := int(*asg.MinSize)
 		asgDesired := int(*asg.DesiredCapacity)
-		asgMax := int(*asg.MaxSize)
 
 		log.Info("Will match currently promoted stack's ASG size to preserve scaling events that have occurred",
-			"MinSize", asgMin,
-			"MazSize", asgMax,
+			"MinSize", *asg.MinSize,
+			"MazSize", *asg.MaxSize,
 			"DesiredCapacity", asgDesired)
 
-		regionState.AsgMin = asgMin
 		regionState.AsgDesired = asgDesired
-		regionState.AsgMax = asgMax
 
-		recv.asgMin = asgMin
 		recv.asgDesired = asgDesired
-		recv.asgMax = asgMax
 
 		return true
 	}) {

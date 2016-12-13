@@ -78,7 +78,7 @@ func CreateStack(log log15.Logger, config *conf.Config, stack *provision_state.S
 		return
 	}
 
-	return createUpdateStack(log, stack, config, cfnAPI)
+	return createUpdateStack(log, stack, config, false, cfnAPI)
 }
 
 func UpdateStack(log log15.Logger, config *conf.Config, stack provision_state.Stack) bool {
@@ -123,13 +123,14 @@ func UpdateStack(log log15.Logger, config *conf.Config, stack provision_state.St
 		return
 	}
 
-	return createUpdateStack(log, &stack, config, cfnAPI)
+	return createUpdateStack(log, &stack, config, true, cfnAPI)
 }
 
 func createUpdateStack(
 	log log15.Logger,
 	stack *provision_state.Stack,
 	config *conf.Config,
+	updateStack bool,
 	cfnAPI func(*cfnlib.CloudFormation, CfnApiInput) (string, bool)) (success bool) {
 
 	environment, err := config.GetEnvironment(stack.Environment)
@@ -163,7 +164,8 @@ func createUpdateStack(
 
 			roleSession: roleSession,
 
-			cfnAPI: cfnAPI,
+			cfnAPI:      cfnAPI,
+			updateStack: updateStack,
 
 			templateTransforms: make(map[string][]MapResource),
 		}

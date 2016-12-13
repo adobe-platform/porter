@@ -56,6 +56,34 @@ environment. Both can be configured to hot swap and in addition to a
 `pre_promote` hook you would configure stage to run a `post_hotswap` hook that
 performs the same testing as a gate to allow code through to production.
 
+Interaction with AutoScaling
+----------------------------
+
+It's important that AutoScaling events are preserved. Porter inspects the
+currently promoted stack's AutoScalingGroup's `MinSize`, `MaxSize`, and
+`DesiredCapacity`. Porter ensures that the following is true before performing a
+hot swap:
+
+```
+MaxSizeᵀ = your CloudFormation template's AutoScalingGroup's MaxSize
+MinSizeᵀ = your CloudFormation template's AutoScalingGroup's MinSize
+DesiredCapacityᵀ = your CloudFormation template's AutoScalingGroup's DesiredCapacity
+DesiredCapacityᴾ = the currently promoted stacks's AutoScalingGroup's DesiredCapacity
+
+# must be true for hot swap to occur
+MinSizeᵀ <= DesiredCapacityᴾ <= MaxSizeᵀ
+```
+
+During hot swap, when porter assembles your CloudFormation template it will
+overwrite your template-defined `DesiredCapacityᵀ` with `DesiredCapacityᴾ` to
+match the stack being updated so that any scaling that was done is preserved.
+The same is done during normal provisioning.
+
+This means if you opt into hot swap that `DesiredCapacityᵀ` is only used once
+and from then on porter uses `DesiredCapacityᴾ` as long as hot swap is enabled.
+
+To have `DesiredCapacityᵀ` be used again you must turn hot swap off.
+
 How it works
 ------------
 
