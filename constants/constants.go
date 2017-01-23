@@ -80,8 +80,6 @@ const (
 
 	HAProxyConfigPath      = "/etc/haproxy/haproxy.cfg"
 	HAProxyConfigPerms     = 0644
-	HAProxyStatsUsername   = "da05bb59715c617c8cb48666975307ed"
-	HAProxyStatsPassword   = "17ece40f81292b2dfd8afe1a6990a506"
 	HAProxyStatsUri        = "/admin?stats"
 	HAProxyStatsUrl        = "http://localhost" + HAProxyStatsUri
 	HAProxyIpBlacklistPath = "/var/lib/haproxy/ip_blacklist.txt"

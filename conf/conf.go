@@ -62,6 +62,9 @@ type (
 		Environments   []*Environment    `yaml:"environments"`
 		Slack          Slack             `yaml:"slack"`
 		Hooks          map[string][]Hook `yaml:"hooks"`
+
+		HAProxyStatsUsername string `yaml:"haproxy_stats_username"`
+		HAProxyStatsPassword string `yaml:"haproxy_stats_password"`
 	}
 
 	Container struct {
