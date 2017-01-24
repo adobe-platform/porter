@@ -93,6 +93,7 @@ docker-machine create \
 --driver virtualbox \
 --virtualbox-memory 4096 \
 --virtualbox-disk-size 20480 \
+--virtualbox-cpu-count "-1" \
 --virtualbox-boot2docker-url https://github.com/boot2docker/boot2docker/releases/download/v1.11.2/boot2docker.iso \
 default
 ```
