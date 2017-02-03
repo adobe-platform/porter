@@ -5,15 +5,13 @@ porter_version: v4.1.1
 _container_base_inet: &CONTAINER_BASE_INET
   name: inet
   topology: inet
-  environment:
-    PORT: 3000
 
 # This a sample environment.
 #
 # An environment is simply a way to organize deployments across regions and
 # provide configuration per environment-region tuple.
 environments:
-- name: stage
+- name: dev
 
   # comment this in if you want to SSH into EC2 or make other customizations
   # stack_definition_path: .porter/cloudformation.json
@@ -23,11 +21,11 @@ environments:
   # CloudFormation stacks and the resources they define
   #
   # run `porter bootstrap iam` and fill in your account id
-  role_arn: arn:aws:iam::123465789012:role/porter-deployment
+  role_arn: arn:aws:iam::123456789012:role/porter-deployment
 
   # This environment only deploys to a single region
   regions:
-  - name: us-west-1
+  - name: us-west-2
 
     containers:
     - <<: *CONTAINER_BASE_INET
@@ -40,7 +38,7 @@ environments:
     # must be parameterized.
     # If you're still in EC2-Classic comment out subnet_id
     azs:
-    - {name: us-west-1a, subnet_id: subnet-TODO}
+    - {name: us-west-2a, subnet_id: subnet-TODO}
 
     # The name of the SSH key used to login to EC2 instances
     # key_pair_name: TODO
