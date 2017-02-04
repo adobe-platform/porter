@@ -8,4 +8,4 @@ This sample project consists of a single file, `main.go`
 
 Its integration with porter consists of `.porter/config` and 2 Dockerfiles.
 
-Having trouble with this project? [Trouble shoot it](docs/troubleshoot.md)
+Having trouble with this project? [Troubleshoot it](../docs/troubleshoot.md)
