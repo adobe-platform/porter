@@ -1,5 +1,9 @@
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+### v4.2.0
+
+- HAProxy stats endpoint auth is now randomized
+
 ### v4.1.1
 
 - ASG size matching only occurs when `hot_swap: true`

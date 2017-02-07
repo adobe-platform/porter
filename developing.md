@@ -91,13 +91,14 @@ curl -Lo ~/bin/docker https://get.docker.com/builds/Darwin/x86_64/docker-1.11.2 
 ```
 docker-machine create \
 --driver virtualbox \
---virtualbox-memory 2048 \
---virtualbox-disk-size 20000 \
+--virtualbox-memory 4096 \
+--virtualbox-disk-size 20480 \
+--virtualbox-cpu-count "-1" \
 --virtualbox-boot2docker-url https://github.com/boot2docker/boot2docker/releases/download/v1.11.2/boot2docker.iso \
-porter
+default
 ```
 
-Run `docker-machine env porter` and follow the instructions to set environment
+Run `docker-machine env` and follow the instructions to set environment
 variables.
 
 ##### Verify installation

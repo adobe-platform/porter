@@ -69,13 +69,23 @@ func ExecuteWithRunCapture(log log15.Logger,
 	provisionedRegions map[string]*provision_state.Region,
 	commandSuccess bool, runOutput *chan bytes.Buffer) (success bool) {
 
-	var err error
-
 	log = log.New("HookName", hookName)
 	log.Info("Hook BEGIN")
 	defer log.Info("Hook END")
 
-	config, configSuccess := conf.GetConfig(log, false)
+	var (
+		config        *conf.Config
+		configSuccess bool
+	)
+
+	// the only hook that can modify the config and have porter still use it is
+	// pre-pack. after porter reads it in pack, it's copied into the tmp
+	// directory.
+	if hookName == constants.HookPrePack {
+		config, configSuccess = conf.GetConfig(log, false)
+	} else {
+		config, configSuccess = conf.GetAlteredConfig(log)
+	}
 	if !configSuccess {
 		return
 	}
@@ -236,8 +246,8 @@ func runArgsFactory(log log15.Logger, config *conf.Config, workingDir string) []
 		"-v", fmt.Sprintf("%s:%s", workingDir, "/repo_root"),
 		"-e", "PORTER_SERVICE_NAME=" + config.ServiceName,
 		"-e", "DOCKER_ENV_FILE=" + constants.EnvFile,
-		"-e", "HAPROXY_STATS_USERNAME=" + constants.HAProxyStatsUsername,
-		"-e", "HAPROXY_STATS_PASSWORD=" + constants.HAProxyStatsPassword,
+		"-e", "HAPROXY_STATS_USERNAME=" + config.HAProxyStatsUsername,
+		"-e", "HAPROXY_STATS_PASSWORD=" + config.HAProxyStatsPassword,
 		"-e", "HAPROXY_STATS_URL=" + constants.HAProxyStatsUrl,
 	}
 

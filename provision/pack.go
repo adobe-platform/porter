@@ -13,6 +13,7 @@ package provision
 
 import (
 	"crypto/md5"
+	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	yaml "gopkg.in/yaml.v2"
@@ -130,6 +131,10 @@ func Package(log log15.Logger, config *conf.Config) (success bool) {
 	}
 
 	if !copyPathBasedFiles(log, config) {
+		return
+	}
+
+	if !haproxyAuth(log, config) {
 		return
 	}
 
@@ -327,4 +332,35 @@ func digestAndCopy(log log15.Logger, filePath string) (string, bool) {
 	}
 
 	return newFilePath, true
+}
+
+func haproxyAuth(log log15.Logger, config *conf.Config) (success bool) {
+	bytesToRead := 16
+
+	buf := make([]byte, bytesToRead)
+	n, err := rand.Read(buf)
+	if err != nil {
+		log.Error("rand.Read", "Error", err)
+		return
+	}
+	if n != bytesToRead {
+		log.Error("rand.Read didn't read enough bytes")
+		return
+	}
+	config.HAProxyStatsUsername = hex.EncodeToString(buf)
+
+	buf = make([]byte, bytesToRead)
+	n, err = rand.Read(buf)
+	if err != nil {
+		log.Error("rand.Read", "Error", err)
+		return
+	}
+	if n != bytesToRead {
+		log.Error("rand.Read didn't read enough bytes")
+		return
+	}
+	config.HAProxyStatsPassword = hex.EncodeToString(buf)
+
+	success = true
+	return
 }
