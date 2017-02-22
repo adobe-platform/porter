@@ -3,6 +3,9 @@
 ### v4.2.0
 
 - HAProxy stats endpoint auth is now randomized
+- re-enabled keep-alive between HAProxy and containers
+- building on go 1.8
+- added STANDARD_IA to secrets and CFN template uploads
 
 ### v4.1.1
 
