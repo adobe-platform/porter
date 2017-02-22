@@ -1,5 +1,5 @@
 .PHONY: default builder build run test clean \
-	login godep_reset godep_save \
+	login godep_reset godep \
 
 default: release_darwin_local
 
@@ -65,11 +65,10 @@ godep_reset:
 	git checkout -- Godeps vendor
 	git clean -df Godeps vendor
 
-godep_save:
-	docker run -it --rm \
+godep:
+	docker build -t porter-godep -f Dockerfile.godep .
+	docker run \
+	-it --rm \
 	-v $$PWD:/go/src/github.com/adobe-platform/porter \
 	-w /go/src/github.com/adobe-platform/porter \
-	golang:1.7.3 \
-	go get github.com/tools/godep && \
-	godep restore && \
-	godep save ./...
+	porter-godep
