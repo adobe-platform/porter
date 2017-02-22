@@ -227,9 +227,10 @@ func (recv *stackCreator) uploadSecrets(checksum string) (success bool) {
 	}
 
 	uploadInput := &s3manager.UploadInput{
-		Bucket: aws.String(recv.region.S3Bucket),
-		Key:    aws.String(recv.secretsLocation),
-		Body:   bytes.NewReader(secretPayloadBytesEnc),
+		Bucket:       aws.String(recv.region.S3Bucket),
+		Key:          aws.String(recv.secretsLocation),
+		Body:         bytes.NewReader(secretPayloadBytesEnc),
+		StorageClass: aws.String("STANDARD_IA"),
 	}
 
 	if recv.region.SSEKMSKeyId != nil {

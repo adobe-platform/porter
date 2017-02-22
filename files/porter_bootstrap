@@ -69,6 +69,9 @@ sysctl -w net.ipv4.ip_local_reserved_ports='8080'
 # https://github.com/torvalds/linux/blob/v4.1/Documentation/networking/ip-sysctl.txt#L1021
 sysctl -w net.ipv4.conf.all.rp_filter=1
 
+# https://github.com/torvalds/linux/blob/v4.1/Documentation/networking/ip-sysctl.txt#L488
+sysctl -w net.ipv4.tcp_slow_start_after_idle=0
+
 # A hotswap operation is identical to what happens during initial configuration
 echo "installing service payload"
 /usr/bin/porter_hotswap
