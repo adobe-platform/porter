@@ -431,10 +431,11 @@ func (recv *stackCreator) createStack() (stackId string, success bool) {
 	templateS3Key := fmt.Sprintf("%s/%s", recv.s3KeyRoot(s3KeyOptTemplate), checksum)
 
 	uploadInput := &s3manager.UploadInput{
-		Bucket:      aws.String(recv.region.S3Bucket),
-		Key:         aws.String(templateS3Key),
-		Body:        bytes.NewReader(templateBytes),
-		ContentType: aws.String("application/json"),
+		Bucket:       aws.String(recv.region.S3Bucket),
+		Key:          aws.String(templateS3Key),
+		Body:         bytes.NewReader(templateBytes),
+		ContentType:  aws.String("application/json"),
+		StorageClass: aws.String("STANDARD_IA"),
 	}
 
 	if recv.region.SSEKMSKeyId != nil {
