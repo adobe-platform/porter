@@ -12,10 +12,10 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/adobe-platform/porter/constants"
-	"golang.org/x/net/context"
 )
 
 func VersionHeader(hdl Handle) Handle {

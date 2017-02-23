@@ -24,7 +24,7 @@ import (
 
 	"github.com/adobe-platform/porter/constants"
 	"github.com/adobe-platform/porter/stdin"
-	"github.com/inconshreveable/log15"
+	"gopkg.in/inconshreveable/log15.v2"
 	yaml "gopkg.in/yaml.v2"
 )
 

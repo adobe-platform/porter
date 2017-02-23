@@ -19,8 +19,8 @@ import (
 	"strings"
 
 	"github.com/adobe-platform/porter/constants"
-	"github.com/inconshreveable/log15"
 	"github.com/onsi/ginkgo"
+	"gopkg.in/inconshreveable/log15.v2"
 )
 
 var cliLog = log15.New("porter_version", constants.Version)

@@ -23,7 +23,7 @@ import (
 	"github.com/adobe-platform/porter/provision_state"
 	"github.com/aws/aws-sdk-go/aws"
 	cfnlib "github.com/aws/aws-sdk-go/service/cloudformation"
-	"github.com/inconshreveable/log15"
+	"gopkg.in/inconshreveable/log15.v2"
 )
 
 type (

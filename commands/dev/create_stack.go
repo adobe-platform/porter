@@ -34,8 +34,8 @@ import (
 	"github.com/adobe-platform/porter/util"
 	ec2lib "github.com/aws/aws-sdk-go/service/ec2"
 	elblib "github.com/aws/aws-sdk-go/service/elb"
-	"github.com/inconshreveable/log15"
 	"github.com/phylake/go-cli"
+	"gopkg.in/inconshreveable/log15.v2"
 )
 
 const sleepDuration = 10 * time.Second

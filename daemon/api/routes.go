@@ -12,6 +12,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"net/http/pprof"
 
@@ -19,7 +20,6 @@ import (
 	"github.com/adobe-platform/porter/daemon/middleware"
 	"github.com/adobe-platform/porter/logger"
 	"github.com/julienschmidt/httprouter"
-	"golang.org/x/net/context"
 )
 
 func NewRouter() *httprouter.Router {

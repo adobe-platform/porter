@@ -28,8 +28,8 @@ import (
 	dockerutil "github.com/adobe-platform/porter/docker/util"
 	"github.com/adobe-platform/porter/logger"
 	"github.com/adobe-platform/porter/secrets"
-	"github.com/inconshreveable/log15"
 	"github.com/phylake/go-cli"
+	"gopkg.in/inconshreveable/log15.v2"
 )
 
 // This implementation is tightly coupled with HAProxyCmd and how these commands

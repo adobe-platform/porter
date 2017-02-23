@@ -28,7 +28,7 @@ import (
 	"github.com/adobe-platform/porter/constants"
 	"github.com/adobe-platform/porter/logger"
 	"github.com/adobe-platform/porter/provision_state"
-	"github.com/inconshreveable/log15"
+	"gopkg.in/inconshreveable/log15.v2"
 )
 
 type (

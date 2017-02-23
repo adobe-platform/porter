@@ -21,7 +21,7 @@ import (
 	"github.com/adobe-platform/porter/daemon/flags"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/inconshreveable/log15"
+	"gopkg.in/inconshreveable/log15.v2"
 )
 
 var (

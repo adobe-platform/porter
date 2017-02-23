@@ -12,12 +12,12 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
 
 	"github.com/adobe-platform/porter/daemon/flags"
-	"golang.org/x/net/context"
 )
 
 func EnvHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
