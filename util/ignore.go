@@ -18,7 +18,7 @@ import (
 	"strings"
 
 	"github.com/adobe-platform/porter/constants"
-	"github.com/inconshreveable/log15"
+	"gopkg.in/inconshreveable/log15.v2"
 )
 
 // Do our best to add the porter temporary directory to .gitignore

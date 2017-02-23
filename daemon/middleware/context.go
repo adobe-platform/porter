@@ -12,14 +12,14 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/adobe-platform/porter/daemon/config"
 	. "github.com/adobe-platform/porter/daemon/http"
-	"github.com/inconshreveable/log15"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pborman/uuid"
-	"golang.org/x/net/context"
+	"gopkg.in/inconshreveable/log15.v2"
 )
 
 const (

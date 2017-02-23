@@ -12,10 +12,9 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"time"
-
-	"golang.org/x/net/context"
 )
 
 func Profile(hdl Handle) Handle {

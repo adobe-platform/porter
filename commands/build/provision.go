@@ -33,8 +33,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/inconshreveable/log15"
 	"github.com/phylake/go-cli"
+	"gopkg.in/inconshreveable/log15.v2"
 )
 
 var sleepDuration = constants.StackCreationPollInterval()

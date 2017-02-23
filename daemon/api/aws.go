@@ -12,6 +12,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -19,7 +20,6 @@ import (
 
 	"github.com/adobe-platform/porter/daemon/identity"
 	"github.com/adobe-platform/porter/daemon/middleware"
-	"golang.org/x/net/context"
 )
 
 func EC2TagsHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {

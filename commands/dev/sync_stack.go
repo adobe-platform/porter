@@ -26,8 +26,8 @@ import (
 	"github.com/adobe-platform/porter/logger"
 	"github.com/adobe-platform/porter/provision"
 	"github.com/adobe-platform/porter/provision_state"
-	"github.com/inconshreveable/log15"
 	"github.com/phylake/go-cli"
+	"gopkg.in/inconshreveable/log15.v2"
 )
 
 // Hot swap is shared by dev stacks and build boxes

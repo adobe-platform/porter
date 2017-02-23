@@ -34,7 +34,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	"github.com/inconshreveable/log15"
+	"gopkg.in/inconshreveable/log15.v2"
 )
 
 type (

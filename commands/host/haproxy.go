@@ -29,8 +29,8 @@ import (
 	"github.com/adobe-platform/porter/files"
 	"github.com/adobe-platform/porter/logger"
 	"github.com/adobe-platform/porter/stdin"
-	"github.com/inconshreveable/log15"
 	"github.com/phylake/go-cli"
+	"gopkg.in/inconshreveable/log15.v2"
 )
 
 type (

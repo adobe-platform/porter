@@ -28,7 +28,7 @@ import (
 	"github.com/adobe-platform/porter/provision"
 	"github.com/aws/aws-sdk-go/aws/session"
 	cfnlib "github.com/aws/aws-sdk-go/service/cloudformation"
-	"github.com/inconshreveable/log15"
+	"gopkg.in/inconshreveable/log15.v2"
 )
 
 // exponential backoff

@@ -186,26 +186,6 @@
 			"Rev": "776aa739ce9373377cd16f526cdf06cb4c89b40f"
 		},
 		{
-			"ImportPath": "github.com/inconshreveable/log15",
-			"Comment": "v2.3-48-g210d6fd",
-			"Rev": "210d6fdc4d979ef6579778f1b6ed84571454abb4"
-		},
-		{
-			"ImportPath": "github.com/inconshreveable/log15/ext",
-			"Comment": "v2.3-48-g210d6fd",
-			"Rev": "210d6fdc4d979ef6579778f1b6ed84571454abb4"
-		},
-		{
-			"ImportPath": "github.com/inconshreveable/log15/stack",
-			"Comment": "v2.3-48-g210d6fd",
-			"Rev": "210d6fdc4d979ef6579778f1b6ed84571454abb4"
-		},
-		{
-			"ImportPath": "github.com/inconshreveable/log15/term",
-			"Comment": "v2.3-48-g210d6fd",
-			"Rev": "210d6fdc4d979ef6579778f1b6ed84571454abb4"
-		},
-		{
 			"ImportPath": "github.com/jmespath/go-jmespath",
 			"Comment": "0.2.2-12-g0b12d6b",
 			"Rev": "0b12d6b521d83fc7f755e7cfc1b1fbdd35a01a74"
@@ -426,16 +406,23 @@
 			"Rev": "b459d386070696310c0af6067f9e0241ee28917d"
 		},
 		{
-			"ImportPath": "golang.org/x/net/context",
-			"Rev": "e7da8edaa52631091740908acaf2c2d4c9b3ce90"
-		},
-		{
-			"ImportPath": "golang.org/x/net/context/ctxhttp",
-			"Rev": "e7da8edaa52631091740908acaf2c2d4c9b3ce90"
-		},
-		{
 			"ImportPath": "golang.org/x/sys/unix",
 			"Rev": "62bee037599929a6e9146f29d10dd5208c43507d"
+		},
+		{
+			"ImportPath": "gopkg.in/inconshreveable/log15.v2",
+			"Comment": "v2.11",
+			"Rev": "b105bd37f74e5d9dc7b6ad7806715c7a2b83fd3f"
+		},
+		{
+			"ImportPath": "gopkg.in/inconshreveable/log15.v2/stack",
+			"Comment": "v2.11",
+			"Rev": "b105bd37f74e5d9dc7b6ad7806715c7a2b83fd3f"
+		},
+		{
+			"ImportPath": "gopkg.in/inconshreveable/log15.v2/term",
+			"Comment": "v2.11",
+			"Rev": "b105bd37f74e5d9dc7b6ad7806715c7a2b83fd3f"
 		},
 		{
 			"ImportPath": "gopkg.in/yaml.v2",

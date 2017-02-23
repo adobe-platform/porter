@@ -21,7 +21,7 @@ import (
 	"github.com/adobe-platform/porter/provision_state"
 	"github.com/aws/aws-sdk-go/aws"
 	elblib "github.com/aws/aws-sdk-go/service/elb"
-	"github.com/inconshreveable/log15"
+	"gopkg.in/inconshreveable/log15.v2"
 )
 
 const (
