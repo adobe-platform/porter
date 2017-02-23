@@ -37,6 +37,7 @@ release_darwin_local:
 
 # Push a release into production
 release_PRODUCTION: clean
+	godep restore
 	./release_porter upload
 
 
