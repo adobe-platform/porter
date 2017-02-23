@@ -2,6 +2,24 @@ See the [CHANGELOG](CHANGELOG.md) for a complete list of changes.
 
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+v4.2
+====
+
+All uploads now use S3's Standard - Infrequent Access to reduce S3 costs.
+
+Keep-alive from HAProxy to the containers used to be disabled because of how hot
+swap was implemented. Another round of load testing was done to ensure hot swap
+continued to work as expected now that keep-alive is enabled.
+
+v4.1
+====
+
+There is now a configurable instance count per region.
+
+Extended infrastructure TTL (the time allowed before re-provisioning must occur)
+from 24 hours to a week.
+
+
 v4.0
 ====
 
