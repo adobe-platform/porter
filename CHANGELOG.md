@@ -1,5 +1,11 @@
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+### v4.3.0
+
+- added `c4.*`, `r4.*`, and `x1.*` instance types
+- updated `m4.*` and `t2.*` instance types
+- removed `g2.*`, `i2.*`, and `d2.*` instance types
+
 ### v4.2.0
 
 - HAProxy stats endpoint auth is now randomized
