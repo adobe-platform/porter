@@ -74,6 +74,15 @@ sysctl -w net.ipv4.conf.all.rp_filter=1
 # https://github.com/torvalds/linux/blob/v4.1/Documentation/networking/ip-sysctl.txt#L488
 sysctl -w net.ipv4.tcp_slow_start_after_idle=0
 
+# tune network buffers
+sysctl -w net.core.rmem_default=65536
+sysctl -w net.core.wmem_default=65536
+sysctl -w net.core.rmem_max=16777216
+sysctl -w net.core.wmem_max=16777216
+sysctl -w net.ipv4.tcp_rmem='4096 65536 16777216'
+sysctl -w net.ipv4.tcp_wmem='4096 65536 16777216'
+sysctl -w net.ipv4.tcp_mem='16777216 16777216 16777216'
+
 # A hotswap operation is identical to what happens during initial configuration
 echo "installing service payload"
 /usr/bin/porter_hotswap
