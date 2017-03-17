@@ -1,5 +1,10 @@
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+### v4.4.0
+
+- disabled userland proxy
+- tuned network buffers
+
 ### v4.3.0
 
 - added `c4.*`, `r4.*`, and `x1.*` instance types

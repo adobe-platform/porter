@@ -2,6 +2,16 @@ See the [CHANGELOG](CHANGELOG.md) for a complete list of changes.
 
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+v4.4
+====
+
+Tuned network and CPU performance
+
+v4.3
+====
+
+Revised instance type list
+
 v4.2
 ====
 
