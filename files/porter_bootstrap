@@ -19,6 +19,8 @@ echo 'OPTIONS="$OPTIONS --storage-opt dm.basesize=50G"' >> /etc/sysconfig/docker
 echo 'OPTIONS="$OPTIONS --disable-legacy-registry"' >> /etc/sysconfig/docker
 # CIS Docker Benchmark 1.11.0 2.1
 echo 'OPTIONS="$OPTIONS --icc=false"' >> /etc/sysconfig/docker
+# CIS Docker Benchmark 1.12.0 2.8
+echo 'OPTIONS="$OPTIONS --userland-proxy=false"' >> /etc/sysconfig/docker
 {{ if .InsecureRegistry -}}
 echo 'OPTIONS="$OPTIONS --insecure-registry={{ .InsecureRegistry }}"' >> /etc/sysconfig/docker
 {{ end -}}
