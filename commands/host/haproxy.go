@@ -44,6 +44,9 @@ type (
 		StatsPassword     string
 		StatsUri          string
 		IpBlacklistPath   string
+		Log               bool
+		Compression       bool
+		CompressTypes     string
 		ReqHeaderCaptures []conf.HeaderCapture
 		ResHeaderCaptures []conf.HeaderCapture
 	}
@@ -176,6 +179,9 @@ func hotswap(log log15.Logger, environmentStr, regionStr string, hapStdin HAPStd
 		StatsPassword:     config.HAProxyStatsPassword,
 		StatsUri:          constants.HAProxyStatsUri,
 		IpBlacklistPath:   ipBlacklistPath,
+		Log:               (environment.HAProxy.Log == nil || *environment.HAProxy.Log == true),
+		Compression:       environment.HAProxy.Compression,
+		CompressTypes:     strings.Join(environment.HAProxy.CompressTypes, " "),
 		ReqHeaderCaptures: environment.HAProxy.ReqHeaderCaptures,
 		ResHeaderCaptures: environment.HAProxy.ResHeaderCaptures,
 	}

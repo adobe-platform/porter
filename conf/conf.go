@@ -116,6 +116,9 @@ type (
 		// Capture headers for logging
 		ReqHeaderCaptures []HeaderCapture `yaml:"request_header_captures"`
 		ResHeaderCaptures []HeaderCapture `yaml:"response_header_captures"`
+		Log               *bool           `yaml:"log"`
+		Compression       bool            `yaml:"compression"`
+		CompressTypes     []string        `yaml:"compress_types"`
 	}
 
 	HeaderCapture struct {
@@ -218,6 +221,10 @@ func (recv *Config) SetDefaults() {
 
 		if env.InstanceType == "" {
 			env.InstanceType = "m3.medium"
+		}
+
+		if len(env.HAProxy.CompressTypes) > 0 {
+			env.HAProxy.Compression = true
 		}
 
 		for _, region := range env.Regions {
