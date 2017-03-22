@@ -1,5 +1,11 @@
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+### v4.5.0
+
+- added opt-in HAProxy compression
+- added configurable list of MIME types to compress
+- HAProxy logs can be turned off
+
 ### v4.4.0
 
 - disabled userland proxy

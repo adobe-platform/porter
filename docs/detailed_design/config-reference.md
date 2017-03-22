@@ -21,7 +21,12 @@ For each field the following notation is used
   - [instance_type](#instance_type) (==1?)
   - [blackout_windows](#blackout_windows) (>=1?)
   - [hot_swap](#hot_swap) (==1?)
-  - [haproxy](#haproxy) (==1?)
+  - [haproxy](==1?)
+    - [request_header_captures](#header-captures) (>=1?)
+    - [response_header_captures](#header-captures) (>=1?)
+    - [log](#log) (==1?)
+    - [compression](#compression) (==1?)
+    - [compress_types](#compress_types) (==1?)
   - [regions](#regions) (>=1!)
     - [name](#region-name) (==1!)
     - [stack_definition_path](#stack_definition_path) (==1?)
@@ -252,7 +257,7 @@ environments:
   hot_swap: true
 ```
 
-### haproxy
+### header-captures
 
 Header captures can be defined. See the [HAProxy docs](https://cbonte.github.io/haproxy-dconv/1.5/configuration.html#8.8)
 for more about how to parse these logs.
@@ -270,6 +275,44 @@ environments:
     response_header_captures:
     - header: X-Request-Id
       length: 40
+```
+
+### log
+
+Turn off HAProxy logs which saves CPU cycles
+
+```yaml
+environments:
+- name: dev
+  haproxy:
+    log: false
+```
+
+### compression
+
+Turn on gzip compression.
+
+If no [`compress_types`](#compress_types) are defined all responses are
+compressed.
+
+```yaml
+environments:
+- name: dev
+  haproxy:
+    compression: true
+```
+
+### compress_types
+
+List of MIME types to compress.
+
+Any value here implies [`compression: true`](#compression)
+
+```yaml
+environments:
+- name: dev
+  haproxy:
+    compress_types: text/plain text/html application/json
 ```
 
 ### regions
