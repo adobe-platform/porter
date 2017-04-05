@@ -2,6 +2,93 @@ See the [CHANGELOG](CHANGELOG.md) for a complete list of changes.
 
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+v4.6
+====
+
+**Opting into host-level SSL support is a breaking change**
+
+Host-level SSL support has been added using existing secrets management
+mechanism for placing the cert on the host.
+
+In order to have SSL all the way through it must be enabled on the host and on
+the [ELB](http://docs.aws.amazon.com/elasticloadbalancing/latest/classic/elb-create-https-ssl-load-balancer.html)
+
+### Enable HTTPS on the provisioned ELB
+
+```yaml
+environments:
+- name: dev
+
+  regions:
+  - name: us-west-2
+    ssl_cert_arn: arn:aws:iam::123456789012:server-certificate/yourdomain.com
+```
+
+### Enable HTTPS on the host
+
+```yaml
+environments:
+- name: dev
+
+  regions:
+  - name: us-west-2
+    ssl_cert_arn: arn:aws:iam::123456789012:server-certificate/yourdomain.com
+
+  haproxy:
+    ssl:
+      pem:
+        secrets_exec_name: /bin/cat
+        secrets_exec_args:
+        - path/to/yourdomain_com.pem
+```
+
+For more on these fields see the [docs](docs/detailed_design/config-reference.md#ssl)
+
+### v4.6 breaking changes
+
+**These are only breaking changes if you opt into host-level SSL**
+
+#### v4.6 ELB listeners
+
+porter stack used to listen on ports 80 and 8080 but, when opted in, listens on
+80 and 443. 8080 represented the SSL termination port. When opted into host-
+level SSL the ELB into which porter promotes instances must be changed to send
+HTTPS traffic to instance port 443.
+
+For example if we have config like this
+
+```yaml
+environments:
+- name: dev
+  regions:
+  - name: us-west-2
+    elb: some-elb
+```
+
+If `some-elb` was previously setup to do SSL termination it would likely have
+these listeners
+
+| Load balancer protocol | Load Balancer Port | Instance protocol | Instance port | Cipher | SSL Certificate |
+|------------------------|--------------------|-------------------|---------------|--------|-----------------|
+| HTTP                   | 80                 | HTTP              | 80            |        |                 |
+| HTTPS                  | 443                | HTTP              | 8080          |        | yourdomain.com  |
+
+It would need to be changed to the following (changes in *italics*)
+
+| Load balancer protocol | Load Balancer Port | Instance protocol | Instance port | Cipher | SSL Certificate |
+|------------------------|--------------------|-------------------|---------------|--------|-----------------|
+| HTTP                   | 80                 | HTTP              | 80            |        |                 |
+| HTTPS                  | 443                | *HTTPS*           | *443*         |        | yourdomain.com  |
+
+#### v4.6 ELB health check
+
+If using `https_only` or `https_redirect` the health check on `some-elb` must be
+changed as well. A health check of `HTTP:80/health` would need to be changed to
+`HTTPS:443/health`
+
+When migrating to host-level SSL it's recommended to complete the transition to
+SSL before enabling either `https_only` or `https_redirect`
+
 v4.5
 ====
 

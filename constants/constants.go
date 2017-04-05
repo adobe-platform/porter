@@ -78,6 +78,10 @@ const (
 	EC2MetadataURL  = "http://169.254.169.254/latest/meta-data"
 	AmazonLinuxUser = "ec2-user"
 
+	HTTP_Port      = 80   // HTTP
+	HTTPS_TermPort = 8080 // HTTP (SSL termination)
+	HTTPS_Port     = 443  // HTTPS
+
 	HAProxyConfigPath      = "/etc/haproxy/haproxy.cfg"
 	HAProxyConfigPerms     = 0644
 	HAProxyStatsUri        = "/admin?stats"
@@ -149,7 +153,6 @@ const (
 )
 
 var (
-	InetBindPorts    []uint16
 	AwsRegions       map[string]interface{}
 	AwsInstanceTypes map[string]interface{}
 )
@@ -178,10 +181,6 @@ func StackCreationPollInterval() time.Duration {
 }
 
 func init() {
-	InetBindPorts = []uint16{
-		80,   // HTTP
-		8080, // HTTP (SSL termination)
-	}
 
 	AwsRegions = map[string]interface{}{
 		"ap-northeast-1": nil,

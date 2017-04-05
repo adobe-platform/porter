@@ -13,6 +13,7 @@ package wait_handle
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -81,7 +82,15 @@ func Call() {
 
 	healthCheckClient := &http.Client{
 		Timeout: constants.HC_Timeout * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		},
 	}
+
+	msg := flags.HealthCheckMethod + " " + flags.HealthCheckPath
+	hcUrl := "http://localhost" + flags.HealthCheckPath
 
 	for {
 		// assume a worker or cron primary topology
@@ -91,9 +100,7 @@ func Call() {
 
 		time.Sleep(sleepDuration)
 
-		msg := flags.HealthCheckMethod + " " + flags.HealthCheckPath
-
-		req, err := http.NewRequest(flags.HealthCheckMethod, "http://localhost"+flags.HealthCheckPath, nil)
+		req, err := http.NewRequest(flags.HealthCheckMethod, hcUrl, nil)
 		if err != nil {
 			log.Warn("http.NewRequest", "Error", err)
 			continue

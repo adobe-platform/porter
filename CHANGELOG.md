@@ -1,5 +1,9 @@
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+### v4.6.0
+
+- host-level SSL support
+
 ### v4.5.0
 
 - added opt-in HAProxy compression

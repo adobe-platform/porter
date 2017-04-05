@@ -286,7 +286,8 @@ func (recv *stackCreator) ensureInetToELBSG(template *cfn.Template) bool {
 
 	vpc := recv.region.VpcId != ""
 	https := recv.region.SSLCertARN != ""
-	resource := cfn_template.InetToELB(vpc, https)
+	httpsOnly := recv.environment.HAProxy.SSL.HTTPS_Only
+	resource := cfn_template.InetToELB(vpc, https, httpsOnly)
 
 	template.SetResource(constants.ElbSgLogicalName, resource)
 
@@ -301,10 +302,20 @@ func (recv *stackCreator) ensureProvisionedELBToInstanceSG(template *cfn.Templat
 		return false
 	}
 
+	httpsPort := 0
+	if recv.region.SSLCertARN != "" {
+		if recv.environment.HAProxy.UsingSSL() {
+
+			httpsPort = constants.HTTPS_Port
+		} else {
+
+			httpsPort = constants.HTTPS_TermPort
+		}
+	}
 	vpc := recv.region.VpcId != ""
-	https := recv.region.SSLCertARN != ""
-	resource := cfn_template.ELBToInstance(vpc, https, elbLogicalId,
-		constants.ElbSgLogicalName)
+	httpsOnly := recv.environment.HAProxy.SSL.HTTPS_Only
+	resource := cfn_template.ELBToInstance(vpc, httpsOnly, httpsPort,
+		elbLogicalId, constants.ElbSgLogicalName)
 
 	template.SetResource("ProvisionedELBToInstance", resource)
 
@@ -378,7 +389,20 @@ func (recv *stackCreator) ensureDestinationELBSecurityGroup(template *cfn.Templa
 			}
 		}
 
-		for _, port := range constants.InetBindPorts {
+		ports := make([]int, 0)
+		if recv.environment.HAProxy.UsingSSL() {
+
+			ports = append(ports, constants.HTTPS_Port)
+		} else {
+
+			ports = append(ports, constants.HTTPS_TermPort)
+		}
+
+		if !recv.environment.HAProxy.SSL.HTTPS_Only {
+			ports = append(ports, constants.HTTP_Port)
+		}
+
+		for _, port := range ports {
 
 			ingressRule := map[string]interface{}{
 				"IpProtocol": "tcp",

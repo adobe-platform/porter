@@ -28,6 +28,7 @@ import (
 	"github.com/adobe-platform/porter/constants"
 	"github.com/adobe-platform/porter/files"
 	"github.com/adobe-platform/porter/logger"
+	"github.com/adobe-platform/porter/secrets"
 	"github.com/adobe-platform/porter/stdin"
 	"github.com/phylake/go-cli"
 	"gopkg.in/inconshreveable/log15.v2"
@@ -38,7 +39,7 @@ type (
 
 	haProxyConfigContext struct {
 		ServiceName       string
-		FrontEndPorts     []uint16
+		FrontEndPorts     []hapPort
 		HAPStdin          HAPStdin
 		StatsUsername     string
 		StatsPassword     string
@@ -49,6 +50,12 @@ type (
 		CompressTypes     string
 		ReqHeaderCaptures []conf.HeaderCapture
 		ResHeaderCaptures []conf.HeaderCapture
+		HTTPS_Redirect    bool
+	}
+
+	hapPort struct {
+		Num int16
+		Crt string
 	}
 
 	HAPStdin struct {
@@ -166,14 +173,39 @@ func hotswap(log log15.Logger, environmentStr, regionStr string, hapStdin HAPStd
 		return
 	}
 
+	region, err := environment.GetRegion(regionStr)
+	if err != nil {
+		log.Error("GetRegion", "Error", err)
+		return
+	}
+
 	var ipBlacklistPath string
 	if _, err := os.Stat(constants.HAProxyIpBlacklistPath); err == nil {
 		ipBlacklistPath = constants.HAProxyIpBlacklistPath
 	}
 
+	frontendPorts := []hapPort{
+		{
+			Num: constants.HTTP_Port,
+		},
+	}
+
+	if environment.HAProxy.UsingSSL() {
+		frontendPort := hapPort{
+			Num: constants.HTTPS_Port,
+			Crt: environment.HAProxy.SSL.CertPath,
+		}
+		frontendPorts = append(frontendPorts, frontendPort)
+	} else {
+		frontendPort := hapPort{
+			Num: constants.HTTPS_TermPort,
+		}
+		frontendPorts = append(frontendPorts, frontendPort)
+	}
+
 	context := haProxyConfigContext{
 		ServiceName:       config.ServiceName,
-		FrontEndPorts:     constants.InetBindPorts,
+		FrontEndPorts:     frontendPorts,
 		HAPStdin:          hapStdin,
 		StatsUsername:     config.HAProxyStatsUsername,
 		StatsPassword:     config.HAProxyStatsPassword,
@@ -184,10 +216,17 @@ func hotswap(log log15.Logger, environmentStr, regionStr string, hapStdin HAPStd
 		CompressTypes:     strings.Join(environment.HAProxy.CompressTypes, " "),
 		ReqHeaderCaptures: environment.HAProxy.ReqHeaderCaptures,
 		ResHeaderCaptures: environment.HAProxy.ResHeaderCaptures,
+		HTTPS_Redirect:    environment.HAProxy.SSL.HTTPS_Redirect,
 	}
 
 	if !healthCheckContainers(log, context.HAPStdin) {
 		return
+	}
+
+	if environment.HAProxy.SSL.Pem != nil {
+		if !downloadCert(log, environment, region) {
+			return
+		}
 	}
 
 	if !writeNewConfig(log, context) {
@@ -199,6 +238,23 @@ func hotswap(log log15.Logger, environmentStr, regionStr string, hapStdin HAPStd
 	}
 
 	if !signalHost(log, context) {
+		return
+	}
+
+	success = true
+	return
+}
+
+func downloadCert(log log15.Logger, environment *conf.Environment, region *conf.Region) (success bool) {
+
+	secretsPayload, downloadSuccess := secrets.Download(log, region)
+	if !downloadSuccess {
+		return
+	}
+
+	err := ioutil.WriteFile(environment.HAProxy.SSL.CertPath, secretsPayload.PemFile, 0444)
+	if err != nil {
+		log.Crit("ioutil.WriteFile", "Error", err)
 		return
 	}
 

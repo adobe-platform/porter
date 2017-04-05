@@ -27,6 +27,11 @@ For each field the following notation is used
     - [log](#log) (==1?)
     - [compression](#compression) (==1?)
     - [compress_types](#compress_types) (==1?)
+    - [ssl](#ssl) (==1?)
+      - [cert_directory](#cert_directory) (==1?)
+      - [pem](#pem) (==?!)
+      - [https_only](#https_only) (==??)
+      - [https_redirect](#https_redirect) (==??)
   - [regions](#regions) (>=1!)
     - [name](#region-name) (==1!)
     - [stack_definition_path](#stack_definition_path) (==1?)
@@ -314,6 +319,52 @@ environments:
   haproxy:
     compress_types: text/plain text/html application/json
 ```
+
+### ssl
+
+SSL support via HAProxy
+
+### cert_directory
+
+Provide an alternative path to the certs directory.
+
+Default: `/etc/ssl/certs/`
+
+### pem
+
+Provide a path to an executable and any arguments to it. A PEM file should be
+output on stdout. It's typically the private key concated with the issued cert.
+[An example can be found here](https://www.digitalocean.com/community/tutorials/how-to-implement-ssl-termination-with-haproxy-on-ubuntu-14-04)
+
+In this example porter is running on a build box with the cert on the filesystem
+so it just `cat`s it.
+
+**NOTE**: this is _not_ a suggestion of how to securely manage certs - only to
+show how it works
+
+```yaml
+environments:
+- name: dev
+  haproxy:
+    ssl:
+      pem:
+        secrets_exec_name: /bin/cat
+        secrets_exec_args:
+        - path/to/yourdomain_com.pem
+```
+
+### https_only
+
+If true remove the HTTP port in security groups and remove the provisioned ELB's
+HTTP listener.
+
+Default: `false`
+
+### https_redirect
+
+Redirect HTTP to HTTPS.
+
+Default: `false`
 
 ### regions
 
