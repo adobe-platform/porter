@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"regexp"
 
 	"github.com/adobe-platform/porter/constants"
@@ -47,6 +48,7 @@ var (
 	porterVersionRegex   = regexp.MustCompile(`^v\d+\.\d+\.\d+$`)
 	vpcIdRegex           = regexp.MustCompile(`^vpc-(\d|\w){8}$`)
 	subnetIdRegex        = regexp.MustCompile(`^subnet-(\d|\w){8}$`)
+	commonNameRegex      = regexp.MustCompile(`^(\w+\.)?[a-z]+$`)
 
 	// https://github.com/docker/docker/blob/v1.11.2/utils/names.go#L6
 	// minus '-' which is reserved
@@ -119,6 +121,21 @@ type (
 		Log               *bool           `yaml:"log"`
 		Compression       bool            `yaml:"compression"`
 		CompressTypes     []string        `yaml:"compress_types"`
+		SSL               SSL             `yaml:"ssl"`
+	}
+
+	SSL struct {
+		CertDirectory  string `yaml:"cert_directory"`
+		CertPath       string
+		HTTPS_Only     bool `yaml:"https_only"`
+		HTTPS_Redirect bool `yaml:"https_redirect"`
+
+		Pem *Pem `yaml:"pem"`
+	}
+
+	Pem struct {
+		SecretsExecName string   `yaml:"secrets_exec_name"`
+		SecretsExecArgs []string `yaml:"secrets_exec_args"`
 	}
 
 	HeaderCapture struct {
@@ -192,6 +209,10 @@ type (
 	}
 )
 
+func (recv HAProxy) UsingSSL() bool {
+	return recv.SSL.Pem != nil
+}
+
 func (recv *Config) GetEnvironment(envName string) (*Environment, error) {
 	for _, env := range recv.Environments {
 		if env.Name == envName {
@@ -225,6 +246,18 @@ func (recv *Config) SetDefaults() {
 
 		if len(env.HAProxy.CompressTypes) > 0 {
 			env.HAProxy.Compression = true
+		}
+
+		if env.HAProxy.SSL.CertDirectory == "" {
+			env.HAProxy.SSL.CertDirectory = "/etc/ssl/certs/"
+		}
+
+		env.HAProxy.SSL.CertPath = filepath.Join(env.HAProxy.SSL.CertDirectory, "porter.pem")
+
+		// this is only for porterd which isn't currently informed of HTTPS_Only
+		// porterd initially connects to http but will follow redirects
+		if env.HAProxy.SSL.HTTPS_Only {
+			env.HAProxy.SSL.HTTPS_Redirect = true
 		}
 
 		for _, region := range env.Regions {

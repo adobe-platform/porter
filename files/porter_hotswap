@@ -28,7 +28,7 @@ tar -xzOf $PAYLOAD_PATH ./{{ $imageName }}.docker | docker load
 
 echo "starting containers"
 porter host docker --start -e {{ .Environment }} -r {{ .Region }} \
-| porter host haproxy -e {{ .Environment }}
+| porter host haproxy -e {{ .Environment }} -r {{ .Region }}
 
 echo "cleaning containers"
 porter host docker --clean -e {{ .Environment }} -r {{ .Region }}

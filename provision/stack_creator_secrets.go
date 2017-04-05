@@ -181,6 +181,35 @@ func (recv *stackCreator) getHostSecrets() (hostSecrets []byte, success bool) {
 	return
 }
 
+func (recv *stackCreator) getPemFile() (pemFile []byte, success bool) {
+	recv.log.Debug("getPemFile() BEGIN")
+	defer recv.log.Debug("getPemFile() END")
+
+	if recv.environment.HAProxy.SSL.Pem == nil || recv.environment.HAProxy.SSL.Pem.SecretsExecName == "" {
+		success = true
+		return
+	}
+
+	execName := recv.environment.HAProxy.SSL.Pem.SecretsExecName
+	execArgs := recv.environment.HAProxy.SSL.Pem.SecretsExecArgs
+
+	var stdoutBuf bytes.Buffer
+	var stderrBuf bytes.Buffer
+
+	cmd := exec.Command(execName, execArgs...)
+	cmd.Stdout = &stdoutBuf
+	cmd.Stderr = &stderrBuf
+	err := cmd.Run()
+	if err != nil {
+		recv.log.Error("exec.Command", "Error", err, "Stderr", stderrBuf.String())
+		return
+	}
+
+	pemFile = stdoutBuf.Bytes()
+	success = true
+	return
+}
+
 func (recv *stackCreator) uploadSecrets(checksum string) (success bool) {
 	recv.log.Debug("uploadSecrets() BEGIN")
 	defer recv.log.Debug("uploadSecrets() END")
@@ -192,6 +221,11 @@ func (recv *stackCreator) uploadSecrets(checksum string) (success bool) {
 
 	hostSecrets, getHostSecretsSuccess := recv.getHostSecrets()
 	if !getHostSecretsSuccess {
+		return
+	}
+
+	pemFile, getPemFileSuccess := recv.getPemFile()
+	if !getPemFileSuccess {
 		return
 	}
 
@@ -208,6 +242,7 @@ func (recv *stackCreator) uploadSecrets(checksum string) (success bool) {
 		DockerRegistry:     os.Getenv(constants.EnvDockerRegistry),
 		DockerPullUsername: os.Getenv(constants.EnvDockerPullUsername),
 		DockerPullPassword: os.Getenv(constants.EnvDockerPullPassword),
+		PemFile:            pemFile,
 	}
 
 	var secretPayloadBuf bytes.Buffer

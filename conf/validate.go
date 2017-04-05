@@ -185,6 +185,12 @@ func (recv *Config) ValidateEnvironments() error {
 		if !environmentNameRegex.MatchString(environment.Name) {
 			return errors.New("Invalid name for environment [" + environment.Name + "]. Valid characters are [0-9a-zA-Z]")
 		}
+
+		if environment.HAProxy.UsingSSL() {
+			if environment.HAProxy.SSL.Pem == nil || environment.HAProxy.SSL.Pem.SecretsExecName == "" {
+				return errors.New("haproxy ssl common_name defined but no pem field with a valid secrets_exec_name was defined")
+			}
+		}
 	}
 
 	return nil

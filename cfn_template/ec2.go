@@ -17,7 +17,7 @@ import (
 )
 
 // Allow EC2 instances to receive traffic from the provisioned ELB
-func ELBToInstance(vpc, https bool, elbName, elbSecurityGroup string) map[string]interface{} {
+func ELBToInstance(vpc, httpsOnly bool, httpsPort int, elbName, elbSecurityGroup string) map[string]interface{} {
 	properties := map[string]interface{}{
 		"GroupDescription": "Enable communication from the provisioned ELB",
 	}
@@ -34,35 +34,36 @@ func ELBToInstance(vpc, https bool, elbName, elbSecurityGroup string) map[string
 
 	if vpc {
 
-		sgIngress = []interface{}{
-			map[string]interface{}{
+		if !httpsOnly {
+			ingress := map[string]interface{}{
 				"IpProtocol": "tcp",
-				"FromPort":   constants.InetBindPorts[0],
-				"ToPort":     constants.InetBindPorts[0],
-				"SourceSecurityGroupId": map[string]string{
-					"Ref": elbSecurityGroup,
-				},
-			},
-		}
-
-		if https {
-			httpsIngress := map[string]interface{}{
-				"IpProtocol": "tcp",
-				"FromPort":   constants.InetBindPorts[1],
-				"ToPort":     constants.InetBindPorts[1],
+				"FromPort":   constants.HTTP_Port,
+				"ToPort":     constants.HTTP_Port,
 				"SourceSecurityGroupId": map[string]string{
 					"Ref": elbSecurityGroup,
 				},
 			}
-			sgIngress = append(sgIngress, httpsIngress)
+			sgIngress = append(sgIngress, ingress)
+		}
+
+		if httpsPort > 0 {
+			ingress := map[string]interface{}{
+				"IpProtocol": "tcp",
+				"FromPort":   httpsPort,
+				"ToPort":     httpsPort,
+				"SourceSecurityGroupId": map[string]string{
+					"Ref": elbSecurityGroup,
+				},
+			}
+			sgIngress = append(sgIngress, ingress)
 		}
 	} else {
 
-		sgIngress = []interface{}{
-			map[string]interface{}{
+		if !httpsOnly {
+			ingress := map[string]interface{}{
 				"IpProtocol": "tcp",
-				"FromPort":   constants.InetBindPorts[0],
-				"ToPort":     constants.InetBindPorts[0],
+				"FromPort":   constants.HTTP_Port,
+				"ToPort":     constants.HTTP_Port,
 				"SourceSecurityGroupOwnerId": map[string]interface{}{
 					"Fn::GetAtt": []string{
 						elbName,
@@ -75,14 +76,15 @@ func ELBToInstance(vpc, https bool, elbName, elbSecurityGroup string) map[string
 						"SourceSecurityGroup.GroupName",
 					},
 				},
-			},
+			}
+			sgIngress = append(sgIngress, ingress)
 		}
 
-		if https {
+		if httpsPort > 0 {
 			httpsIngress := map[string]interface{}{
 				"IpProtocol": "tcp",
-				"FromPort":   constants.InetBindPorts[1],
-				"ToPort":     constants.InetBindPorts[1],
+				"FromPort":   httpsPort,
+				"ToPort":     httpsPort,
 				"SourceSecurityGroupOwnerId": map[string]interface{}{
 					"Fn::GetAtt": []string{
 						elbName,
@@ -106,7 +108,7 @@ func ELBToInstance(vpc, https bool, elbName, elbSecurityGroup string) map[string
 }
 
 // Allow internet traffic to the ELB. This is only use in a custom VPC.
-func InetToELB(vpc, https bool) map[string]interface{} {
+func InetToELB(vpc, https, httpsOnly bool) map[string]interface{} {
 
 	properties := map[string]interface{}{
 		"GroupDescription": "Allow internet traffic",
@@ -124,13 +126,17 @@ func InetToELB(vpc, https bool) map[string]interface{} {
 	if vpc {
 		metadata[constants.MetadataElb] = true
 
-		sgIngress := []interface{}{
-			map[string]interface{}{
+		sgIngress := make([]interface{}, 0)
+
+		if !httpsOnly {
+			httpIngress := map[string]interface{}{
 				"IpProtocol": "tcp",
 				"CidrIp":     "0.0.0.0/0",
-				"FromPort":   80, // not constants.InetBindPorts
-				"ToPort":     80,
-			},
+				"FromPort":   constants.HTTP_Port,
+				"ToPort":     constants.HTTP_Port,
+			}
+
+			sgIngress = append(sgIngress, httpIngress)
 		}
 
 		if https {
@@ -138,8 +144,8 @@ func InetToELB(vpc, https bool) map[string]interface{} {
 			httpsIngress := map[string]interface{}{
 				"IpProtocol": "tcp",
 				"CidrIp":     "0.0.0.0/0",
-				"FromPort":   443, // not constants.InetBindPorts
-				"ToPort":     443,
+				"FromPort":   constants.HTTPS_Port,
+				"ToPort":     constants.HTTPS_Port,
 			}
 
 			sgIngress = append(sgIngress, httpsIngress)

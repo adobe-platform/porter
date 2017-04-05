@@ -860,10 +860,17 @@ func addHTTPSListener(recv *stackCreator, template *cfn.Template, resource map[s
 
 	httpsListener := map[string]interface{}{
 		"LoadBalancerPort": "443",
-		"InstancePort":     strconv.Itoa(int(constants.InetBindPorts[1])),
 		"Protocol":         "HTTPS",
 		"SSLCertificateId": recv.region.SSLCertARN,
 	}
+	if recv.environment.HAProxy.UsingSSL() {
+		httpsListener["InstancePort"] = strconv.Itoa(constants.HTTPS_Port)
+		httpsListener["InstanceProtocol"] = "HTTPS"
+	} else {
+		httpsListener["InstancePort"] = strconv.Itoa(constants.HTTPS_TermPort)
+		httpsListener["InstanceProtocol"] = "HTTP"
+	}
+
 	listeners = append(listeners, httpsListener)
 
 	props["Listeners"] = listeners
@@ -871,6 +878,10 @@ func addHTTPSListener(recv *stackCreator, template *cfn.Template, resource map[s
 }
 
 func addHTTPListener(recv *stackCreator, template *cfn.Template, resource map[string]interface{}) bool {
+
+	if recv.environment.HAProxy.SSL.HTTPS_Only {
+		return true
+	}
 
 	var (
 		listeners []interface{}
@@ -900,7 +911,7 @@ func addHTTPListener(recv *stackCreator, template *cfn.Template, resource map[st
 
 	httpListener := map[string]interface{}{
 		"LoadBalancerPort": "80",
-		"InstancePort":     constants.InetBindPorts[0],
+		"InstancePort":     constants.HTTP_Port,
 		"Protocol":         "HTTP",
 	}
 	listeners = append(listeners, httpListener)
@@ -979,7 +990,15 @@ func setHealthCheck(recv *stackCreator, template *cfn.Template, resource map[str
 		healthCheckTarget := "TCP:80"
 
 		if recv.region.HealthCheckMethod() == "GET" {
-			healthCheckTarget = "HTTP:80/" + strings.TrimPrefix(recv.region.HealthCheckPath(), "/")
+			if recv.environment.HAProxy.UsingSSL() {
+
+				healthCheckTarget = fmt.Sprintf("HTTPS:%d/", constants.HTTPS_Port)
+			} else {
+
+				healthCheckTarget = fmt.Sprintf("HTTP:%d/", constants.HTTP_Port)
+			}
+
+			healthCheckTarget += strings.TrimPrefix(recv.region.HealthCheckPath(), "/")
 		}
 
 		props["HealthCheck"] = map[string]interface{}{

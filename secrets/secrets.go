@@ -26,6 +26,7 @@ type Payload struct {
 	DockerRegistry     string
 	DockerPullUsername string
 	DockerPullPassword string
+	PemFile            []byte
 }
 
 func GenerateKey() (symmetricKey []byte, err error) {
