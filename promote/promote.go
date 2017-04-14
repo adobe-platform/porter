@@ -71,7 +71,7 @@ func promoteService(log log15.Logger, env, regionName string,
 		return
 	}
 
-	if region.PrimaryTopology() != conf.Topology_Inet {
+	if region.PrimaryTopology() != conf.Topology_Inet || !region.HasELB() {
 		success = true
 		return
 	}
@@ -170,7 +170,7 @@ func promoteService(log log15.Logger, env, regionName string,
 
 	elbTags := make(map[string]string)
 	elbTags[constants.PorterStackIdTag] = regionState.StackId
-	elbTags[constants.PorterVersion] = constants.Version
+	elbTags[constants.PorterVersionTag] = constants.Version
 	err = elb.AddTags(elbClient, destinationELB, elbTags)
 	if err != nil {
 		log.Warn("elb.AddTags", "Error", err)

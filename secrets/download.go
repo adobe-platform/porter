@@ -18,10 +18,11 @@ import (
 	"io/ioutil"
 	"os"
 
+	awsutil "github.com/adobe-platform/porter/aws/util"
 	"github.com/adobe-platform/porter/aws_session"
+	"github.com/adobe-platform/porter/cfn"
 	"github.com/adobe-platform/porter/conf"
 	"github.com/adobe-platform/porter/constants"
-	"github.com/adobe-platform/porter/util"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -81,40 +82,22 @@ func getSecretsKey(log log15.Logger, region string) (symmetricKey []byte, secret
 	log.Debug("getSecretsKey() BEGIN")
 	defer log.Debug("getSecretsKey() END")
 
-	var (
-		describeStacksOutput *cloudformation.DescribeStacksOutput
-		err                  error
-	)
+	var err error
 
 	cfnClient := cloudformation.New(aws_session.Get(region))
+	stackId := aws.String(os.Getenv("AWS_STACKID"))
 
-	describeStacksInput := &cloudformation.DescribeStacksInput{
-		StackName: aws.String(os.Getenv("AWS_STACKID")),
+	stacks, getStacksSuccess := awsutil.GetStacks(log, nil, nil, cfnClient, stackId, cfn.AnyStatus)
+	if !getStacksSuccess {
+		return
 	}
-
-	retryMsg := func(i int) { log.Warn("DescribeStacks retrying", "Count", i) }
-	if !util.SuccessRetryer(7, retryMsg, func() bool {
-		describeStacksOutput, err = cfnClient.DescribeStacks(describeStacksInput)
-		if err != nil {
-			log.Error("DescribeStacks", "Error", err)
-			return false
-		}
-		if len(describeStacksOutput.Stacks) == 0 {
-			log.Error("len(describeStacksOutput.Stacks == 0)")
-			return false
-		}
-		return true
-	}) {
-		log.Crit("Failed to DescribeStacks")
+	if len(stacks) != 1 {
+		log.Crit("len(stacks != 1)")
 		return
 	}
 
-	if len(describeStacksOutput.Stacks) != 1 {
-		log.Crit("len(describeStacksOutput.Stacks != 1)")
-		return
-	}
+	stack := stacks[0]
 
-	stack := describeStacksOutput.Stacks[0]
 	for _, param := range stack.Parameters {
 		switch *param.ParameterKey {
 		case constants.ParameterSecretsKey:

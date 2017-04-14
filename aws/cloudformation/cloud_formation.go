@@ -12,8 +12,6 @@
 package cloudformation
 
 import (
-	"errors"
-	"fmt"
 	"os"
 
 	"github.com/adobe-platform/porter/constants"
@@ -76,35 +74,4 @@ func UpdateStack(client *cfnlib.CloudFormation, stackName string, cfnTemplateUrl
 
 	_, err := client.UpdateStack(input)
 	return err
-}
-
-// DescribeStackResource using AWS http://docs.aws.amazon.com/sdk-for-go/api/service/cloudformation/CloudFormation.html#DescribeStackResource-instance_method
-func DescribeStackResource(client *cfnlib.CloudFormation, stackName string, logicalID string) (string, error) {
-	params := &cfnlib.DescribeStackResourceInput{
-		LogicalResourceId: aws.String(logicalID), // Required
-		StackName:         aws.String(stackName), // Required
-	}
-
-	resp, err := client.DescribeStackResource(params)
-	if err != nil {
-		return "", err
-	}
-
-	if resp == nil || resp.StackResourceDetail == nil {
-		return "", errors.New("DescribeStackResources is empty")
-	}
-
-	return *resp.StackResourceDetail.PhysicalResourceId, nil
-}
-
-// DescribeStack using http://docs.aws.amazon.com/sdk-for-go/api/service/cloudformation/CloudFormation.html#DescribeStacks-instance_method
-func DescribeStack(client *cfnlib.CloudFormation, stackName ...string) (*cfnlib.DescribeStacksOutput, error) {
-	param := &cfnlib.DescribeStacksInput{}
-	if len(stackName) > 1 {
-		return nil, fmt.Errorf("StackName should be size of one, current size=%d", len(stackName))
-	}
-	if len(stackName) == 1 {
-		param.StackName = aws.String(stackName[0])
-	}
-	return client.DescribeStacks(param)
 }

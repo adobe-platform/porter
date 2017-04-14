@@ -108,7 +108,7 @@ func ELBToInstance(vpc, httpsOnly bool, httpsPort int, elbName, elbSecurityGroup
 }
 
 // Allow internet traffic to the ELB. This is only use in a custom VPC.
-func InetToELB(vpc, https, httpsOnly bool) map[string]interface{} {
+func InetSg(vpc, https, httpsOnly bool, metadataKey string) map[string]interface{} {
 
 	properties := map[string]interface{}{
 		"GroupDescription": "Allow internet traffic",
@@ -124,7 +124,7 @@ func InetToELB(vpc, https, httpsOnly bool) map[string]interface{} {
 	// Only associate this sg and create ingress rules in a custom VPC.
 	// EC2-Classic and Default VPC don't need this
 	if vpc {
-		metadata[constants.MetadataElb] = true
+		metadata[metadataKey] = true
 
 		sgIngress := make([]interface{}, 0)
 

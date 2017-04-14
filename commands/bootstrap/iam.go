@@ -141,6 +141,7 @@ const porterDeploymentPolicy = `{
         "autoscaling:DescribeAutoScalingGroups",
         "autoscaling:DescribeLaunchConfigurations",
         "autoscaling:DescribeScalingActivities",
+        "autoscaling:DescribeTags",
         "autoscaling:UpdateAutoScalingGroup",
         "cloudformation:CreateStack",
         "cloudformation:DeleteStack",
