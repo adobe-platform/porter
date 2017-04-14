@@ -4,6 +4,7 @@ render_template() {
   eval "echo \"$(cat $1)\""
 }
 
+env
 tree -a .
 
 CONF=$(render_template .porter/config)

@@ -7,12 +7,9 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
-	"runtime"
 	"sync"
 	"time"
 )
-
-const port = 3000
 
 func FeatureFlipper(w http.ResponseWriter, r *http.Request) {
 	addr := os.Getenv("FEATURE_FLIPPER_ADDR")
@@ -34,6 +31,10 @@ func FeatureFlipper(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(respBody)
+}
+
+func EmptyHandler(w http.ResponseWriter, r *http.Request) {
+	// do nothing
 }
 
 func HelloWorld(w http.ResponseWriter, r *http.Request) {
@@ -131,8 +132,6 @@ var (
 
 func main() {
 
-	runtime.MemProfileRate = 1
-
 	leaker = make(map[uint64]*Garbage)
 	leakerLock = new(sync.Mutex)
 
@@ -140,6 +139,12 @@ func main() {
 		fmt.Println(kvp)
 	}
 
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3000"
+	}
+
+	http.HandleFunc("/empty", EmptyHandler)
 	http.HandleFunc("/hello", HelloWorld)
 	http.HandleFunc("/custom_health_check", Health)
 	http.HandleFunc("/ff", FeatureFlipper)
@@ -150,8 +155,8 @@ func main() {
 	http.HandleFunc("/syslog", Syslog)
 	http.HandleFunc("/logrotate", TestLogRotate)
 
-	fmt.Printf("listening on %d\n", port)
-	http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+	fmt.Println("listening on " + port)
+	http.ListenAndServe(":"+ port, nil)
 }
 
 type Garbage struct {
