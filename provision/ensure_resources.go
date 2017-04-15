@@ -61,28 +61,39 @@ func (recv *stackCreator) ensureResources(template *cfn.Template) (success bool)
 
 	switch recv.region.PrimaryTopology() {
 	case conf.Topology_Inet:
-		if !recv.ensureELB(template) {
-			return
-		}
+		if recv.region.HasELB() {
 
-		if recv.environment.CreateSecurityGroups == nil || *recv.environment.CreateSecurityGroups == true {
-
-			if !recv.ensureDestinationELBSecurityGroup(template) {
+			if !recv.ensureELB(template) {
 				return
 			}
 
-			if !recv.ensureInetToELBSG(template) {
-				return
+			if recv.environment.CreateSecurityGroups == nil || *recv.environment.CreateSecurityGroups == true {
+
+				if !recv.ensureDestinationELBSecurityGroup(template) {
+					return
+				}
+
+				if !recv.ensureInetSG(template) {
+					return
+				}
+
+				if !recv.ensureProvisionedELBToInstanceSG(template) {
+					return
+				}
 			}
 
-			if !recv.ensureProvisionedELBToInstanceSG(template) {
+			if !recv.ensureDNSResources(template) {
 				return
+			}
+		} else {
+			if recv.environment.CreateSecurityGroups == nil || *recv.environment.CreateSecurityGroups == true {
+
+				if !recv.ensureInetSG(template) {
+					return
+				}
 			}
 		}
 
-		if !recv.ensureDNSResources(template) {
-			return
-		}
 	}
 
 	success = true
@@ -282,14 +293,22 @@ func (recv *stackCreator) ensureDNSResources(template *cfn.Template) bool {
 	return true
 }
 
-func (recv *stackCreator) ensureInetToELBSG(template *cfn.Template) bool {
+func (recv *stackCreator) ensureInetSG(template *cfn.Template) bool {
 
 	vpc := recv.region.VpcId != ""
 	https := recv.region.SSLCertARN != ""
 	httpsOnly := recv.environment.HAProxy.SSL.HTTPS_Only
-	resource := cfn_template.InetToELB(vpc, https, httpsOnly)
+	var metadataKey, resourceName string
+	if recv.region.HasELB() {
+		metadataKey = constants.MetadataElb
+		resourceName = constants.ElbSgLogicalName
+	} else {
+		metadataKey = constants.MetadataAsLc
+		resourceName = constants.AsgSgLogicalName
+	}
+	resource := cfn_template.InetSg(vpc, https, httpsOnly, metadataKey)
 
-	template.SetResource(constants.ElbSgLogicalName, resource)
+	template.SetResource(resourceName, resource)
 
 	return true
 }

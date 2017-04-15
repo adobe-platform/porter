@@ -2,6 +2,15 @@ See the [CHANGELOG](CHANGELOG.md) for a complete list of changes.
 
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+v4.7
+====
+
+ELB is now [optional](docs/detailed_design/config-reference.md#no-elb) for
+`inet` containers.
+
+The use of `elb: none` requires the additional permission
+`autoscaling:DescribeTags`
+
 v4.6
 ====
 

@@ -565,6 +565,23 @@ should be promoted into.
 The value is also used during `porter build prune` to determine which
 Cloudformation stacks are eligible for deletion.
 
+#### No ELB
+
+The special value of `none` is an advanced configuration that removes an ELB
+from the provisioned stack and exposes EC2 hosts in the ASG to the internet
+directly. It comes with a whole range of concerns including, but not limited to:
+
+- The battle-tested blue-green deployments done via ELB L4 cutovers are
+  disabled. Don't use DNS then complain about how hard it is to do cache
+  invalidation and name things
+- `porter build promote` is a noop (but pre and post hooks still run)
+- Blue-green deployment must be carefully managed via a pre-promote hook
+- TCP connection timeouts are much smaller and tuned for low latency services
+- HAProxy's guard against slowloris attacks means slow clients may receive 408s
+- Hot swap is based on the newest stack's creation time, not the promoted
+  stack's creation time since there's no ELB to promote into
+- SSL should be used
+
 ### containers
 
 Define containers that should be built and run.

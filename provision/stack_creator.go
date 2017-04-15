@@ -22,6 +22,7 @@ import (
 	"runtime"
 	"strings"
 
+	awsutil "github.com/adobe-platform/porter/aws/util"
 	"github.com/adobe-platform/porter/cfn"
 	"github.com/adobe-platform/porter/conf"
 	"github.com/adobe-platform/porter/constants"
@@ -111,104 +112,94 @@ func (recv *stackCreator) createUpdateStackForRegion(regionState *provision_stat
 }
 
 func (recv *stackCreator) getAsgId(asgId *string) (success bool) {
+	log := recv.log
 
-	if len(recv.region.ELBs) == 0 {
+	if len(recv.region.ELBs) > 1 {
+		log.Info("ASG size matching only works on regions where a single ELB is defined")
 		success = true
-		return
-	} else if len(recv.region.ELBs) > 1 {
-		recv.log.Info("ASG size matching only works on regions where a single ELB is defined")
-		success = true
-		return
-	}
-
-	elbName := recv.region.ELBs[0].Name
-
-	log := recv.log.New("LoadBalancerName", elbName)
-	log.Info("Getting ELB tags")
-
-	elbClient := elb.New(recv.roleSession)
-	cfnClient := cloudformation.New(recv.roleSession)
-
-	var tagDescriptions []*elb.TagDescription
-
-	retryMsg := func(i int) { log.Warn("elb:DescribeTags retrying", "Count", i) }
-	if !util.SuccessRetryer(5, retryMsg, func() bool {
-
-		describeTagsInput := &elb.DescribeTagsInput{
-			LoadBalancerNames: []*string{aws.String(elbName)},
-		}
-
-		log.Info("elb:DescribeTags")
-		describeTagsOutput, err := elbClient.DescribeTags(describeTagsInput)
-		if err != nil {
-			log.Error("elb:DescribeTags", "Error", err)
-			return false
-		}
-
-		tagDescriptions = describeTagsOutput.TagDescriptions
-
-		return true
-	}) {
-		log.Crit("Failed to elb:DescribeTags")
 		return
 	}
 
 	var stackId *string
 	var err error
 
-tagLoop:
-	for _, tagDescription := range tagDescriptions {
+	cfnClient := cloudformation.New(recv.roleSession)
 
-		for _, tag := range tagDescription.Tags {
-			if tag.Key == nil || *tag.Key != constants.PorterStackIdTag {
-				continue
+	if len(recv.region.ELBs) == 1 && recv.region.HasELB() {
+
+		elbName := recv.region.ELBs[0].Name
+
+		log = log.New("LoadBalancerName", elbName)
+		log.Info("Getting ELB tags")
+
+		elbClient := elb.New(recv.roleSession)
+
+		var tagDescriptions []*elb.TagDescription
+
+		retryMsg := func(i int) { log.Warn("elb:DescribeTags retrying", "Count", i) }
+		if !util.SuccessRetryer(5, retryMsg, func() bool {
+
+			describeTagsInput := &elb.DescribeTagsInput{
+				LoadBalancerNames: []*string{aws.String(elbName)},
 			}
 
-			log.Info("Found ELB tag of currently promoted stack. Getting ASG physical id")
+			log.Info("elb:DescribeTags")
+			describeTagsOutput, err := elbClient.DescribeTags(describeTagsInput)
+			if err != nil {
+				log.Error("elb:DescribeTags", "Error", err)
+				return false
+			}
 
-			stackId = new(string)
-			*stackId = *tag.Value
+			tagDescriptions = describeTagsOutput.TagDescriptions
 
-			break tagLoop
+			return true
+		}) {
+			log.Crit("Failed to elb:DescribeTags")
+			return
+		}
+
+	tagLoop:
+		for _, tagDescription := range tagDescriptions {
+
+			for _, tag := range tagDescription.Tags {
+				if tag.Key == nil || *tag.Key != constants.PorterStackIdTag {
+					continue
+				}
+
+				log.Info("Found ELB tag of currently promoted stack. Getting ASG physical id")
+
+				stackId = new(string)
+				*stackId = *tag.Value
+
+				break tagLoop
+			}
+		}
+
+		if stackId == nil || *stackId == "" {
+			log.Warn("Did not find ELB tag of currently promoted stack")
+			log.Warn("If this is the first deployment into this ELB then this is normal")
+			log.Warn("Otherwise you should investigate why the ELB is missing the tag " + constants.PorterStackIdTag)
+			log.Warn("ASG size matching will not occur meaning whatever is in the CloudFormation template will be used")
+			success = true
+			return
 		}
 	}
 
-	if stackId == nil || *stackId == "" {
-		log.Warn("Did not find ELB tag of currently promoted stack")
-		log.Warn("If this is the first deployment into this ELB then this is normal")
-		log.Warn("Otherwise you should investigate why the ELB is missing the tag " + constants.PorterStackIdTag)
-		log.Warn("ASG size matching will not occur meaning whatever is in the CloudFormation template will be used")
-		success = true
+	stacksList, getStacksSuccess := awsutil.GetStacks(log, &recv.config,
+		&recv.environment, cfnClient, stackId, cfn.AnyStatus)
+	if !getStacksSuccess {
 		return
 	}
 
-	describeStacksInput := &cloudformation.DescribeStacksInput{
-		StackName: stackId,
-	}
-	var describeStacksOutput *cloudformation.DescribeStacksOutput
-
-	retryMsg = func(i int) { log.Warn("cloudformation:DescribeStacks retrying", "Count", i) }
-	if !util.SuccessRetryer(5, retryMsg, func() bool {
-
-		log.Info("cloudformation:DescribeStacks")
-		describeStacksOutput, err = cfnClient.DescribeStacks(describeStacksInput)
-		if err != nil {
-			log.Error("cloudformation:DescribeStacks", "Error", err)
-			return false
-		}
-
-		return true
-	}) {
-		log.Crit("Failed to cloudformation:DescribeStacks")
+	if len(stacksList) == 0 {
+		log.Error("Empty stack list")
 		return
 	}
 
-	if len(describeStacksOutput.Stacks) != 1 {
-		log.Error(fmt.Sprintf("Found %d stacks", len(describeStacksOutput.Stacks)))
-		return
-	}
+	stack := stacksList[0]
+	stackStatus := *stack.StackStatus
 
-	stackStatus := *describeStacksOutput.Stacks[0].StackStatus
+	log = log.New("StackName", *stack.StackName)
 
 	switch stackStatus {
 	case cfn.CREATE_COMPLETE,
@@ -249,11 +240,11 @@ tagLoop:
 	}
 
 	describeStackResourcesInput := &cloudformation.DescribeStackResourcesInput{
-		StackName: stackId,
+		StackName: stack.StackId,
 	}
 	var describeStackResourcesOutput *cloudformation.DescribeStackResourcesOutput
 
-	retryMsg = func(i int) { log.Warn("cloudformation:DescribeStackResources retrying", "Count", i) }
+	retryMsg := func(i int) { log.Warn("cloudformation:DescribeStackResources retrying", "Count", i) }
 	if !util.SuccessRetryer(5, retryMsg, func() bool {
 
 		log.Info("cloudformation:DescribeStackResources")
@@ -374,7 +365,8 @@ func (recv *stackCreator) uploadServicePayload() (checksum string, success bool)
 	} else if !strings.Contains(err.Error(), "404") {
 		recv.log.Error("HeadObject", "Error", err)
 		if strings.Contains(err.Error(), "403") {
-			recv.log.Error("s3:GetObject and s3:ListBucket are needed for this operation to work")
+			recv.log.Error("s3:GetObject and s3:ListBucket are needed for this operation to work",
+				"s3_bucket", recv.region.S3Bucket)
 		}
 		return
 	}

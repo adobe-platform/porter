@@ -1,5 +1,10 @@
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+### v4.7.0
+
+- build porter with Go 1.8.1
+- optional ELB
+
 ### v4.6.0
 
 - host-level SSL support

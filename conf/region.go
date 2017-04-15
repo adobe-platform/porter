@@ -11,6 +11,10 @@
  */
 package conf
 
+func (recv *Region) HasELB() bool {
+	return recv.ELB != "" && recv.ELB != "none"
+}
+
 // inet is a superset of worker which are almost identical to cron
 func (recv *Region) PrimaryTopology() (dominant string) {
 	for _, container := range recv.Containers {
