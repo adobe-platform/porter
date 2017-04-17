@@ -190,6 +190,24 @@ func (recv *Config) ValidateEnvironments() error {
 			if environment.HAProxy.SSL.Pem == nil || environment.HAProxy.SSL.Pem.SecretsExecName == "" {
 				return errors.New("haproxy ssl common_name defined but no pem field with a valid secrets_exec_name was defined")
 			}
+
+			if environment.HAProxy.SSL.HTTPS_Only {
+
+				for _, region := range environment.Regions {
+					if !region.HasELB() {
+						return errors.New("https_only is incompatible with elb: none")
+					}
+				}
+			}
+		}
+
+		if environment.Hotswap {
+
+			for _, region := range environment.Regions {
+				if len(region.ELBs) > 1 {
+					return errors.New("hot_swap is incompatible with multiple elbs")
+				}
+			}
 		}
 	}
 
@@ -224,6 +242,10 @@ func ValidateRegion(region *Region, validateRoleArn bool) error {
 
 	if len(region.AZs) == 0 {
 		return errors.New("Missing availability zone for region " + region.Name)
+	}
+
+	if region.PrimaryTopology() != Topology_Inet && region.HasELB() {
+		return errors.New("primary container topology can not have an elb for region " + region.Name)
 	}
 
 	definedVPC := false

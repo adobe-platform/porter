@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/adobe-platform/porter/aws/cloudformation"
+	awsutil "github.com/adobe-platform/porter/aws/util"
 	"github.com/adobe-platform/porter/aws_session"
 	"github.com/adobe-platform/porter/conf"
 	"github.com/adobe-platform/porter/constants"
@@ -42,7 +43,7 @@ func CreateStack(log log15.Logger, config *conf.Config, stack *provision_state.S
 
 	defer exec.Command("rm", "-rf", constants.PayloadPath).Run()
 
-	stack.Name, err = GetStackName(config.ServiceName, stack.Environment, true)
+	stack.Name, err = awsutil.GetStackName(config.ServiceName, stack.Environment, true)
 	if err != nil {
 		log.Error("Failed to get stack name", "Error", err)
 		return false

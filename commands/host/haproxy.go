@@ -51,6 +51,7 @@ type (
 		ReqHeaderCaptures []conf.HeaderCapture
 		ResHeaderCaptures []conf.HeaderCapture
 		HTTPS_Redirect    bool
+		HaveELB           bool
 	}
 
 	hapPort struct {
@@ -196,7 +197,7 @@ func hotswap(log log15.Logger, environmentStr, regionStr string, hapStdin HAPStd
 			Crt: environment.HAProxy.SSL.CertPath,
 		}
 		frontendPorts = append(frontendPorts, frontendPort)
-	} else {
+	} else if region.HasELB() {
 		frontendPort := hapPort{
 			Num: constants.HTTPS_TermPort,
 		}
@@ -217,6 +218,7 @@ func hotswap(log log15.Logger, environmentStr, regionStr string, hapStdin HAPStd
 		ReqHeaderCaptures: environment.HAProxy.ReqHeaderCaptures,
 		ResHeaderCaptures: environment.HAProxy.ResHeaderCaptures,
 		HTTPS_Redirect:    environment.HAProxy.SSL.HTTPS_Redirect,
+		HaveELB:           region.HasELB(),
 	}
 
 	if !healthCheckContainers(log, context.HAPStdin) {

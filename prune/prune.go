@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"math"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/adobe-platform/porter/aws/cloudformation"
@@ -23,9 +22,9 @@ import (
 	"github.com/adobe-platform/porter/aws/elb"
 	awsutil "github.com/adobe-platform/porter/aws/util"
 	"github.com/adobe-platform/porter/aws_session"
+	"github.com/adobe-platform/porter/cfn"
 	"github.com/adobe-platform/porter/conf"
 	"github.com/adobe-platform/porter/constants"
-	"github.com/adobe-platform/porter/provision"
 	"github.com/aws/aws-sdk-go/aws/session"
 	cfnlib "github.com/aws/aws-sdk-go/service/cloudformation"
 	"gopkg.in/inconshreveable/log15.v2"
@@ -37,9 +36,9 @@ const mixedStackRetryCount = 6
 func Do(log log15.Logger, config *conf.Config, environment *conf.Environment,
 	keepCount int, elbFilter bool, elbTag string) (success bool) {
 
-	stackName, err := provision.GetStackName(config.ServiceName, environment.Name, false)
+	stackName, err := awsutil.GetStackName(config.ServiceName, environment.Name, false)
 	if err != nil {
-		log.Error("provision.GetStackName", "Error", err)
+		log.Error("awsutil.GetStackName", "Error", err)
 		return
 	}
 
@@ -53,16 +52,12 @@ func Do(log log15.Logger, config *conf.Config, environment *conf.Environment,
 	pruneStackChan := make(chan bool, regionCount)
 
 	for _, region := range environment.Regions {
-		switch region.PrimaryTopology() {
-		case conf.Topology_Inet:
-			go pruneStacks(log, region, environment,
+		if region.PrimaryTopology() == conf.Topology_Inet && region.HasELB() {
+			go pruneStacks(log, config, environment, region,
 				stackName, keepCount, pruneStackChan, elbFilter, elbTag)
-		case conf.Topology_Worker:
-			go pruneStacks(log, region, environment,
+		} else {
+			go pruneStacks(log, config, environment, region,
 				stackName, keepCount+1, pruneStackChan, false, elbTag)
-		default:
-			log.Error("Unsupported topology")
-			return
 		}
 	}
 
@@ -83,9 +78,9 @@ func Do(log log15.Logger, config *conf.Config, environment *conf.Environment,
 	return
 }
 
-func pruneStacks(log log15.Logger, region *conf.Region,
-	environment *conf.Environment, stackName string, keepCount int,
-	pruneStackChan chan bool, elbFilter bool, elbTag string) {
+func pruneStacks(log log15.Logger, config *conf.Config,
+	environment *conf.Environment, region *conf.Region, stackName string,
+	keepCount int, pruneStackChan chan bool, elbFilter bool, elbTag string) {
 
 	log = log.New("Region", region.Name)
 
@@ -98,48 +93,11 @@ func pruneStacks(log log15.Logger, region *conf.Region,
 	roleSession := aws_session.STS(region.Name, roleARN, constants.StackCreationTimeout())
 	cfnClient := cloudformation.New(roleSession)
 
-	//filter stacks based on StackName for a given service
-	stackList := make([]*cfnlib.Stack, 0)
-	var nextToken *string
-
-	for {
-
-		describeStackInput := &cfnlib.DescribeStacksInput{
-			NextToken: nextToken,
-		}
-
-		//get all stacks
-		describeStackOutput, err := cfnClient.DescribeStacks(describeStackInput)
-		if err != nil {
-			log.Error("DescribeStack", "Error", err)
-			pruneStackChan <- false
-			return
-		}
-
-		if describeStackOutput == nil {
-			log.Error("DescribeStack response is nil")
-			pruneStackChan <- false
-			return
-		}
-
-		for _, stack := range describeStackOutput.Stacks {
-			if stack != nil && strings.HasPrefix(*stack.StackName, stackName) {
-				switch *stack.StackStatus {
-				case "CREATE_COMPLETE",
-					"UPDATE_COMPLETE",
-					"ROLLBACK_COMPLETE":
-					stackList = append(stackList, stack)
-					log.Info("Found stack", "StackName", *stack.StackName)
-				}
-			}
-		}
-
-		nextToken = describeStackOutput.NextToken
-		if nextToken == nil {
-			break
-		} else {
-			log.Debug("DescribeStacks", "NextToken", *nextToken)
-		}
+	stackList, getStacksSuccess := awsutil.GetStacks(log, config, environment,
+		cfnClient, nil, cfn.PrunableStatus)
+	if !getStacksSuccess {
+		pruneStackChan <- false
+		return
 	}
 
 	var pruneList []*cfnlib.Stack

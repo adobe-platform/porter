@@ -291,6 +291,8 @@ func (recv *Config) SetDefaults() {
 				}
 			}
 
+			// for the most part legacy behavior of looping through the ELB list
+			// is still supported. copy newer-style config into older-style
 			if region.ELB != "" {
 				if region.ELBs == nil {
 					region.ELBs = make([]*ELB, 0)
@@ -298,6 +300,12 @@ func (recv *Config) SetDefaults() {
 				region.ELBs = append(region.ELBs, &ELB{
 					Name: region.ELB,
 				})
+			}
+
+			// support legacy behavior but ensure region.HasELB() works as
+			// intended
+			if region.ELB == "" && len(region.ELBs) > 0 {
+				region.ELB = region.ELBs[0].Name
 			}
 
 			if len(region.Containers) == 0 {

@@ -19,6 +19,7 @@ import (
 	"os"
 	"time"
 
+	awsutil "github.com/adobe-platform/porter/aws/util"
 	"github.com/adobe-platform/porter/aws_session"
 	"github.com/adobe-platform/porter/cfn"
 	"github.com/adobe-platform/porter/conf"
@@ -30,6 +31,7 @@ import (
 	"github.com/adobe-platform/porter/util"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/aws/aws-sdk-go/service/sqs"
@@ -135,7 +137,7 @@ func ProvisionOrHotswapStack(env string) (success bool) {
 
 			go func(environment *conf.Environment, region *conf.Region) {
 
-				if hotswapData, ok := checkShouldHotswapRegion(log, environment, region); ok {
+				if hotswapData, ok := checkShouldHotswapRegion(log, config, environment, region); ok {
 
 					hotswapChan <- hotswapData
 				} else {
@@ -193,8 +195,8 @@ func ProvisionOrHotswapStack(env string) (success bool) {
 	return
 }
 
-func checkShouldHotswapRegion(log log15.Logger, environment *conf.Environment,
-	region *conf.Region) (hotswapData hotswapStruct, success bool) {
+func checkShouldHotswapRegion(log log15.Logger, config *conf.Config,
+	environment *conf.Environment, region *conf.Region) (hotswapData hotswapStruct, success bool) {
 
 	log = log.New("Region", region.Name)
 
@@ -202,8 +204,15 @@ func checkShouldHotswapRegion(log log15.Logger, environment *conf.Environment,
 	defer log.Debug("checkShouldHotswapRegion END")
 	log.Info("Checking if this region is eligible for hot swap")
 
-	hotswapData.shouldHotswap = true
 	hotswapData.region = region.Name
+
+	if len(region.ELBs) > 1 {
+		success = true
+		return
+	}
+
+	// set true until we find out otherwise
+	hotswapData.shouldHotswap = true
 
 	roleARN, err := environment.GetRoleARN(region.Name)
 	if err != nil {
@@ -213,19 +222,22 @@ func checkShouldHotswapRegion(log log15.Logger, environment *conf.Environment,
 
 	roleSession := aws_session.STS(region.Name, roleARN, 0)
 
+	asgClient := autoscaling.New(roleSession)
 	elbClient := elb.New(roleSession)
 	cfnClient := cloudformation.New(roleSession)
 
-elbLoop:
-	for _, rELB := range region.ELBs {
-		elbName := rELB.Name
+	var stackId *string
 
-		log := log.New("LoadBalancerName", elbName)
+	if region.HasELB() {
+
+		elbName := region.ELBs[0].Name
+
+		log = log.New("LoadBalancerName", elbName)
 
 		var tagDescriptions []*elb.TagDescription
 
 		retryMsg := func(i int) { log.Warn("elb:DescribeTags retrying", "Count", i) }
-		if !util.SuccessRetryer(7, retryMsg, func() bool {
+		if !util.SuccessRetryer(3, retryMsg, func() bool {
 
 			describeTagsInput := &elb.DescribeTagsInput{
 				LoadBalancerNames: []*string{aws.String(elbName)},
@@ -246,10 +258,10 @@ elbLoop:
 			return
 		}
 
-		for _, tagDescription := range tagDescriptions {
+		var foundStackId, foundPorterVersion bool
 
-			var foundStackId bool
-			var foundPorterVersion bool
+	tagLoop:
+		for _, tagDescription := range tagDescriptions {
 
 			for _, tag := range tagDescription.Tags {
 				if tag.Key == nil {
@@ -262,58 +274,9 @@ elbLoop:
 
 					log.Info("Found ELB tag of currently promoted stack. Getting stack info")
 
-					hotswapData.stackId = *tag.Value
+					stackId = tag.Value
 
-					describeStacksInput := &cloudformation.DescribeStacksInput{
-						StackName: tag.Value,
-					}
-					var describeStacksOutput *cloudformation.DescribeStacksOutput
-
-					log.Info("cloudformation:DescribeStacks")
-					retryMsg := func(i int) { log.Warn("cloudformation:DescribeStacks retrying", "Count", i) }
-					if !util.SuccessRetryer(7, retryMsg, func() bool {
-						describeStacksOutput, err = cfnClient.DescribeStacks(describeStacksInput)
-						if err != nil {
-							log.Error("cloudformation:DescribeStacks", "Error", err)
-							return false
-						}
-						if len(describeStacksOutput.Stacks) != 1 {
-							log.Error("len(describeStacksOutput.Stacks != 1)")
-							return false
-						}
-						return true
-					}) {
-						log.Crit("Failed to cloudformation:DescribeStacks")
-						return
-					}
-
-					stack := describeStacksOutput.Stacks[0]
-
-					hotswapData.stackStatus = *stack.StackStatus
-					hotswapData.stackName = *stack.StackName
-					log.Info("DescribeStacks output",
-						"StackName", hotswapData.stackName,
-						"StackId", hotswapData.stackId)
-
-					creationTime := *stack.CreationTime
-					hotswapCutoffTime := creationTime.Add(constants.InfrastructureTTL)
-					now := time.Now()
-
-					log.Info("Times",
-						"CreationTime", creationTime.Format(time.UnixDate),
-						"HotswapCutoffTime", hotswapCutoffTime.Format(time.UnixDate),
-						"Now", now.Format(time.UnixDate))
-
-					if now.After(hotswapCutoffTime) {
-
-						log.Info("Region is NOT eligible for hot swap. Cutoff time exceeded")
-						hotswapData.shouldHotswap = false
-					} else {
-
-						log.Info("Region is eligible for hot swap")
-					}
-
-				case constants.PorterVersion:
+				case constants.PorterVersionTag:
 					foundPorterVersion = true
 
 					if *tag.Value != constants.Version {
@@ -321,17 +284,168 @@ elbLoop:
 							"porter_deployed_version", *tag.Value)
 
 						hotswapData.shouldHotswap = false
+						success = true
+						return
 					}
 				}
 
 				if foundStackId && foundPorterVersion {
-					continue elbLoop
+					break tagLoop
 				}
 			}
+		}
 
+		if !foundStackId || !foundPorterVersion {
 			log.Info("ELB missing required tags to determine hot swap eligibility")
 			hotswapData.shouldHotswap = false
-			break elbLoop
+			success = true
+			return
+		}
+	}
+
+	// stackId may be null in which case we're going to retrieve all stacks and
+	// use the newest one to hot swap. it's important to support (1) the use of
+	// an ELB with the possibility of older stacks being promoted
+	// (active/passive setup), and (2) no ELB in which case all we can do is use
+	// the most recent stack.
+	stackList, getStacksSuccess := awsutil.GetStacks(log, config, environment,
+		cfnClient, stackId, cfn.CheckHotswapStatus)
+	if !getStacksSuccess {
+		return
+	}
+
+	if len(stackList) == 0 {
+		hotswapData.shouldHotswap = false
+		success = true
+		return
+	}
+
+	stack := stackList[0]
+
+	log = log.New("StackName", *stack.StackName)
+
+	hotswapData.stackStatus = *stack.StackStatus
+	hotswapData.stackName = *stack.StackName
+	hotswapData.stackId = *stack.StackId
+	log.Info("DescribeStacks output", "StackId", hotswapData.stackId)
+
+	creationTime := *stack.CreationTime
+	hotswapCutoffTime := creationTime.Add(constants.InfrastructureTTL)
+	now := time.Now()
+
+	log.Info("Times",
+		"CreationTime", creationTime.Format(time.UnixDate),
+		"HotswapCutoffTime", hotswapCutoffTime.Format(time.UnixDate),
+		"Now", now.Format(time.UnixDate))
+
+	if now.After(hotswapCutoffTime) {
+
+		log.Info("Region is NOT eligible for hot swap. Cutoff time exceeded")
+		hotswapData.shouldHotswap = false
+		success = true
+		return
+	} else {
+
+		log.Info("Region is eligible for hot swap")
+	}
+
+	// in the case we don't have an ELB then we need to get the stack's ASG
+	// which was tagged w/ porter version to do the last determination of
+	// hotswap eligibility
+	if !region.HasELB() {
+
+		describeStackResourcesInput := &cloudformation.DescribeStackResourcesInput{
+			StackName: stack.StackName,
+		}
+		var describeStackResourcesOutput *cloudformation.DescribeStackResourcesOutput
+
+		retryMsg := func(i int) { log.Warn("cloudformation:DescribeStackResources retrying", "Count", i) }
+		if !util.SuccessRetryer(3, retryMsg, func() bool {
+
+			log.Info("cloudformation:DescribeStackResources")
+			describeStackResourcesOutput, err = cfnClient.DescribeStackResources(describeStackResourcesInput)
+			if err != nil {
+				log.Error("cloudformation:DescribeStackResources", "Error", err)
+				return false
+			}
+
+			return true
+		}) {
+			log.Error("Failed to cloudformation:DescribeStackResources")
+			return
+		}
+
+		var asgName *string
+		for _, resource := range describeStackResourcesOutput.StackResources {
+			if *resource.ResourceType == cfn.AutoScaling_AutoScalingGroup {
+				asgName = resource.PhysicalResourceId
+				break
+			}
+		}
+
+		if asgName == nil {
+			log.Error("could not find a " + cfn.AutoScaling_AutoScalingGroup + " in the stack")
+			return
+		}
+
+		log = log.New("ASGName", *asgName)
+
+		var describeTagsOutput *autoscaling.DescribeTagsOutput
+
+		retryMsg = func(i int) { log.Warn("autoscaling:DescribeTags retrying", "Count", i) }
+		if !util.SuccessRetryer(3, retryMsg, func() bool {
+
+			describeTagsInput := &autoscaling.DescribeTagsInput{
+				Filters: []*autoscaling.Filter{
+					{
+						Name:   aws.String("auto-scaling-group"),
+						Values: []*string{asgName},
+					},
+				},
+			}
+
+			log.Info("autoscaling:DescribeTags")
+			describeTagsOutput, err = asgClient.DescribeTags(describeTagsInput)
+			if err != nil {
+				log.Error("autoscaling:DescribeTags", "Error", err)
+				return false
+			}
+
+			return true
+		}) {
+			log.Crit("Failed to autoscaling:DescribeTags")
+			return
+		}
+
+		var foundPorterVersion bool
+
+		for _, tag := range describeTagsOutput.Tags {
+			if tag.Key == nil {
+				continue
+			}
+
+			log.Debug("Tag", "Key", *tag.Key, "Value", *tag.Value)
+
+			if *tag.Key == constants.PorterVersionTag {
+				foundPorterVersion = true
+
+				if *tag.Value != constants.Version {
+					log.Info("porter version mismatch will skip hot swap",
+						"porter_deployed_version", *tag.Value)
+
+					hotswapData.shouldHotswap = false
+					success = true
+					return
+				}
+				break
+			}
+		}
+
+		if !foundPorterVersion {
+			log.Info("ASG missing required tags to determine hot swap eligibility")
+			hotswapData.shouldHotswap = false
+			success = true
+			return
 		}
 	}
 
@@ -475,7 +589,7 @@ func hotswapStackPoll(log log15.Logger, environment *conf.Environment,
 
 		log.Info("sqs:ReceiveMessage")
 		retryMsg := func(i int) { log.Warn("sqs:ReceiveMessage retrying", "Count", i) }
-		if !util.SuccessRetryer(7, retryMsg, func() bool {
+		if !util.SuccessRetryer(3, retryMsg, func() bool {
 			receiveMessageOutput, err = sqsClient.ReceiveMessage(receiveMessageInput)
 			if err != nil {
 				log.Error("sqs:ReceiveMessage", "Error", err)
@@ -526,7 +640,7 @@ func getQueueUrl(log log15.Logger, roleSession *session.Session,
 	log.Info(fmt.Sprintf("Getting ASG logical name and %s URL", constants.SignalQueue))
 	log.Info("cloudformation:DescribeStackResources")
 	retryMsg := func(i int) { log.Warn("cloudformation:DescribeStackResources retrying", "Count", i) }
-	if !util.SuccessRetryer(7, retryMsg, func() bool {
+	if !util.SuccessRetryer(3, retryMsg, func() bool {
 
 		describeStackResourcesOutput, err = cfnClient.DescribeStackResources(describeStackResourcesInput)
 		if err != nil {
@@ -715,7 +829,7 @@ stackEventPoll:
 
 	cfnTemplate.ParseResources()
 
-	if region.PrimaryTopology() == conf.Topology_Inet {
+	if region.PrimaryTopology() == conf.Topology_Inet && region.HasELB() {
 
 		elbLogicalId, err = cfnTemplate.GetResourceName(cfn.ElasticLoadBalancing_LoadBalancer)
 		if err != nil {
@@ -730,7 +844,7 @@ stackEventPoll:
 
 		//Once stack provisioned get the provisoned elb
 		retryMsg := func(i int) { log.Warn("cloudformation:DescribeStackResource retrying", "Count", i) }
-		if !util.SuccessRetryer(7, retryMsg, func() bool {
+		if !util.SuccessRetryer(3, retryMsg, func() bool {
 			describeStackResourceOutput, err = cfnClient.DescribeStackResource(describeStackResourceInput)
 			if err != nil {
 				log.Error("cloudformation:DescribeStackResource", "Error", err)

@@ -106,7 +106,7 @@ const (
 	PorterWaitConditionHandleLogicalIdTag = "porter:aws:cloudformation:waitconditionhandle:logical-id"
 	PorterEnvironmentTag                  = "porter-config-environment"
 	PorterServiceNameTag                  = "porter-service-name"
-	PorterVersion                         = "porter-version"
+	PorterVersionTag                      = "porter-version"
 
 	// This is different than AwsCfnStackIdTag. Porter tags the elb into which a
 	// stack is promoted. This is different than the use of AwsCfnStackIdTag
@@ -140,6 +140,7 @@ const (
 	MetadataAsLc = "as-lc-sg"
 
 	ElbSgLogicalName = "InetToElb"
+	AsgSgLogicalName = "InetToAsg"
 
 	// http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-hup.html#cfn-hup-config-file
 	CfnHupPollIntervalMinutes = 1

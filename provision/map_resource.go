@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	awsutil "github.com/adobe-platform/porter/aws/util"
 	"github.com/adobe-platform/porter/cfn"
 	"github.com/adobe-platform/porter/cfn_template"
 	"github.com/adobe-platform/porter/conf"
@@ -372,6 +373,11 @@ func setLoadBalancerNames(recv *stackCreator, template *cfn.Template, resource m
 
 		loadBalancerNames []interface{}
 	)
+
+	if !recv.region.HasELB() {
+		success = true
+		return
+	}
 
 	if props, ok = resource["Properties"].(map[string]interface{}); !ok {
 		props = make(map[string]interface{})
@@ -756,6 +762,11 @@ func addAutoScaleGroupTags(recv *stackCreator, template *cfn.Template, resource 
 			"Value":             recv.config.ServiceName,
 			"PropagateAtLaunch": true,
 		},
+		map[string]interface{}{
+			"Key":               constants.PorterVersionTag,
+			"Value":             constants.Version,
+			"PropagateAtLaunch": false, // only needed on the ASG for hot swap
+		},
 	}
 
 	waitConditionHandle, err := template.GetResourceName(cfn.CloudFormation_WaitConditionHandle)
@@ -787,7 +798,7 @@ func addAutoScaleGroupTags(recv *stackCreator, template *cfn.Template, resource 
 
 	recv.log.Info("Adding tags to AWS::AutoScaling::AutoScalingGroup")
 
-	nameTagValue, err := GetStackName(recv.config.ServiceName, recv.environment.Name, false)
+	nameTagValue, err := awsutil.GetStackName(recv.config.ServiceName, recv.environment.Name, false)
 	if err != nil {
 		recv.log.Error("Failed to get stack name", "Error", err)
 	} else {
