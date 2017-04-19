@@ -40,3 +40,4 @@ Any other reverse engineering, decompiling or use of utilities or tools to
 trace, probe, or reveal Adobe software and trade secrets embodied therein, is
 expressly prohibited. Adobe software contains valuable trade secrets and employs
 methods protected by patents of Adobe Systems Incorporated.
+
