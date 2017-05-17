@@ -52,6 +52,12 @@ type (
 		ResHeaderCaptures []conf.HeaderCapture
 		HTTPS_Redirect    bool
 		HaveELB           bool
+
+		TimeoutClient        uint64
+		TimeoutServer        uint64
+		TimeoutTunnel        uint64
+		TimeoutHttpRequest   uint64
+		TimeoutHttpKeepAlive uint64
 	}
 
 	hapPort struct {
@@ -205,20 +211,25 @@ func hotswap(log log15.Logger, environmentStr, regionStr string, hapStdin HAPStd
 	}
 
 	context := haProxyConfigContext{
-		ServiceName:       config.ServiceName,
-		FrontEndPorts:     frontendPorts,
-		HAPStdin:          hapStdin,
-		StatsUsername:     config.HAProxyStatsUsername,
-		StatsPassword:     config.HAProxyStatsPassword,
-		StatsUri:          constants.HAProxyStatsUri,
-		IpBlacklistPath:   ipBlacklistPath,
-		Log:               (environment.HAProxy.Log == nil || *environment.HAProxy.Log == true),
-		Compression:       environment.HAProxy.Compression,
-		CompressTypes:     strings.Join(environment.HAProxy.CompressTypes, " "),
-		ReqHeaderCaptures: environment.HAProxy.ReqHeaderCaptures,
-		ResHeaderCaptures: environment.HAProxy.ResHeaderCaptures,
-		HTTPS_Redirect:    environment.HAProxy.SSL.HTTPS_Redirect,
-		HaveELB:           region.HasELB(),
+		ServiceName:          config.ServiceName,
+		FrontEndPorts:        frontendPorts,
+		HAPStdin:             hapStdin,
+		StatsUsername:        config.HAProxyStatsUsername,
+		StatsPassword:        config.HAProxyStatsPassword,
+		StatsUri:             constants.HAProxyStatsUri,
+		IpBlacklistPath:      ipBlacklistPath,
+		Log:                  (environment.HAProxy.Log == nil || *environment.HAProxy.Log == true),
+		Compression:          environment.HAProxy.Compression,
+		CompressTypes:        strings.Join(environment.HAProxy.CompressTypes, " "),
+		ReqHeaderCaptures:    environment.HAProxy.ReqHeaderCaptures,
+		ResHeaderCaptures:    environment.HAProxy.ResHeaderCaptures,
+		HTTPS_Redirect:       environment.HAProxy.SSL.HTTPS_Redirect,
+		HaveELB:              region.HasELB(),
+		TimeoutClient:        uint64(environment.HAProxy.Timeout.Client_.Seconds() * 1000),
+		TimeoutServer:        uint64(environment.HAProxy.Timeout.Server_.Seconds() * 1000),
+		TimeoutTunnel:        uint64(environment.HAProxy.Timeout.Tunnel_.Seconds() * 1000),
+		TimeoutHttpRequest:   uint64(environment.HAProxy.Timeout.HttpRequest_.Seconds() * 1000),
+		TimeoutHttpKeepAlive: uint64(environment.HAProxy.Timeout.HttpKeepAlive_.Seconds() * 1000),
 	}
 
 	if !healthCheckContainers(log, context.HAPStdin) {

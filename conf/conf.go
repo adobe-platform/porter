@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"time"
 
 	"github.com/adobe-platform/porter/constants"
 	"github.com/adobe-platform/porter/stdin"
@@ -65,8 +66,8 @@ type (
 		Slack          Slack             `yaml:"slack"`
 		Hooks          map[string][]Hook `yaml:"hooks"`
 
-		HAProxyStatsUsername string `yaml:"haproxy_stats_username"`
-		HAProxyStatsPassword string `yaml:"haproxy_stats_password"`
+		HAProxyStatsUsername string
+		HAProxyStatsPassword string
 	}
 
 	Container struct {
@@ -122,6 +123,20 @@ type (
 		Compression       bool            `yaml:"compression"`
 		CompressTypes     []string        `yaml:"compress_types"`
 		SSL               SSL             `yaml:"ssl"`
+		Timeout           Timeout         `yaml:"timeout"`
+	}
+
+	Timeout struct {
+		Client         *string `yaml:"client"`
+		Client_        time.Duration
+		Server         *string `yaml:"server"`
+		Server_        time.Duration
+		Tunnel         *string `yaml:"tunnel"`
+		Tunnel_        time.Duration
+		HttpRequest    *string `yaml:"http_request"`
+		HttpRequest_   time.Duration
+		HttpKeepAlive  *string `yaml:"http_keep_alive"`
+		HttpKeepAlive_ time.Duration
 	}
 
 	SSL struct {
@@ -250,6 +265,29 @@ func (recv *Config) SetDefaults() {
 
 		if env.HAProxy.SSL.CertDirectory == "" {
 			env.HAProxy.SSL.CertDirectory = "/etc/ssl/certs/"
+		}
+
+		if env.HAProxy.Timeout.Client == nil || *env.HAProxy.Timeout.Client == "" {
+			env.HAProxy.Timeout.Client = new(string)
+			*env.HAProxy.Timeout.Client = "7s"
+		}
+
+		if env.HAProxy.Timeout.Server == nil || *env.HAProxy.Timeout.Server == "" {
+			env.HAProxy.Timeout.Server = env.HAProxy.Timeout.Client
+		}
+
+		if env.HAProxy.Timeout.Tunnel == nil || *env.HAProxy.Timeout.Tunnel == "" {
+			env.HAProxy.Timeout.Tunnel = env.HAProxy.Timeout.Client
+		}
+
+		if env.HAProxy.Timeout.HttpRequest == nil || *env.HAProxy.Timeout.HttpRequest == "" {
+			env.HAProxy.Timeout.HttpRequest = new(string)
+			*env.HAProxy.Timeout.HttpRequest = "4s"
+		}
+
+		if env.HAProxy.Timeout.HttpKeepAlive == nil || *env.HAProxy.Timeout.HttpKeepAlive == "" {
+			env.HAProxy.Timeout.HttpKeepAlive = new(string)
+			*env.HAProxy.Timeout.HttpKeepAlive = "60s"
 		}
 
 		env.HAProxy.SSL.CertPath = filepath.Join(env.HAProxy.SSL.CertDirectory, "porter.pem")

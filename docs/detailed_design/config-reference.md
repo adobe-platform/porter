@@ -27,6 +27,7 @@ For each field the following notation is used
     - [log](#log) (==1?)
     - [compression](#compression) (==1?)
     - [compress_types](#compress_types) (==1?)
+    - [timeout](#timeout)
     - [ssl](#ssl) (==1?)
       - [cert_directory](#cert_directory) (==1?)
       - [pem](#pem) (==?!)
@@ -319,6 +320,41 @@ environments:
   haproxy:
     compress_types: text/plain text/html application/json
 ```
+
+### timeout
+
+Set HAProxy timeouts.
+
+**Warning: misconfigured timeouts can have an adverse effect on your service and
+may make you more vulnurable to slowloris and DoS attacks. Change these at your
+own risk**
+
+The values in the following example are also the defaults if unset:
+
+```yaml
+environments:
+- name: dev
+  haproxy:
+    timeout:
+      client: 7s
+      server: 7s
+      tunnel: 7s
+      http_request: 4s
+      http_keep_alive: 60s
+```
+
+Durations are parsed by https://golang.org/pkg/time/#ParseDuration
+
+`client` must equal `server`
+
+`server` equals `client` if `server` is left unset
+
+`tunnel` equals `client` if `tunnel` is left unset
+
+Disable any timeout by setting the value to `0`
+
+Refer to the [HAProxy docs](https://cbonte.github.io/haproxy-dconv/1.5/configuration.html#4.2-timeout%20client)
+for what these timeouts mean
 
 ### ssl
 
