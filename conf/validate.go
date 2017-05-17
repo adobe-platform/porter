@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/adobe-platform/porter/constants"
 )
@@ -188,7 +189,7 @@ func (recv *Config) ValidateEnvironments() error {
 
 		if environment.HAProxy.UsingSSL() {
 			if environment.HAProxy.SSL.Pem == nil || environment.HAProxy.SSL.Pem.SecretsExecName == "" {
-				return errors.New("haproxy ssl common_name defined but no pem field with a valid secrets_exec_name was defined")
+				return errors.New("haproxy ssl pem defined but no pem secrets_exec_name was defined")
 			}
 
 			if environment.HAProxy.SSL.HTTPS_Only {
@@ -199,6 +200,31 @@ func (recv *Config) ValidateEnvironments() error {
 					}
 				}
 			}
+		}
+
+		var err error
+		if environment.HAProxy.Timeout.Client_, err = time.ParseDuration(*environment.HAProxy.Timeout.Client); err != nil {
+			return errors.New("ParseDuration(timeout_client) " + err.Error())
+		}
+
+		if environment.HAProxy.Timeout.Server_, err = time.ParseDuration(*environment.HAProxy.Timeout.Server); err != nil {
+			return errors.New("ParseDuration(timeout_server) " + err.Error())
+		}
+
+		if environment.HAProxy.Timeout.Tunnel_, err = time.ParseDuration(*environment.HAProxy.Timeout.Tunnel); err != nil {
+			return errors.New("ParseDuration(timeout_tunnel) " + err.Error())
+		}
+
+		if environment.HAProxy.Timeout.HttpRequest_, err = time.ParseDuration(*environment.HAProxy.Timeout.HttpRequest); err != nil {
+			return errors.New("ParseDuration(timeout_http_request) " + err.Error())
+		}
+
+		if environment.HAProxy.Timeout.HttpKeepAlive_, err = time.ParseDuration(*environment.HAProxy.Timeout.HttpKeepAlive); err != nil {
+			return errors.New("ParseDuration(timeout_http_keep_alive) " + err.Error())
+		}
+
+		if environment.HAProxy.Timeout.Client_ != environment.HAProxy.Timeout.Server_ {
+			return errors.New("timeout_client != timeout_server")
 		}
 
 		if environment.Hotswap {

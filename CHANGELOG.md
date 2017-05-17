@@ -1,5 +1,13 @@
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+### v4.8.0
+
+- HAProxy `timeout client` is configurable
+- HAProxy `timeout server` is configurable
+- HAProxy `timeout tunnel` is configurable
+- HAProxy `timeout http-request` is configurable
+- HAProxy `timeout http-keep-alive` is configurable
+
 ### v4.7.0
 
 - build porter with Go 1.8.1

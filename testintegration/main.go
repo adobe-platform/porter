@@ -156,7 +156,7 @@ func main() {
 	http.HandleFunc("/logrotate", TestLogRotate)
 
 	fmt.Println("listening on " + port)
-	http.ListenAndServe(":"+ port, nil)
+	http.ListenAndServe(":"+port, nil)
 }
 
 type Garbage struct {
