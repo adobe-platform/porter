@@ -1,5 +1,9 @@
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+### v4.8.1
+
+- Replace deprecated sysctl setting
+
 ### v4.8.0
 
 - HAProxy `timeout client` is configurable
