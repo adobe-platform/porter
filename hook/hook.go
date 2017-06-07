@@ -243,7 +243,7 @@ func runArgsFactory(log log15.Logger, config *conf.Config, workingDir string) []
 	runArgs := []string{
 		"run",
 		"--rm",
-		"-v", fmt.Sprintf("%s:%s", workingDir, "/repo_root"),
+		"-v", fmt.Sprintf("%s:%s", workingDir, "/repo_root:z"),
 		"-e", "PORTER_SERVICE_NAME=" + config.ServiceName,
 		"-e", "DOCKER_ENV_FILE=" + constants.EnvFile,
 		"-e", "HAPROXY_STATS_USERNAME=" + config.HAProxyStatsUsername,
