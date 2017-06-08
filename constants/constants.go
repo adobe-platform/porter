@@ -186,6 +186,7 @@ func init() {
 	AwsRegions = map[string]interface{}{
 		"ap-northeast-1": nil,
 		"ap-northeast-2": nil,
+		"ap-south-1":     nil,
 		"ap-southeast-1": nil,
 		"ap-southeast-2": nil,
 		"eu-central-1":   nil,
