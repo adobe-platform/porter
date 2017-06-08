@@ -2,11 +2,12 @@
 
 ### v4.8.2
 
-- Allow selinux hosts to share the mounted volumes with the containers.
+- allow selinux hosts to share the mounted volumes with the containers.
+- allow ap-south-1 region
 
 ### v4.8.1
 
-- Replace deprecated sysctl setting
+- replace deprecated sysctl setting
 
 ### v4.8.0
 
