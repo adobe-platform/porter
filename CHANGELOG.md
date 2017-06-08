@@ -1,5 +1,9 @@
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+### v4.8.2
+
+- Allow selinux hosts to share the mounted volumes with the containers.
+
 ### v4.8.1
 
 - Replace deprecated sysctl setting
