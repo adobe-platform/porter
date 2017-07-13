@@ -73,7 +73,15 @@ STACK_CREATION_ON_FAILURE
     http://docs.aws.amazon.com/AWSCloudFormation/latest/APIReference/API_CreateStack.html
 
 DEV_MODE
-    Grease the wheels on development`
+
+    Grease the wheels on development
+
+VOLUME_FLAG
+    
+    By default the repo's root is volume mapped to /repo_root with no volume mounting options.
+    This environment variable now allows the volume mount to be either shared as:
+        a. Read only when VOLUME_FLAG is set to 'ro'.
+        b. SELinux write compatible with labels preserved when VOLUME_FLAG is set to 'z' `
 
 var Debug cli.Command
 
