@@ -81,7 +81,7 @@ VOLUME_FLAG
     By default the repo's root is volume mapped to /repo_root with no volume mounting options.
     This environment variable now allows the volume mount to be either shared as:
         a. Read only when VOLUME_FLAG is set to 'ro'.
-        b. SELinux write compatible with labels preserved when VOLUME_FLAG is set to 'z' `
+        b. SELinux write compatible with labels preserved when VOLUME_FLAG is set to 'z'`
 
 var Debug cli.Command
 

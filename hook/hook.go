@@ -246,12 +246,11 @@ func runArgsFactory(log log15.Logger, config *conf.Config, workingDir string) []
 
 	// Adding volume flag to either allow read only or to maintain same volume flags
 	switch volumeFlag {
-	case "z", "ro":
+	case "", "z", "ro":
 	default:
-		log.Info("Setting the default volume flag as empty.")
-		volumeFlag = ""
+    	log.Warn("invalid volume flag set. resetting to \"\"", "volumeFlag", volumeFlag)
+    	volumeFlag = ""
 	}
-
 	if volumeFlag != "" {
 		mountedVolume = fmt.Sprintf("%s:%s", mountedVolume, volumeFlag)
 	}
