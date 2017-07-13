@@ -240,7 +240,7 @@ func ExecuteWithRunCapture(log log15.Logger,
 }
 
 func runArgsFactory(log log15.Logger, config *conf.Config, workingDir string) []string {
-	var mountedVolume, volumeFlag string	
+	var mountedVolume, volumeFlag string
 	mountedVolume = "/repo_root"
 	volumeFlag = os.Getenv(constants.EnvVolumeFlag)
 
