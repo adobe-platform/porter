@@ -253,9 +253,10 @@ func runArgsFactory(log log15.Logger, config *conf.Config, workingDir string) []
 	}
 
 	if volumeFlag != "" {
-		mountedVolume = fmt.Sprintf("%s:%s", mountedVolume, workingDir)
+		mountedVolume = fmt.Sprintf("%s:%s", mountedVolume, volumeFlag)
 	}
 
+	log.Info(fmt.Sprintf("The mounted volume is %s", mountedVolume))
 	runArgs := []string{
 		"run",
 		"--rm",
