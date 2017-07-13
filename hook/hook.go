@@ -248,8 +248,8 @@ func runArgsFactory(log log15.Logger, config *conf.Config, workingDir string) []
 	switch volumeFlag {
 	case "", "z", "ro":
 	default:
-    	log.Warn("invalid volume flag set. resetting to \"\"", "volumeFlag", volumeFlag)
-    	volumeFlag = ""
+		log.Warn("invalid volume flag set. resetting to \"\"", "volumeFlag", volumeFlag)
+		volumeFlag = ""
 	}
 	if volumeFlag != "" {
 		mountedVolume = fmt.Sprintf("%s:%s", mountedVolume, volumeFlag)
