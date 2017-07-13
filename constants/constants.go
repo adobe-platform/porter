@@ -39,6 +39,7 @@ const (
 	EnvStackCreationPollInterval = "STACK_CREATION_POLL_INTERVAL"
 	EnvDevMode                   = "DEV_MODE"
 	EnvStackCreationOnFailure    = "STACK_CREATION_ON_FAILURE"
+	EnvVolumeFlag                = "VOLUME_FLAG"
 
 	// Registry-based deployment
 	EnvDockerRegistry         = "DOCKER_REGISTRY"

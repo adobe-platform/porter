@@ -240,10 +240,26 @@ func ExecuteWithRunCapture(log log15.Logger,
 }
 
 func runArgsFactory(log log15.Logger, config *conf.Config, workingDir string) []string {
+	var mountedVolume, volumeFlag string
+	mountedVolume = "/repo_root"
+	volumeFlag = os.Getenv(constants.EnvVolumeFlag)
+
+	// Adding volume flag to either allow read only or to maintain same volume flags
+	switch volumeFlag {
+	case "", "z", "ro":
+	default:
+		log.Warn("invalid volume flag set. resetting to \"\"", "volumeFlag", volumeFlag)
+		volumeFlag = ""
+	}
+	if volumeFlag != "" {
+		mountedVolume = fmt.Sprintf("%s:%s", mountedVolume, volumeFlag)
+	}
+
+	log.Info(fmt.Sprintf("The mounted volume is %s", mountedVolume))
 	runArgs := []string{
 		"run",
 		"--rm",
-		"-v", fmt.Sprintf("%s:%s", workingDir, "/repo_root:z"),
+		"-v", fmt.Sprintf("%s:%s", workingDir, mountedVolume),
 		"-e", "PORTER_SERVICE_NAME=" + config.ServiceName,
 		"-e", "DOCKER_ENV_FILE=" + constants.EnvFile,
 		"-e", "HAPROXY_STATS_USERNAME=" + config.HAProxyStatsUsername,

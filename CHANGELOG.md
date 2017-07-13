@@ -1,5 +1,9 @@
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+### v4.8.3
+
+- alowing hosts to share the mounted volumes as either read only or as SELinux write compatiable volume.
+
 ### v4.8.2
 
 - allow selinux hosts to share the mounted volumes with the containers.
