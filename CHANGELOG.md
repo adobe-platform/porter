@@ -2,7 +2,7 @@
 
 ### v4.8.3
 
-- alowing hosts to share the mounted volumes as either read only or as SELinux write compatiable volume.
+- enabling fix for volume mounts on SELinux by setting the environment variable `VOLUME_FLAG`
 
 ### v4.8.2
 
