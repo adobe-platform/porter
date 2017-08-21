@@ -124,6 +124,7 @@ type (
 		CompressTypes     []string        `yaml:"compress_types"`
 		SSL               SSL             `yaml:"ssl"`
 		Timeout           Timeout         `yaml:"timeout"`
+		MaxConn           uint64          `yaml:"maxconn"`
 	}
 
 	Timeout struct {
@@ -265,6 +266,10 @@ func (recv *Config) SetDefaults() {
 
 		if env.HAProxy.SSL.CertDirectory == "" {
 			env.HAProxy.SSL.CertDirectory = "/etc/ssl/certs/"
+		}
+
+		if env.HAProxy.MaxConn == 0 {
+			env.HAProxy.MaxConn = 200000
 		}
 
 		if env.HAProxy.Timeout.Client == nil || *env.HAProxy.Timeout.Client == "" {

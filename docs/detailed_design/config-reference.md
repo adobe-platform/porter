@@ -28,6 +28,7 @@ For each field the following notation is used
     - [compression](#compression) (==1?)
     - [compress_types](#compress_types) (==1?)
     - [timeout](#timeout)
+    - [maxconn](#maxconn) (==1?)
     - [ssl](#ssl) (==1?)
       - [cert_directory](#cert_directory) (==1?)
       - [pem](#pem) (==?!)
@@ -355,6 +356,13 @@ Disable any timeout by setting the value to `0`
 
 Refer to the [HAProxy docs](https://cbonte.github.io/haproxy-dconv/1.5/configuration.html#4.2-timeout%20client)
 for what these timeouts mean
+
+### maxconn
+
+[`maxconn`](https://cbonte.github.io/haproxy-dconv/1.5/configuration.html#4-maxconn)
+docs. This sets `maxconn` in the global and defaults sections.
+
+Default: `200000`
 
 ### ssl
 
