@@ -52,6 +52,7 @@ type (
 		ResHeaderCaptures []conf.HeaderCapture
 		HTTPS_Redirect    bool
 		HaveELB           bool
+		MaxConn           uint64
 
 		TimeoutClient        uint64
 		TimeoutServer        uint64
@@ -225,6 +226,7 @@ func hotswap(log log15.Logger, environmentStr, regionStr string, hapStdin HAPStd
 		ResHeaderCaptures:    environment.HAProxy.ResHeaderCaptures,
 		HTTPS_Redirect:       environment.HAProxy.SSL.HTTPS_Redirect,
 		HaveELB:              region.HasELB(),
+		MaxConn:              environment.HAProxy.MaxConn,
 		TimeoutClient:        uint64(environment.HAProxy.Timeout.Client_.Seconds() * 1000),
 		TimeoutServer:        uint64(environment.HAProxy.Timeout.Server_.Seconds() * 1000),
 		TimeoutTunnel:        uint64(environment.HAProxy.Timeout.Tunnel_.Seconds() * 1000),

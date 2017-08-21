@@ -1,5 +1,10 @@
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+### v4.9.0
+
+- HAProxy `maxconn` is configurable
+- fixed issue where `maxconn` wasn't set on the frontend
+
 ### v4.8.3
 
 - enabling fix for volume mounts on SELinux by setting the environment variable `VOLUME_FLAG`
