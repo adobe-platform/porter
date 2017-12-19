@@ -1,4 +1,4 @@
-FROM golang:1.8.1
+FROM golang:1.9.2
 
 ADD . /go/src/github.com/adobe-platform/porter_test
 WORKDIR /go/src/github.com/adobe-platform/porter_test

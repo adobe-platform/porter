@@ -1,5 +1,9 @@
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+### v5.0.0
+
+- upgrade to Go 1.9.2
+
 ### v4.9.0
 
 - HAProxy `maxconn` is configurable
