@@ -3,6 +3,7 @@
 ### v5.0.0
 
 - upgrade to Go 1.9.2
+- default to `--pids-limit=4096`
 
 ### v4.9.0
 

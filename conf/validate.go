@@ -334,6 +334,10 @@ func (recv *Region) ValidateContainers() error {
 			}
 		}
 
+		if container.PidsLimit < -1 {
+			return errors.New("pids_limit less than -1")
+		}
+
 		if containerCount > 1 && !containerNameRegex.MatchString(container.Name) {
 			return errors.New("Invalid container name")
 		}
