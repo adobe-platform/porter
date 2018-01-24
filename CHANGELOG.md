@@ -2,7 +2,7 @@
 
 ### v5.0.0
 
-- upgrade to Go 1.9.2
+- build porter with Go 1.9.2
 - default to `--pids-limit=4096`
 
 ### v4.9.0
@@ -61,7 +61,7 @@
 
 - HAProxy stats endpoint auth is now randomized
 - re-enabled keep-alive between HAProxy and containers
-- building on go 1.8
+- build porter with Go 1.8
 - added STANDARD_IA to secrets and CFN template uploads
 
 ### v4.1.1
@@ -110,7 +110,7 @@
 
 - additional UPDATE steady states allow ASG matching
 - any UPDATE in progress state causes hot swap to fail
-- mac binaries are now built with Go 1.7.3
+- build porter with Go 1.7.3
 - match currently promoted stack's ASG size for provisioning and hot swap
 
 ### v3.0.1

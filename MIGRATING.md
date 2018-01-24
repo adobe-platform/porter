@@ -3,6 +3,12 @@ Migration
 
 Read the [release notes](RELEASE_NOTES.md) for context on these changes.
 
+v4 to v5
+--------
+
+No migration steps are needed unless you hit
+[`pids_limit`](docs/detailed_design/config-reference.md#pids_limit)
+
 v3 to v4
 --------
 
