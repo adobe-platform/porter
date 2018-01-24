@@ -59,7 +59,7 @@ func (recv *PromoteCmd) SubCommands() []cli.Command {
 }
 
 func (recv *PromoteCmd) Execute(args []string) bool {
-	var provisionOutputPath, elbType string
+	var provisionOutputPath, elbTag string
 
 	if len(args) == 1 && args[0] == "--help" {
 		return false
@@ -67,7 +67,7 @@ func (recv *PromoteCmd) Execute(args []string) bool {
 
 	flagSet := flag.NewFlagSet("", flag.ContinueOnError)
 	flagSet.StringVar(&provisionOutputPath, "provision-output", "", "")
-	flagSet.StringVar(&elbType, "elb", "", "")
+	flagSet.StringVar(&elbTag, "elb", "", "")
 	flagSet.Parse(args)
 
 	if provisionOutputPath == "" {
@@ -94,7 +94,7 @@ func (recv *PromoteCmd) Execute(args []string) bool {
 		return true
 	}
 
-	if !doPromote(log, stack, elbType) {
+	if !doPromote(log, stack, elbTag) {
 		os.Exit(1)
 	}
 
