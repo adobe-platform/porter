@@ -2,6 +2,19 @@ See the [CHANGELOG](CHANGELOG.md) for a complete list of changes.
 
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+v5.0
+====
+
+`docker run` now includes a default `--pids-limit=4096` to protect against fork
+bombs
+
+This shouldn't be a breaking change for normal applications but it's possible
+which is why there's a major version bump.
+
+`--pids-limit` can't be disabled but can be increased from the default by
+defining [`pids_limit`](docs/detailed_design/config-reference.md#pids_limit)
+on the `container`
+
 v4.9
 ====
 

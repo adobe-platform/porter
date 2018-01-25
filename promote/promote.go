@@ -29,7 +29,7 @@ const (
 	pollDuration  = 10 * time.Minute
 )
 
-func Promote(log log15.Logger, config *conf.Config, stack *provision_state.Stack, elb string) (success bool) {
+func Promote(log log15.Logger, config *conf.Config, stack *provision_state.Stack, elbTag string) (success bool) {
 
 	successChan := make(chan bool)
 
@@ -38,7 +38,7 @@ func Promote(log log15.Logger, config *conf.Config, stack *provision_state.Stack
 		go func(regionName string, regionState *provision_state.Region) {
 
 			successChan <- promoteService(log, stack.Environment, regionName,
-				regionState, config, elb)
+				regionState, config, elbTag)
 
 		}(regionName, regionState)
 	}

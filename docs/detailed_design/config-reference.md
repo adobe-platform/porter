@@ -63,6 +63,7 @@ For each field the following notation is used
       - [read_only](#read_only) (==1?)
       - [health_check](#health_check) (==1?)
       - [src_env_file](#src_env_file) (==1?)
+      - [pids_limit](#pids_limit) (==1?)
 - [hooks](#hooks) (==1?)
   - pre_pack (==1?)
     - [repo](#repo) (==1!)
@@ -719,6 +720,12 @@ health_check:
 
 See the docs on [container config](container-config.md) for more info on this
 field
+
+### pids_limit
+
+Set `--pids-limit` on the container.
+
+The default is 4096.
 
 ### hooks
 

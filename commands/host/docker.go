@@ -209,6 +209,9 @@ func startContainers(environmentStr, regionStr string) {
 
 			"--net", "porter",
 
+			// prevent fork bombs
+			"--pids-limit", strconv.Itoa(container.PidsLimit),
+
 			// Read in additional variables written during bootstrap
 			"--env-file", constants.EnvFile,
 

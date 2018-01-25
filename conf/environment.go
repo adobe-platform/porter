@@ -17,25 +17,26 @@ import (
 	"time"
 )
 
-func (recv *Environment) GetELBForRegion(reg string, elb string) (string, error) {
+func (recv *Environment) GetELBForRegion(reg string, elbTag string) (string, error) {
 	region, err := recv.GetRegion(reg)
 	if err != nil {
 		return "", err
 	}
 
-	// always return this if defined. it supersedes the old scheme
-	if region.ELB != "" {
-		return region.ELB, nil
-	}
-
 	// backward compatibility with old scheme
 	for _, loadBalancer := range region.ELBs {
-		if loadBalancer.ELBTag == elb {
+		if loadBalancer.ELBTag == elbTag {
 			return loadBalancer.Name, nil
 		}
 	}
 
-	return "", fmt.Errorf("ELB tagged %s doesn't exist in the config for region %s", elb, reg)
+	// elbTag will most often be "" so fall through
+	// to untagged single ELB if defined
+	if region.ELB != "" {
+		return region.ELB, nil
+	}
+
+	return "", fmt.Errorf("ELB tagged %s doesn't exist in the config for region %s", elbTag, reg)
 }
 
 func (recv *Environment) GetRegion(regionName string) (*Region, error) {

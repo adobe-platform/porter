@@ -81,6 +81,7 @@ type (
 		DockerfileBuild string       `yaml:"dockerfile_build"`
 		HealthCheck     *HealthCheck `yaml:"health_check"`
 		SrcEnvFile      *SrcEnvFile  `yaml:"src_env_file"`
+		PidsLimit       int          `yaml:"pids_limit"`
 	}
 
 	SrcEnvFile struct {
@@ -363,6 +364,10 @@ func (recv *Config) SetDefaults() {
 				}
 				if container.DockerfileBuild == "" {
 					container.DockerfileBuild = "Dockerfile.build"
+				}
+
+				if container.PidsLimit == 0 {
+					container.PidsLimit = 4096
 				}
 
 				if container.Topology == Topology_Inet {
