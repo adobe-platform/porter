@@ -1,5 +1,10 @@
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+### v5.1.0
+
+- build porter with Go 1.10.1
+- regex matching on region names and instance types instead of whitelist
+
 ### v5.0.0
 
 - build porter with Go 1.9.2
