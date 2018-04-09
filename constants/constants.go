@@ -155,8 +155,7 @@ const (
 )
 
 var (
-	AwsRegions       map[string]interface{}
-	AwsInstanceTypes map[string]interface{}
+	AwsRegions map[string]interface{}
 )
 
 func StackCreationTimeout() time.Duration {
@@ -196,55 +195,5 @@ func init() {
 		"us-east-1":      nil,
 		"us-west-1":      nil,
 		"us-west-2":      nil,
-	}
-
-	AwsInstanceTypes = map[string]interface{}{
-		"t2.nano":    nil,
-		"t2.micro":   nil,
-		"t2.small":   nil,
-		"t2.medium":  nil,
-		"t2.large":   nil,
-		"t2.xlarge":  nil,
-		"t2.2xlarge": nil,
-
-		"m4.large":    nil,
-		"m4.xlarge":   nil,
-		"m4.2xlarge":  nil,
-		"m4.4xlarge":  nil,
-		"m4.10xlarge": nil,
-		"m4.16xlarge": nil,
-
-		"m3.medium":  nil,
-		"m3.large":   nil,
-		"m3.xlarge":  nil,
-		"m3.2xlarge": nil,
-
-		"c4.large":   nil,
-		"c4.xlarge":  nil,
-		"c4.2xlarge": nil,
-		"c4.4xlarge": nil,
-		"c4.8xlarge": nil,
-
-		"c3.large":   nil,
-		"c3.xlarge":  nil,
-		"c3.2xlarge": nil,
-		"c3.4xlarge": nil,
-		"c3.8xlarge": nil,
-
-		"x1.32xlarge": nil,
-		"x1.16xlarge": nil,
-
-		"r4.large":    nil,
-		"r4.xlarge":   nil,
-		"r4.2xlarge":  nil,
-		"r4.4xlarge":  nil,
-		"r4.8xlarge":  nil,
-		"r4.16xlarge": nil,
-
-		"r3.large":   nil,
-		"r3.xlarge":  nil,
-		"r3.2xlarge": nil,
-		"r3.4xlarge": nil,
-		"r3.8xlarge": nil,
 	}
 }

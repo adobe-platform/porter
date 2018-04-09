@@ -50,6 +50,8 @@ var (
 	vpcIdRegex           = regexp.MustCompile(`^vpc-(\d|\w){8}$`)
 	subnetIdRegex        = regexp.MustCompile(`^subnet-(\d|\w){8}$`)
 	commonNameRegex      = regexp.MustCompile(`^(\w+\.)?[a-z]+$`)
+	regionRegex          = regexp.MustCompile(`^[a-z]{2}-[a-z]+-\d$`)
+	instanceTypeRegex    = regexp.MustCompile(`^[a-z0-9]{2}\.[a-z0-9]+$`)
 
 	// https://github.com/docker/docker/blob/v1.11.2/utils/names.go#L6
 	// minus '-' which is reserved
