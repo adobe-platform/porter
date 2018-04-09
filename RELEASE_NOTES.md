@@ -2,6 +2,11 @@ See the [CHANGELOG](CHANGELOG.md) for a complete list of changes.
 
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+v5.1
+====
+
+Removed whitelisting on AWS Regions and EC2 Instance types.
+
 v5.0
 ====
 

@@ -179,7 +179,7 @@ func (recv *Config) ValidateEnvironments() error {
 			}
 		}
 
-		if _, exists := constants.AwsInstanceTypes[environment.InstanceType]; !exists {
+		if !instanceTypeRegex.MatchString(environment.InstanceType) {
 			return errors.New("Invalid instance_type for environment [" + environment.Name + "]")
 		}
 
@@ -247,7 +247,7 @@ func ValidateRegion(region *Region, validateRoleArn bool) error {
 		return err
 	}
 
-	if _, exists := constants.AwsRegions[region.Name]; !exists {
+	if !regionRegex.MatchString(region.Name) {
 		return errors.New("Invalid region name " + region.Name)
 	}
 
