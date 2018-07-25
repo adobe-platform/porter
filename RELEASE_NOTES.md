@@ -5,7 +5,7 @@ See the [CHANGELOG](CHANGELOG.md) for a complete list of changes.
 v5.2
 ====
 
-Added support for build args in the [builder container](docs/detailed_design/docker-builder-pattern.md#build_args)
+Added support for build args in the [builder container](docs/detailed_design/docker-builder-pattern.md#build-args)
 
 v5.1
 ====
