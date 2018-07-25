@@ -2,6 +2,11 @@ See the [CHANGELOG](CHANGELOG.md) for a complete list of changes.
 
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+v5.2
+====
+
+Added support for build args in the [builder container](docs/detailed_design/docker-builder-pattern.md#build_args)
+
 v5.1
 ====
 

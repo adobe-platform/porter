@@ -27,6 +27,56 @@ docker run --rm foo-builder | docker build -t foo -f Dockerfile -
 This enables separating a build environment from a runtime environment, as well
 as simply turning the `.dockerignore` blacklist into a `tar` stream whitelist.
 
+Build args
+----------
+
+Often a build environment needs credentials to call into supporting services
+like privately hosted registries or repositories. These credentials can be passed
+to the build container as [build args](https://docs.docker.com/engine/reference/commandline/build/#set-build-time-variables---build-arg).
+
+From the [Dockerfile reference](https://docs.docker.com/engine/reference/builder/#arg)
+
+> Warning: It is not recommended to use build-time variables for passing secrets
+> like github keys, user credentials etc. Build-time variable values are visible
+> to any user of the image with the docker history command.
+
+While build args are not supposed to be used for secrets the build container
+isn't the final container. Its contents are available only in `docker history`
+of the machine that runs `porter build pack`, NOT in the final container (unless
+the user passes them on, of course). A `docker rmi -f` is run after the build
+image is built and run, even if intermediate steps fail.
+
+> Also, these values don’t persist in the intermediate or final images like ENV values do.
+
+If all of the above is acceptable then read on.
+
+Porter will take the intersection of (1) build args declared in the
+`Dockerfile.build` (or `dockerfile_build`) and (2) its own environment.
+
+**Example `Dockerfile.build`**
+
+```Dockerfile
+FROM ubuntu:18.04
+
+ARG username
+ARG password
+
+RUN download_dependencies -u $username -p $password
+
+# ...
+```
+
+Porter parses each `ARG` value and performs a [`os.LookupEnv`](https://golang.org/pkg/os/#LookupEnv).
+Environment variables may be empty but they must exist.
+
+If the environment variable `username` is `Bob` and `password` is `easytocrack`
+then the resulting commands would look like this:
+
+```
+docker build -t foo-builder -f Dockerfile.build --build-arg username=Bob --build-arg password=easytocrack .
+docker run --rm foo-builder | docker build -t foo -f Dockerfile -
+```
+
 Use cases
 ---------
 

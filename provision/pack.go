@@ -12,6 +12,7 @@
 package provision
 
 import (
+	"bufio"
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/hex"
@@ -21,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -30,7 +32,10 @@ import (
 	"gopkg.in/inconshreveable/log15.v2"
 )
 
-var dockerSaveLock sync.Mutex
+var (
+	dockerSaveLock sync.Mutex
+	buildArgRe     = regexp.MustCompile(`^ARG (.+)$`)
+)
 
 // Package creates the service payload to deliver to S3
 func Package(log log15.Logger, config *conf.Config) (success bool) {
@@ -192,8 +197,51 @@ func buildContainer(log log15.Logger, containerName, dockerfile, dockerfileBuild
 
 	if haveBuilder {
 		var err error
+		var file *os.File
 
-		buildBuilderCmd := exec.Command("docker", "build", "-t", containerName+"-builder", "-f", dockerfileBuild, ".")
+		file, err = os.Open(dockerfileBuild)
+		if err != nil {
+			log.Error("os.Open", "path", dockerfileBuild, "Error", err)
+			return
+		}
+		defer file.Close()
+
+		builderBuildArgs := make([]string, 0)
+
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			match := buildArgRe.FindAllStringSubmatch(scanner.Text(), -1)
+			if len(match) == 1 && len(match[0]) == 2 {
+				log.Info("found build arg", "ARG", match[0][1])
+				builderBuildArgs = append(builderBuildArgs, match[0][1])
+			}
+		}
+		if err = scanner.Err(); err != nil {
+			log.Error("scanner", "Error", err)
+			return
+		}
+
+		builderContainerName := containerName + "-builder"
+
+		buildBuilderCmdArgs := []string{
+			"build",
+			"-t", builderContainerName,
+			"-f", dockerfileBuild,
+		}
+		for _, arg := range builderBuildArgs {
+			if value, exists := os.LookupEnv(arg); exists {
+				buildBuilderCmdArgs = append(buildBuilderCmdArgs, "--build-arg", arg+"="+value)
+			} else {
+				log.Error("build arg " + arg + " missing from environment")
+				return
+			}
+		}
+		buildBuilderCmdArgs = append(buildBuilderCmdArgs, ".")
+		log.Debug("docker build", "Args", buildBuilderCmdArgs[1:])
+
+		defer exec.Command("docker", "rmi", "-f", builderContainerName).Run()
+
+		buildBuilderCmd := exec.Command("docker", buildBuilderCmdArgs...)
 		buildBuilderCmd.Stdout = os.Stdout
 		buildBuilderCmd.Stderr = os.Stderr
 		err = buildBuilderCmd.Run()
@@ -202,7 +250,7 @@ func buildContainer(log log15.Logger, containerName, dockerfile, dockerfileBuild
 			return
 		}
 
-		runCmd := exec.Command("docker", "run", "--rm", containerName+"-builder")
+		runCmd := exec.Command("docker", "run", "--rm", builderContainerName)
 
 		runCmdStdoutPipe, err := runCmd.StdoutPipe()
 		if err != nil {
@@ -226,7 +274,7 @@ func buildContainer(log log15.Logger, containerName, dockerfile, dockerfileBuild
 
 		err = buildCmd.Start()
 		if err != nil {
-			log.Error("build Dockerfile", "Error", err)
+			log.Error("docker build", "Error", err)
 			return
 		}
 

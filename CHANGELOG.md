@@ -1,5 +1,9 @@
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+### v5.2.0
+
+- added support for build args in the builder container
+
 ### v5.1.0
 
 - build porter with Go 1.10.1
