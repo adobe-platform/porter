@@ -1,4 +1,4 @@
-FROM golang:1.10.1
+FROM golang:1.10.3
 
 RUN go get github.com/onsi/ginkgo/ginkgo
 RUN go get github.com/onsi/gomega
