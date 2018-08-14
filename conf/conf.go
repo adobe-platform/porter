@@ -73,17 +73,18 @@ type (
 	}
 
 	Container struct {
-		Name            string `yaml:"name"`
-		OriginalName    string
-		Topology        string       `yaml:"topology"`
-		InetPort        int          `yaml:"inet_port"`
-		Uid             *int         `yaml:"uid"`
-		ReadOnly        *bool        `yaml:"read_only"`
-		Dockerfile      string       `yaml:"dockerfile"`
-		DockerfileBuild string       `yaml:"dockerfile_build"`
-		HealthCheck     *HealthCheck `yaml:"health_check"`
-		SrcEnvFile      *SrcEnvFile  `yaml:"src_env_file"`
-		PidsLimit       int          `yaml:"pids_limit"`
+		Name                   string `yaml:"name"`
+		OriginalName           string
+		Topology               string       `yaml:"topology"`
+		InetPort               int          `yaml:"inet_port"`
+		Uid                    *int         `yaml:"uid"`
+		ReadOnly               *bool        `yaml:"read_only"`
+		Dockerfile             string       `yaml:"dockerfile"`
+		DockerfileBuild        string       `yaml:"dockerfile_build"`
+		ValidateBuildArgsExist *bool        `yaml:"validate_build_args_exist"`
+		HealthCheck            *HealthCheck `yaml:"health_check"`
+		SrcEnvFile             *SrcEnvFile  `yaml:"src_env_file"`
+		PidsLimit              int          `yaml:"pids_limit"`
 	}
 
 	SrcEnvFile struct {

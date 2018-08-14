@@ -122,8 +122,7 @@ func Package(log log15.Logger, config *conf.Config) (success bool) {
 
 		go func(container *conf.Container) {
 
-			successChan <- buildContainer(log, container.Name,
-				container.Dockerfile, container.DockerfileBuild)
+			successChan <- buildContainer(log, container)
 
 		}(container)
 	}
@@ -177,20 +176,20 @@ func Package(log log15.Logger, config *conf.Config) (success bool) {
 	return
 }
 
-func buildContainer(log log15.Logger, containerName, dockerfile, dockerfileBuild string) (success bool) {
+func buildContainer(log log15.Logger, container *conf.Container) (success bool) {
 
-	log = log.New("ImageTag", containerName)
+	log = log.New("ImageTag", container.Name)
 
-	imagePath := fmt.Sprintf("%s/%s.docker", constants.PayloadWorkingDir, containerName)
+	imagePath := fmt.Sprintf("%s/%s.docker", constants.PayloadWorkingDir, container.Name)
 
-	_, err := os.Stat(dockerfile)
+	_, err := os.Stat(container.Dockerfile)
 	if err != nil {
 		log.Error("Dockerfile stat", "Error", err)
 		return
 	}
 
 	haveBuilder := true
-	_, err = os.Stat(dockerfileBuild)
+	_, err = os.Stat(container.DockerfileBuild)
 	if err != nil {
 		haveBuilder = false
 	}
@@ -199,9 +198,9 @@ func buildContainer(log log15.Logger, containerName, dockerfile, dockerfileBuild
 		var err error
 		var file *os.File
 
-		file, err = os.Open(dockerfileBuild)
+		file, err = os.Open(container.DockerfileBuild)
 		if err != nil {
-			log.Error("os.Open", "path", dockerfileBuild, "Error", err)
+			log.Error("os.Open", "path", container.DockerfileBuild, "Error", err)
 			return
 		}
 		defer file.Close()
@@ -221,17 +220,17 @@ func buildContainer(log log15.Logger, containerName, dockerfile, dockerfileBuild
 			return
 		}
 
-		builderContainerName := containerName + "-builder"
+		builderContainerName := container.Name + "-builder"
 
 		buildBuilderCmdArgs := []string{
 			"build",
 			"-t", builderContainerName,
-			"-f", dockerfileBuild,
+			"-f", container.DockerfileBuild,
 		}
 		for _, arg := range builderBuildArgs {
 			if value, exists := os.LookupEnv(arg); exists {
 				buildBuilderCmdArgs = append(buildBuilderCmdArgs, "--build-arg", arg+"="+value)
-			} else {
+			} else if container.ValidateBuildArgsExist == nil || *container.ValidateBuildArgsExist == true {
 				log.Error("build arg " + arg + " missing from environment")
 				return
 			}
@@ -259,8 +258,8 @@ func buildContainer(log log15.Logger, containerName, dockerfile, dockerfileBuild
 		}
 
 		buildCmd := exec.Command("docker", "build",
-			"-t", containerName,
-			"-f", dockerfile,
+			"-t", container.Name,
+			"-f", container.Dockerfile,
 			"-")
 		buildCmd.Stdin = runCmdStdoutPipe
 		buildCmd.Stdout = os.Stdout
@@ -282,8 +281,8 @@ func buildContainer(log log15.Logger, containerName, dockerfile, dockerfileBuild
 		buildCmd.Wait()
 	} else {
 		buildCmd := exec.Command("docker", "build",
-			"-t", containerName,
-			"-f", dockerfile,
+			"-t", container.Name,
+			"-f", container.Dockerfile,
 			".")
 		buildCmd.Stdout = os.Stdout
 		buildCmd.Stderr = os.Stderr
@@ -306,7 +305,7 @@ func buildContainer(log log15.Logger, containerName, dockerfile, dockerfileBuild
 		dockerSaveLock.Lock()
 		defer dockerSaveLock.Unlock()
 
-		saveCmd := exec.Command("docker", "save", "-o", imagePath, containerName)
+		saveCmd := exec.Command("docker", "save", "-o", imagePath, container.Name)
 		saveCmd.Stdout = os.Stdout
 		saveCmd.Stderr = os.Stderr
 		err = saveCmd.Run()
@@ -319,7 +318,7 @@ func buildContainer(log log15.Logger, containerName, dockerfile, dockerfileBuild
 
 		log.Info("docker push")
 
-		pushCmd := exec.Command("docker", "push", containerName)
+		pushCmd := exec.Command("docker", "push", container.Name)
 		pushCmd.Stdout = os.Stdout
 		pushCmd.Stderr = os.Stderr
 		err := pushCmd.Run()
