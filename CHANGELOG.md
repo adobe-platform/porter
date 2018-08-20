@@ -1,5 +1,9 @@
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+### v5.2.1
+
+- revert Go 1.10.3 to 1.8.7 which appears to fix hooks from being ran as noops
+
 ### v5.2.0
 
 - added support for build args in the builder container
