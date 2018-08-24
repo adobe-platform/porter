@@ -1,5 +1,9 @@
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+### v5.2.2
+
+- fix regex validation which didn't support longer resource IDs
+
 ### v5.2.1
 
 - revert Go 1.10.3 to 1.8.7 which appears to fix hooks from being ran as noops
