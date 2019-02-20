@@ -1,5 +1,12 @@
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+### v5.3.0
+
+- upgrade `repo_releasever` to `2018.03`
+- upgrade docker to `docker-18.03.1ce`
+- removed docker daemon's `--disable-legacy-registry` flag which is no longer supported
+- run [`yum upgrade docker`](https://alas.aws.amazon.com/ALAS-2019-1156.html) on EC2 initialization
+
 ### v5.2.2
 
 - fix regex validation which didn't support longer resource IDs
