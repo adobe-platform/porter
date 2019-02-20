@@ -2,6 +2,21 @@ See the [CHANGELOG](CHANGELOG.md) for a complete list of changes.
 
 `porter` is [semantically versioned](http://semver.org/spec/v2.0.0.html)
 
+v5.3
+====
+
+Upgraded cloud-init's `repo_releasever` and Docker in order to patch [CVE-2019-5736](https://nvd.nist.gov/vuln/detail/CVE-2019-5736)
+
+The applied patch can be verified by looking at `/var/log/cloud-init-output.log` for
+
+```
+================================================================================
+ Package      Arch         Version                     Repository          Size
+================================================================================
+Updating:
+ docker       x86_64       18.06.1ce-7.25.amzn1        amzn-updates        45 M
+```
+
 v5.2
 ====
 
